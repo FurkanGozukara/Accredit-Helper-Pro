@@ -2,3 +2,4 @@ venv
 instance
 __pycache__
 app.log
+.vs

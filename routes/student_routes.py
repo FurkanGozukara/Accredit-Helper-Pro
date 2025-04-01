@@ -328,4 +328,164 @@ def auto_save_score(exam_id):
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error auto-saving score: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}) 
+        return jsonify({'success': False, 'error': str(e)})
+
+@student_bp.route('/exam/<int:exam_id>/import-scores', methods=['POST'])
+def import_scores(exam_id):
+    """Import scores from CSV/text data"""
+    exam = Exam.query.get_or_404(exam_id)
+    course = Course.query.get_or_404(exam.course_id)
+    
+    # Get all questions for this exam, indexed by number
+    questions = {q.number: q for q in Question.query.filter_by(exam_id=exam_id).all()}
+    
+    if not questions:
+        flash('No questions found for this exam. Please add questions first.', 'warning')
+        return redirect(url_for('exam.exam_detail', exam_id=exam_id))
+    
+    # Get all students for this course, indexed by student_id
+    students_dict = {s.student_id: s for s in Student.query.filter_by(course_id=course.id).all()}
+    
+    if not students_dict:
+        flash('No students found for this course. Please import students first.', 'warning')
+        return redirect(url_for('student.import_students', course_id=course.id))
+    
+    # Get score data from file or textarea
+    scores_data = ""
+    if 'scores_file' in request.files and request.files['scores_file'].filename:
+        file = request.files['scores_file']
+        try:
+            scores_data = file.read().decode('utf-8')
+        except UnicodeDecodeError:
+            try:
+                scores_data = file.read().decode('latin-1')
+            except:
+                flash('Could not decode the file. Please ensure it is a text file.', 'error')
+                return redirect(url_for('student.manage_scores', exam_id=exam_id))
+    else:
+        scores_data = request.form.get('scores_data', '')
+    
+    if not scores_data.strip():
+        flash('No score data provided', 'error')
+        return redirect(url_for('student.manage_scores', exam_id=exam_id))
+    
+    # Process data
+    lines = scores_data.strip().split('\n')
+    scores_added = 0
+    errors = []
+    
+    for i, line in enumerate(lines, 1):
+        # Skip empty lines
+        if not line.strip():
+            continue
+        
+        # Try to parse the line
+        try:
+            # Split by semicolons
+            parts = [p.strip() for p in line.split(';') if p.strip()]
+            
+            if len(parts) < 3:  # Need at least student_id, name, and one score
+                errors.append(f"Line {i}: Not enough data (expected at least student ID, name, and one score)")
+                continue
+            
+            student_id = parts[0]
+            # We don't use the name part (parts[1]) as we match by student_id
+            
+            # Find the student
+            if student_id not in students_dict:
+                errors.append(f"Line {i}: Student with ID {student_id} not found in this course")
+                continue
+            
+            student = students_dict[student_id]
+            
+            # Process scores (format q1:score1;q2:score2;...)
+            for score_part in parts[2:]:
+                if ':' not in score_part:
+                    errors.append(f"Line {i}: Invalid score format '{score_part}' (expected qX:score)")
+                    continue
+                
+                q_part, score_value = score_part.split(':', 1)
+                
+                # Extract question number
+                if not q_part.startswith('q') and not q_part.startswith('Q'):
+                    errors.append(f"Line {i}: Invalid question format '{q_part}' (expected qX)")
+                    continue
+                
+                try:
+                    q_num = int(q_part[1:])
+                    if q_num not in questions:
+                        errors.append(f"Line {i}: Question number {q_num} not found in this exam")
+                        continue
+                    
+                    question = questions[q_num]
+                    
+                    # Parse and validate score
+                    try:
+                        score_value = float(score_value)
+                        # Ensure score is within valid range
+                        if score_value < 0:
+                            score_value = 0
+                        elif score_value > question.max_score:
+                            score_value = question.max_score
+                            
+                        # Get or create score record
+                        score = Score.query.filter_by(
+                            student_id=student.id,
+                            question_id=question.id,
+                            exam_id=exam_id
+                        ).first()
+                        
+                        if score:
+                            score.score = score_value
+                            score.updated_at = datetime.now()
+                        else:
+                            score = Score(
+                                score=score_value,
+                                student_id=student.id,
+                                question_id=question.id,
+                                exam_id=exam_id
+                            )
+                            db.session.add(score)
+                        
+                        scores_added += 1
+                        
+                    except ValueError:
+                        errors.append(f"Line {i}: Invalid score value '{score_value}' for question {q_num}")
+                        continue
+                    
+                except ValueError:
+                    errors.append(f"Line {i}: Invalid question number '{q_part[1:]}' (expected integer)")
+                    continue
+        
+        except Exception as e:
+            errors.append(f"Line {i}: Error processing line - {str(e)}")
+    
+    if scores_added > 0:
+        try:
+            # Log action
+            log = Log(action="IMPORT_SCORES", 
+                     description=f"Imported {scores_added} scores for exam: {exam.name} in course: {course.code}")
+            db.session.add(log)
+            
+            db.session.commit()
+            flash(f'Successfully imported {scores_added} scores', 'success')
+            
+            if errors:
+                flash(f'There were {len(errors)} errors during import. See details below.', 'warning')
+                for error in errors[:10]:  # Show first 10 errors
+                    flash(error, 'warning')
+                if len(errors) > 10:
+                    flash(f'... and {len(errors) - 10} more errors', 'warning')
+            
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error committing score import: {str(e)}")
+            flash(f'An error occurred while importing scores: {str(e)}', 'error')
+    else:
+        flash('No scores were imported. Please check the data format and try again.', 'error')
+        for error in errors[:10]:  # Show first 10 errors
+            flash(error, 'warning')
+        if len(errors) > 10:
+            flash(f'... and {len(errors) - 10} more errors', 'warning')
+    
+    return redirect(url_for('student.manage_scores', exam_id=exam_id)) 
