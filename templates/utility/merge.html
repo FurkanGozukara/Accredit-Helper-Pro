@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+
+{% block title %}Merge Courses - ABET Calculator{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('utility.index') }}">Utilities</a></li>
+<li class="breadcrumb-item active">Merge Courses</li>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Merge Courses</h1>
+        <a href="{{ url_for('utility.index') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Utilities
+        </a>
+    </div>
+    
+    <div class="alert alert-info mb-4">
+        <h5><i class="fas fa-info-circle"></i> About Course Merging</h5>
+        <p>This utility allows you to combine data from multiple course sections into a single course. You can merge:</p>
+        <ul>
+            <li>Students and their scores</li>
+            <li>Exams and questions</li>
+            <li>Course outcomes</li>
+        </ul>
+        <p>Merging is useful for combining data from different sections of the same course or for consolidating historical data.</p>
+    </div>
+    
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Select Courses to Merge</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('utility.merge_courses') }}">
+                <div class="mb-4">
+                    <label for="destination_course" class="form-label">Destination Course <span class="text-danger">*</span></label>
+                    <select class="form-select" id="destination_course" name="destination_course" required>
+                        <option value="">-- Select destination course --</option>
+                        {% for course in courses %}
+                            <option value="{{ course.id }}">{{ course.code }}: {{ course.name }} ({{ course.term }})</option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">This is the course that will receive data from the source courses.</div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="form-label">Source Courses <span class="text-danger">*</span></label>
+                    <div class="card">
+                        <div class="card-body bg-light">
+                            {% for course in courses %}
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input source-course-check" type="checkbox" 
+                                           name="source_courses" value="{{ course.id }}" 
+                                           id="course_{{ course.id }}">
+                                    <label class="form-check-label" for="course_{{ course.id }}">
+                                        <strong>{{ course.code }}</strong>: {{ course.name }} ({{ course.term }})
+                                        <small class="text-muted d-block">
+                                            {{ course.students|length }} students, 
+                                            {{ course.exams|length }} exams, 
+                                            {{ course.course_outcomes|length }} course outcomes
+                                        </small>
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="form-text">Select one or more courses to merge into the destination course.</div>
+                </div>
+                
+                <div class="mb-4">
+                    <h5>Merge Options</h5>
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="merge_students" name="merge_students" checked>
+                                    <label class="form-check-label" for="merge_students">Merge Students and Scores</label>
+                                </div>
+                                <div class="form-text">Import students and their scores from source courses.</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="merge_exams" name="merge_exams" checked>
+                                    <label class="form-check-label" for="merge_exams">Merge Exams and Questions</label>
+                                </div>
+                                <div class="form-text">Import exams and questions from source courses.</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="merge_outcomes" name="merge_outcomes" checked>
+                                    <label class="form-check-label" for="merge_outcomes">Merge Course Outcomes</label>
+                                </div>
+                                <div class="form-text">Import course outcomes and their program outcome associations.</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="create_backup" name="create_backup" checked>
+                                    <label class="form-check-label" for="create_backup">
+                                        Create a backup before merging
+                                    </label>
+                                </div>
+                                <div class="form-text">Recommended: Create a database backup before performing the merge operation.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="confirm_merge" name="confirm_merge" required>
+                        <label class="form-check-label" for="confirm_merge">
+                            I understand that this operation will copy data between courses and cannot be automatically undone.
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary" id="mergeButton" disabled>
+                        <i class="fas fa-object-group"></i> Merge Courses
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const destinationSelect = document.getElementById('destination_course');
+        const sourceCheckboxes = document.querySelectorAll('.source-course-check');
+        const confirmCheckbox = document.getElementById('confirm_merge');
+        const mergeButton = document.getElementById('mergeButton');
+        
+        // Disable destination course in source list when selected
+        destinationSelect.addEventListener('change', function() {
+            const selectedId = this.value;
+            
+            sourceCheckboxes.forEach(checkbox => {
+                if (checkbox.value === selectedId) {
+                    checkbox.checked = false;
+                    checkbox.disabled = true;
+                } else {
+                    checkbox.disabled = false;
+                }
+            });
+            
+            validateForm();
+        });
+        
+        // Enable merge button when confirmation is checked
+        confirmCheckbox.addEventListener('change', function() {
+            validateForm();
+        });
+        
+        // Validate form when source courses are selected/deselected
+        sourceCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                validateForm();
+            });
+        });
+        
+        function validateForm() {
+            const destinationSelected = destinationSelect.value !== '';
+            let sourceSelected = false;
+            
+            sourceCheckboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    sourceSelected = true;
+                }
+            });
+            
+            mergeButton.disabled = !(destinationSelected && sourceSelected && confirmCheckbox.checked);
+        }
+    });
+</script>
+{% endblock %} 

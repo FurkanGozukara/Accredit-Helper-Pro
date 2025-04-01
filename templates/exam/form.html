@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ 'Edit' if exam else 'Add' }} Exam - ABET Calculator{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('course.course_detail', course_id=course.id) }}">{{ course.code }}</a></li>
+<li class="breadcrumb-item active">{{ 'Edit' if exam else 'Add' }} Exam</li>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">{{ 'Edit' if exam else 'Add' }} Exam for {{ course.code }}: {{ course.name }}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{% if exam %}{{ url_for('exam.edit_exam', exam_id=exam.id) }}{% else %}{{ url_for('exam.add_exam', course_id=course.id) }}{% endif %}">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Exam Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="name" name="name" required 
+                                   value="{{ exam.name if exam else '' }}" placeholder="e.g., Midterm, Final, Quiz 1">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="max_score" class="form-label">Maximum Score <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="max_score" name="max_score" required 
+                                   value="{{ exam.max_score if exam else '100' }}" min="1" step="0.1">
+                            <div class="form-text">The total possible points for this exam (e.g., 100)</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="exam_date" class="form-label">Exam Date</label>
+                            <input type="date" class="form-control" id="exam_date" name="exam_date"
+                                   value="{{ exam.exam_date.strftime('%Y-%m-%d') if exam and exam.exam_date else '' }}">
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_makeup" name="is_makeup" 
+                                       {% if exam and exam.is_makeup %}checked{% endif %}
+                                       onchange="toggleMakeupOptions()">
+                                <label class="form-check-label" for="is_makeup">
+                                    This is a make-up exam
+                                </label>
+                            </div>
+                            
+                            <div class="mt-3" id="makeupOptions" style="display: none;">
+                                <label for="makeup_for" class="form-label">Make-up for:</label>
+                                <select class="form-select" id="makeup_for" name="makeup_for">
+                                    <option value="">-- Select original exam --</option>
+                                    {% for other_exam in other_exams %}
+                                        <option value="{{ other_exam.id }}"
+                                            {% if exam and exam.makeup_for == other_exam.id %}selected{% endif %}>
+                                            {{ other_exam.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Select which exam this is a make-up for. The weight will be inherited.</div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('course.course_detail', course_id=course.id) }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to Course
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> {{ 'Update' if exam else 'Add' }} Exam
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        toggleMakeupOptions();
+    });
+    
+    function toggleMakeupOptions() {
+        const isMakeup = document.getElementById('is_makeup').checked;
+        const makeupOptions = document.getElementById('makeupOptions');
+        
+        if (isMakeup) {
+            makeupOptions.style.display = 'block';
+            document.getElementById('makeup_for').required = true;
+        } else {
+            makeupOptions.style.display = 'none';
+            document.getElementById('makeup_for').required = false;
+        }
+    }
+</script>
+{% endblock %} 

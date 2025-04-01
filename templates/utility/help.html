@@ -1,0 +1,374 @@
+{% extends 'base.html' %}
+
+{% block title %}Help & Documentation - ABET Calculator{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('utility.index') }}">Utilities</a></li>
+<li class="breadcrumb-item active">Help & Documentation</li>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Help & Documentation</h1>
+        <a href="{{ url_for('utility.index') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Utilities
+        </a>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-3 mb-4">
+            <div class="list-group" id="helpNav">
+                <a class="list-group-item list-group-item-action active" href="#overview" data-bs-toggle="list">Overview</a>
+                <a class="list-group-item list-group-item-action" href="#getting-started" data-bs-toggle="list">Getting Started</a>
+                <a class="list-group-item list-group-item-action" href="#courses" data-bs-toggle="list">Courses</a>
+                <a class="list-group-item list-group-item-action" href="#outcomes" data-bs-toggle="list">Outcomes</a>
+                <a class="list-group-item list-group-item-action" href="#exams" data-bs-toggle="list">Exams & Questions</a>
+                <a class="list-group-item list-group-item-action" href="#students" data-bs-toggle="list">Students & Scores</a>
+                <a class="list-group-item list-group-item-action" href="#calculation" data-bs-toggle="list">ABET Calculations</a>
+                <a class="list-group-item list-group-item-action" href="#utilities" data-bs-toggle="list">Utilities</a>
+                <a class="list-group-item list-group-item-action" href="#faq" data-bs-toggle="list">FAQ</a>
+                <a class="list-group-item list-group-item-action" href="#contact" data-bs-toggle="list">Contact & Support</a>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <div class="tab-content" id="helpContent">
+                <!-- Overview -->
+                <div class="tab-pane fade show active" id="overview">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h4 class="mb-0">ABET Calculator - Overview</h4>
+                        </div>
+                        <div class="card-body">
+                            <p class="lead">Welcome to the ABET Calculator, a comprehensive tool for managing course outcomes, student performance, and ABET assessment.</p>
+                            
+                            <p>This application is designed to help faculty and administrators:</p>
+                            <ul>
+                                <li>Define program and course outcomes aligned with ABET criteria</li>
+                                <li>Track student performance on exams and course assessments</li>
+                                <li>Calculate achievement levels for course and program outcomes</li>
+                                <li>Generate reports for ABET accreditation purposes</li>
+                                <li>Maintain historical data for continuous improvement</li>
+                            </ul>
+                            
+                            <p>Use the navigation on the left to explore specific areas of the documentation.</p>
+                            
+                            <div class="alert alert-info mt-3">
+                                <i class="fas fa-info-circle"></i> Quick Tip: Start by adding a course and defining your program and course outcomes before importing students and creating exams.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Getting Started -->
+                <div class="tab-pane fade" id="getting-started">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h4 class="mb-0">Getting Started</h4>
+                        </div>
+                        <div class="card-body">
+                            <h5>First-time Setup</h5>
+                            <p>Follow these steps to get started with the ABET Calculator:</p>
+                            
+                            <ol>
+                                <li class="mb-2">
+                                    <strong>Define Program Outcomes</strong>
+                                    <p>Start by adding program outcomes that align with your program's educational objectives and ABET criteria.</p>
+                                    <a href="{{ url_for('outcome.list_program_outcomes') }}" class="btn btn-sm btn-outline-primary">Go to Program Outcomes</a>
+                                </li>
+                                
+                                <li class="mb-2">
+                                    <strong>Create a Course</strong>
+                                    <p>Add a course with its code, name, and term information.</p>
+                                    <a href="{{ url_for('course.add_course') }}" class="btn btn-sm btn-outline-primary">Add Course</a>
+                                </li>
+                                
+                                <li class="mb-2">
+                                    <strong>Define Course Outcomes</strong>
+                                    <p>Create course outcomes for your course and link them to relevant program outcomes.</p>
+                                </li>
+                                
+                                <li class="mb-2">
+                                    <strong>Import Students</strong>
+                                    <p>Add students to your course by importing from a file or pasting a list.</p>
+                                </li>
+                                
+                                <li class="mb-2">
+                                    <strong>Add Exams and Questions</strong>
+                                    <p>Create exams and associate exam questions with course outcomes.</p>
+                                </li>
+                                
+                                <li class="mb-2">
+                                    <strong>Enter Student Scores</strong>
+                                    <p>Record student performance on each question.</p>
+                                </li>
+                                
+                                <li>
+                                    <strong>Calculate Results</strong>
+                                    <p>Generate and view achievement levels for course and program outcomes.</p>
+                                </li>
+                            </ol>
+                            
+                            <div class="alert alert-success mt-3">
+                                <i class="fas fa-check-circle"></i> After completing these steps, you'll have a fully functional ABET assessment system for your course.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Courses -->
+                <div class="tab-pane fade" id="courses">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h4 class="mb-0">Managing Courses</h4>
+                        </div>
+                        <div class="card-body">
+                            <h5>Course Management</h5>
+                            <p>Courses are the main containers for organizing your ABET assessment data.</p>
+                            
+                            <h6>Adding a Course</h6>
+                            <ol>
+                                <li>Navigate to the Courses page</li>
+                                <li>Click "Add Course"</li>
+                                <li>Enter a unique course code (e.g., CSE101)</li>
+                                <li>Enter the course name and term</li>
+                                <li>Click "Save Course"</li>
+                            </ol>
+                            
+                            <h6>Course Detail Page</h6>
+                            <p>Each course has a detail page showing:</p>
+                            <ul>
+                                <li>Course information</li>
+                                <li>Course outcomes</li>
+                                <li>Exams</li>
+                                <li>Student list</li>
+                                <li>Actions (calculate results, manage weights, etc.)</li>
+                            </ul>
+                            
+                            <h6>Course Weights</h6>
+                            <p>You can adjust the weight of each exam in the final course calculation. The total weight must equal 100%.</p>
+                            
+                            <div class="alert alert-info mt-3">
+                                <i class="fas fa-info-circle"></i> Tip: You can use the "Duplicate Course" feature to create a copy of a course for a new term while preserving outcomes and exam structures.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Other sections follow the same pattern -->
+                <div class="tab-pane fade" id="outcomes">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h4 class="mb-0">Program & Course Outcomes</h4>
+                        </div>
+                        <div class="card-body">
+                            <h5>Working with Outcomes</h5>
+                            
+                            <h6>Program Outcomes</h6>
+                            <p>Program outcomes are high-level educational objectives that align with ABET criteria. They typically apply to an entire program.</p>
+                            <ul>
+                                <li>Add program outcomes with clear, measurable descriptions</li>
+                                <li>Assign unique codes (e.g., PO1, PÇ1) for easy reference</li>
+                                <li>Program outcomes can be linked to multiple course outcomes</li>
+                            </ul>
+                            
+                            <h6>Course Outcomes</h6>
+                            <p>Course outcomes are specific learning objectives for a particular course. They should support one or more program outcomes.</p>
+                            <ul>
+                                <li>Add course outcomes with measurable descriptions</li>
+                                <li>Link each course outcome to relevant program outcomes</li>
+                                <li>Course outcomes are assessed through exam questions</li>
+                            </ul>
+                            
+                            <div class="alert alert-warning mt-3">
+                                <i class="fas fa-exclamation-triangle"></i> Important: Establishing clear relationships between program outcomes, course outcomes, and exam questions is essential for accurate ABET assessment.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FAQ Section -->
+                <div class="tab-pane fade" id="faq">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h4 class="mb-0">Frequently Asked Questions</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="accordion" id="faqAccordion">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                                            How are ABET achievement levels calculated?
+                                        </button>
+                                    </h2>
+                                    <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
+                                        <div class="accordion-body">
+                                            <p>Achievement levels for course outcomes are calculated by:</p>
+                                            <ol>
+                                                <li>For each question linked to a course outcome, calculating the average student performance percentage</li>
+                                                <li>Weighting these question scores based on their maximum points</li>
+                                                <li>Combining weighted scores to get an overall achievement level for the course outcome</li>
+                                            </ol>
+                                            <p>Program outcome achievement levels are derived from the linked course outcomes, weighted by their relationship strength.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                                            Can I export data for ABET accreditation reports?
+                                        </button>
+                                    </h2>
+                                    <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                                        <div class="accordion-body">
+                                            <p>Yes, you can export data in several formats:</p>
+                                            <ul>
+                                                <li>CSV exports for raw data</li>
+                                                <li>PDF reports for course outcome achievement</li>
+                                                <li>Charts and visualizations for program outcome achievements</li>
+                                                <li>Complete course assessment reports</li>
+                                            </ul>
+                                            <p>Use the "Export Results" option on the calculation results page.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                                            How do I handle make-up exams?
+                                        </button>
+                                    </h2>
+                                    <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                                        <div class="accordion-body">
+                                            <p>Make-up exams are handled as follows:</p>
+                                            <ol>
+                                                <li>Create a new exam and mark it as a "make-up exam"</li>
+                                                <li>Select which original exam it replaces</li>
+                                                <li>The make-up exam will inherit the weight of the original exam</li>
+                                                <li>When calculating results, the system will use the make-up score for students who took it, and the original exam score for others</li>
+                                            </ol>
+                                            <p>This ensures accurate assessment while accommodating students who need to take make-up exams.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Contact & Support -->
+                <div class="tab-pane fade" id="contact">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h4 class="mb-0">Contact & Support</h4>
+                        </div>
+                        <div class="card-body">
+                            <h5>Need Help?</h5>
+                            
+                            <p>If you encounter any issues or have questions about using the ABET Calculator, please contact our support team:</p>
+                            
+                            <div class="row mt-4">
+                                <div class="col-md-6">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6><i class="fas fa-envelope"></i> Email Support</h6>
+                                            <p>For technical issues or feature requests:</p>
+                                            <p><a href="mailto:support@abet-calculator.example.com">support@abet-calculator.example.com</a></p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6><i class="fas fa-phone"></i> Phone Support</h6>
+                                            <p>Available Monday-Friday, 9am-5pm:</p>
+                                            <p><a href="tel:+11234567890">+1 (123) 456-7890</a></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h5 class="mt-4">Feedback</h5>
+                            <p>We welcome your feedback to improve the ABET Calculator. Please share your suggestions or report issues using the form below:</p>
+                            
+                            <form action="{{ url_for('utility.submit_feedback') }}" method="POST" class="mt-3">
+                                <div class="mb-3">
+                                    <label for="feedback_name" class="form-label">Your Name</label>
+                                    <input type="text" class="form-control" id="feedback_name" name="name">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="feedback_email" class="form-label">Email Address</label>
+                                    <input type="email" class="form-control" id="feedback_email" name="email">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="feedback_type" class="form-label">Feedback Type</label>
+                                    <select class="form-select" id="feedback_type" name="feedback_type">
+                                        <option value="bug">Bug Report</option>
+                                        <option value="feature">Feature Request</option>
+                                        <option value="suggestion">Suggestion</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="feedback_message" class="form-label">Your Message</label>
+                                    <textarea class="form-control" id="feedback_message" name="message" rows="5" required></textarea>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane"></i> Submit Feedback
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Add remaining sections as needed -->
+                <div class="tab-pane fade" id="exams">
+                    <!-- Exams & Questions content -->
+                </div>
+                
+                <div class="tab-pane fade" id="students">
+                    <!-- Students & Scores content -->
+                </div>
+                
+                <div class="tab-pane fade" id="calculation">
+                    <!-- ABET Calculations content -->
+                </div>
+                
+                <div class="tab-pane fade" id="utilities">
+                    <!-- Utilities content -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Activate hash-based navigation if present
+        const hash = window.location.hash;
+        if (hash) {
+            const tab = document.querySelector(`#helpNav a[href="${hash}"]`);
+            if (tab) {
+                tab.click();
+            }
+        }
+        
+        // Update URL hash when tabs change
+        const tabLinks = document.querySelectorAll('#helpNav a');
+        tabLinks.forEach(link => {
+            link.addEventListener('shown.bs.tab', function(e) {
+                window.location.hash = e.target.getAttribute('href');
+            });
+        });
+    });
+</script>
+{% endblock %} 

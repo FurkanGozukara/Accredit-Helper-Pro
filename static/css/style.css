@@ -1,0 +1,132 @@
+/* Custom CSS for ABET Calculator */
+
+/* General styling */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.container {
+    flex: 1;
+}
+
+.footer {
+    margin-top: auto;
+}
+
+/* Table styles */
+.table-responsive {
+    overflow-x: auto;
+}
+
+.table th {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 1;
+}
+
+/* Form styles */
+.form-label.required::after {
+    content: "*";
+    color: red;
+    margin-left: 4px;
+}
+
+/* Card styles */
+.card {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.card-header {
+    font-weight: bold;
+}
+
+/* Custom badges for outcomes */
+.badge-outcome {
+    margin-right: 5px;
+    margin-bottom: 5px;
+    font-size: 0.85em;
+    padding: 6px 10px;
+}
+
+/* Auto-save indicator */
+.autosave-indicator {
+    display: none;
+    color: #28a745;
+    font-size: 0.8em;
+    margin-left: 10px;
+}
+
+.autosave-error {
+    color: #dc3545;
+}
+
+/* Score input fields */
+.score-input {
+    width: 60px;
+    text-align: center;
+}
+
+/* Breadcrumb styling */
+.breadcrumb {
+    background-color: #f8f9fa;
+    padding: 0.75rem 1rem;
+    border-radius: 0.25rem;
+    margin-bottom: 1rem;
+}
+
+/* Custom tabs */
+.custom-tabs .nav-link {
+    border: 1px solid transparent;
+    border-top-left-radius: 0.25rem;
+    border-top-right-radius: 0.25rem;
+    padding: 0.5rem 1rem;
+    margin-right: 3px;
+    color: #495057;
+}
+
+.custom-tabs .nav-link.active {
+    background-color: #fff;
+    border-color: #dee2e6 #dee2e6 #fff;
+    font-weight: bold;
+}
+
+/* Help section styling */
+.help-section {
+    margin-bottom: 2rem;
+}
+
+.help-section h2 {
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+/* Dashboard stats */
+.stats-card {
+    text-align: center;
+    padding: 1.5rem;
+}
+
+.stats-card .icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+.stats-card .count {
+    font-size: 2.5rem;
+    font-weight: bold;
+}
+
+.stats-card .label {
+    font-size: 1rem;
+    color: #6c757d;
+} 

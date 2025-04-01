@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block title %}Program Outcomes - ABET Calculator{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+<li class="breadcrumb-item active">Program Outcomes</li>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Program Outcomes</h1>
+        <a href="{{ url_for('outcome.add_program_outcome') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Program Outcome
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">All Program Outcomes</h5>
+        </div>
+        <div class="card-body">
+            {% if program_outcomes %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Code</th>
+                                <th>Description</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for outcome in program_outcomes %}
+                                <tr>
+                                    <td><strong>{{ outcome.code }}</strong></td>
+                                    <td>{{ outcome.description }}</td>
+                                    <td class="text-center">
+                                        <a href="{{ url_for('outcome.edit_program_outcome', outcome_id=outcome.id) }}" 
+                                           class="btn btn-sm btn-outline-primary me-2" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#confirmDeleteModal" 
+                                                data-outcome-id="{{ outcome.id }}"
+                                                data-outcome-code="{{ outcome.code }}"
+                                                title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> No program outcomes have been added yet.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="confirmDeleteModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete program outcome <strong id="outcomeCodeToDelete"></strong>?</p>
+                <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> This action cannot be undone!</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteOutcomeForm" method="POST" action="">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const confirmDeleteModal = document.getElementById('confirmDeleteModal');
+        if (confirmDeleteModal) {
+            confirmDeleteModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const outcomeId = button.getAttribute('data-outcome-id');
+                const outcomeCode = button.getAttribute('data-outcome-code');
+                
+                document.getElementById('outcomeCodeToDelete').textContent = outcomeCode;
+                document.getElementById('deleteOutcomeForm').action = `/outcome/program/delete/${outcomeId}`;
+            });
+        }
+    });
+</script>
+{% endblock %} 

@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {% if outcome %}Edit Program Outcome{% else %}Add Program Outcome{% endif %} - ABET Calculator
+{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('outcome.list_program_outcomes') }}">Program Outcomes</a></li>
+<li class="breadcrumb-item active">{% if outcome %}Edit{% else %}Add{% endif %} Program Outcome</li>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">{% if outcome %}Edit{% else %}Add{% endif %} Program Outcome</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{% if outcome %}{{ url_for('outcome.edit_program_outcome', outcome_id=outcome.id) }}{% else %}{{ url_for('outcome.add_program_outcome') }}{% endif %}">
+                        <div class="mb-3">
+                            <label for="code" class="form-label">Outcome Code <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="code" name="code" required 
+                                   value="{{ outcome.code if outcome else '' }}" placeholder="e.g., PÇ1">
+                            <div class="form-text">A short code to identify this program outcome (e.g., PÇ1, PO1)</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="description" name="description" rows="5" required
+                                     placeholder="Enter a detailed description of this program outcome">{{ outcome.description if outcome else '' }}</textarea>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('outcome.list_program_outcomes') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Back
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> {% if outcome %}Update{% else %}Save{% endif %} Program Outcome
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block title %}Import Results - ABET Calculator{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('course.course_detail', course_id=course.id) }}">{{ course.code }}</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('student.import_students', course_id=course.id) }}">Import Students</a></li>
+<li class="breadcrumb-item active">Import Results</li>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Student Import Results for {{ course.code }}: {{ course.name }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success">
+                        <h5><i class="fas fa-check-circle"></i> Import Complete</h5>
+                        <p>Successfully imported {{ students_added }} student{{ 's' if students_added != 1 else '' }}.</p>
+                    </div>
+                    
+                    {% if errors %}
+                        <div class="mt-4">
+                            <h5>Import Errors</h5>
+                            <div class="alert alert-warning">
+                                <p>The following errors occurred during import:</p>
+                                <ul class="mb-0">
+                                    {% for error in errors %}
+                                        <li>{{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{{ url_for('student.import_students', course_id=course.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-file-import"></i> Import More Students
+                        </a>
+                        <a href="{{ url_for('student.list_students', course_id=course.id) }}" class="btn btn-primary">
+                            <i class="fas fa-list"></i> View Student List
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

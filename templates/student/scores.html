@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+
+{% block title %}Enter Scores - {{ exam.name }} - ABET Calculator{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('course.course_detail', course_id=exam.course_id) }}">{{ exam.course.code }}</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('exam.exam_detail', exam_id=exam.id) }}">{{ exam.name }}</a></li>
+<li class="breadcrumb-item active">Enter Scores</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="card">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Enter Scores: {{ exam.name }} ({{ exam.course.code }})</h4>
+            <span>
+                <button type="button" class="btn btn-outline-success" id="saveAllButton">
+                    <i class="fas fa-save"></i> Save All Changes
+                </button>
+                <a href="{{ url_for('exam.exam_detail', exam_id=exam.id) }}" class="btn btn-outline-secondary ms-2">
+                    <i class="fas fa-arrow-left"></i> Back to Exam
+                </a>
+            </span>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info" id="autoSaveInfo">
+                <i class="fas fa-info-circle"></i> Scores are automatically saved when you move to another cell.
+                <span id="saveStatus"></span>
+            </div>
+            
+            <div class="table-responsive">
+                <form id="scoresForm" method="POST" action="{{ url_for('student.manage_scores', exam_id=exam.id) }}">
+                    <table class="table table-striped table-hover table-bordered">
+                        <thead class="thead-light">
+                            <tr>
+                                <th class="align-middle" rowspan="2">Student</th>
+                                <th class="text-center" colspan="{{ questions|length }}">Questions</th>
+                                <th class="align-middle" rowspan="2">Total Score</th>
+                                <th class="align-middle" rowspan="2">Percentage</th>
+                            </tr>
+                            <tr>
+                                {% for question in questions|sort(attribute='number') %}
+                                    <th class="text-center">
+                                        Q{{ question.number }}<br>
+                                        <small>({{ question.max_score }})</small>
+                                    </th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student in students %}
+                                <tr>
+                                    <td>
+                                        {{ student.student_id }}<br>
+                                        <small>{{ student.first_name }} {{ student.last_name }}</small>
+                                    </td>
+                                    
+                                    {% for question in questions|sort(attribute='number') %}
+                                        {% set score = scores|selectattr('student_id', 'equalto', student.id)|selectattr('question_id', 'equalto', question.id)|first %}
+                                        <td>
+                                            <input type="number" 
+                                                  class="form-control score-input student-{{ student.id }}" 
+                                                  name="score_{{ student.id }}_{{ question.id }}" 
+                                                  value="{{ score.score if score else '' }}"
+                                                  min="0" max="{{ question.max_score }}" step="0.5"
+                                                  data-student-id="{{ student.id }}"
+                                                  data-question-id="{{ question.id }}"
+                                                  data-max-score="{{ question.max_score }}">
+                                        </td>
+                                    {% endfor %}
+                                    
+                                    <td class="text-center student-total" id="total_{{ student.id }}">0</td>
+                                    <td class="text-center student-percentage" id="percentage_{{ student.id }}">0%</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <button type="submit" class="btn btn-primary d-none">Save All Scores</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const scoreInputs = document.querySelectorAll('.score-input');
+        const saveStatus = document.getElementById('saveStatus');
+        const saveAllButton = document.getElementById('saveAllButton');
+        const form = document.getElementById('scoresForm');
+        
+        // Calculate initial totals
+        updateAllTotals();
+        
+        // Add event listeners to all score inputs
+        scoreInputs.forEach(input => {
+            input.addEventListener('change', function() {
+                validateScore(this);
+                updateStudentTotal(this.dataset.studentId);
+                autoSaveScore(this);
+            });
+            
+            input.addEventListener('focus', function() {
+                this.select();
+            });
+            
+            // Allow keyboard navigation between cells
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Tab' || e.key === 'Enter') {
+                    validateScore(this);
+                    updateStudentTotal(this.dataset.studentId);
+                }
+            });
+        });
+        
+        // Save all button
+        saveAllButton.addEventListener('click', function() {
+            form.submit();
+        });
+        
+        function validateScore(input) {
+            const value = parseFloat(input.value);
+            const maxScore = parseFloat(input.dataset.maxScore);
+            
+            if (isNaN(value)) {
+                input.value = '';
+                return;
+            }
+            
+            if (value < 0) {
+                input.value = 0;
+            } else if (value > maxScore) {
+                input.value = maxScore;
+            }
+        }
+        
+        function updateStudentTotal(studentId) {
+            const inputs = document.querySelectorAll(`.student-${studentId}`);
+            let total = 0;
+            let examTotal = 0;
+            
+            inputs.forEach(input => {
+                const value = parseFloat(input.value) || 0;
+                const maxScore = parseFloat(input.dataset.maxScore) || 0;
+                total += value;
+                examTotal += maxScore;
+            });
+            
+            const totalElement = document.getElementById(`total_${studentId}`);
+            const percentageElement = document.getElementById(`percentage_${studentId}`);
+            
+            totalElement.textContent = total.toFixed(1);
+            
+            const percentage = examTotal > 0 ? (total / examTotal) * 100 : 0;
+            percentageElement.textContent = percentage.toFixed(1) + '%';
+            
+            // Color coding based on percentage
+            if (percentage >= 70) {
+                percentageElement.classList.add('text-success');
+                percentageElement.classList.remove('text-warning', 'text-danger');
+            } else if (percentage >= 50) {
+                percentageElement.classList.add('text-warning');
+                percentageElement.classList.remove('text-success', 'text-danger');
+            } else {
+                percentageElement.classList.add('text-danger');
+                percentageElement.classList.remove('text-success', 'text-warning');
+            }
+        }
+        
+        function updateAllTotals() {
+            const studentIds = new Set();
+            scoreInputs.forEach(input => {
+                studentIds.add(input.dataset.studentId);
+            });
+            
+            studentIds.forEach(id => {
+                updateStudentTotal(id);
+            });
+        }
+        
+        function autoSaveScore(input) {
+            const studentId = input.dataset.studentId;
+            const questionId = input.dataset.questionId;
+            const score = input.value;
+            
+            saveStatus.textContent = '⌛ Saving...';
+            saveStatus.className = 'text-warning';
+            
+            fetch("{{ url_for('student.auto_save_score', exam_id=exam.id) }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    student_id: studentId,
+                    question_id: questionId,
+                    score: score
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    saveStatus.textContent = '✓ All changes saved';
+                    saveStatus.className = 'text-success';
+                    
+                    setTimeout(() => {
+                        saveStatus.textContent = '';
+                    }, 2000);
+                } else {
+                    saveStatus.textContent = '✗ Error saving: ' + data.error;
+                    saveStatus.className = 'text-danger';
+                }
+            })
+            .catch(error => {
+                saveStatus.textContent = '✗ Network error';
+                saveStatus.className = 'text-danger';
+                console.error('Error:', error);
+            });
+        }
+    });
+</script>
+{% endblock %} 

@@ -1,0 +1,461 @@
+{% extends 'base.html' %}
+
+{% block title %}ABET Calculations - {{ course.code }} - ABET Calculator{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('course.course_detail', course_id=course.id) }}">{{ course.code }}</a></li>
+<li class="breadcrumb-item active">ABET Calculations</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>ABET Calculations for {{ course.code }}: {{ course.name }}</h1>
+        <div>
+            <button type="button" class="btn btn-outline-success me-2" onclick="exportResults()">
+                <i class="fas fa-file-export"></i> Export Results
+            </button>
+            <a href="{{ url_for('course.course_detail', course_id=course.id) }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Course
+            </a>
+        </div>
+    </div>
+    
+    {% if not has_course_outcomes %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i> No course outcomes have been defined for this course.
+            <a href="{{ url_for('outcome.add_course_outcome', course_id=course.id) }}" class="alert-link">Add course outcomes</a> to proceed.
+        </div>
+    {% elif not has_exam_questions %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i> No exam questions have been associated with course outcomes.
+            <a href="{{ url_for('exam.exam_detail', exam_id=exams[0].id) }}" class="alert-link">Add questions to exams</a> and associate them with course outcomes.
+        </div>
+    {% elif not has_student_scores %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i> No student scores have been entered for the exams.
+            <a href="{{ url_for('student.manage_scores', exam_id=exams[0].id) }}" class="alert-link">Enter student scores</a> to calculate outcomes.
+        </div>
+    {% elif not has_valid_weights %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i> Exam weights have not been set or do not total 100%.
+            <a href="{{ url_for('exam.manage_weights', course_id=course.id) }}" class="alert-link">Set exam weights</a> to calculate accurate results.
+        </div>
+    {% else %}
+        <!-- Results Tabs -->
+        <ul class="nav nav-tabs mb-4" id="resultsTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="program-outcomes-tab" data-bs-toggle="tab" 
+                        data-bs-target="#program-outcomes" type="button" role="tab" 
+                        aria-controls="program-outcomes" aria-selected="true">
+                    Program Outcomes
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="course-outcomes-tab" data-bs-toggle="tab" 
+                        data-bs-target="#course-outcomes" type="button" role="tab" 
+                        aria-controls="course-outcomes" aria-selected="false">
+                    Course Outcomes
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="student-results-tab" data-bs-toggle="tab" 
+                        data-bs-target="#student-results" type="button" role="tab" 
+                        aria-controls="student-results" aria-selected="false">
+                    Student Results
+                </button>
+            </li>
+        </ul>
+        
+        <div class="tab-content" id="resultsTabContent">
+            <!-- Program Outcomes Tab -->
+            <div class="tab-pane fade show active" id="program-outcomes" role="tabpanel" aria-labelledby="program-outcomes-tab">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Program Outcome Achievement</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-4">
+                            <div class="col-md-8">
+                                <canvas id="programOutcomesChart"></canvas>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="alert alert-info">
+                                    <h6><i class="fas fa-info-circle"></i> How to Interpret</h6>
+                                    <p class="mb-1">This chart shows the average achievement level for each program outcome based on all student performances across exams.</p>
+                                    <ul class="mb-0">
+                                        <li>70% or above: Good achievement level</li>
+                                        <li>50-69%: Moderate achievement level</li>
+                                        <li>Below 50%: Needs improvement</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>Program Outcome</th>
+                                        <th>Description</th>
+                                        <th>Achievement Level</th>
+                                        <th>Related Course Outcomes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for po_code, po_data in program_outcome_results.items() %}
+                                        <tr>
+                                            <td><strong>{{ po_code }}</strong></td>
+                                            <td>{{ po_data.description|truncate(120) }}</td>
+                                            <td>
+                                                <div class="progress" style="height: 25px;">
+                                                    <div class="progress-bar bg-{{ 'success' if po_data.percentage >= 70 else 'warning' if po_data.percentage >= 50 else 'danger' }}" 
+                                                         role="progressbar" 
+                                                         style="width: {{ po_data.percentage }}%;" 
+                                                         aria-valuenow="{{ po_data.percentage }}" 
+                                                         aria-valuemin="0" 
+                                                         aria-valuemax="100">
+                                                        {{ "%.1f"|format(po_data.percentage) }}%
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {% for co_code in po_data.course_outcomes %}
+                                                    <span class="badge bg-info">{{ co_code }}</span>
+                                                {% else %}
+                                                    <span class="text-muted">None</span>
+                                                {% endfor %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Course Outcomes Tab -->
+            <div class="tab-pane fade" id="course-outcomes" role="tabpanel" aria-labelledby="course-outcomes-tab">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Course Outcome Achievement</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-4">
+                            <div class="col-md-8">
+                                <canvas id="courseOutcomesChart"></canvas>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="alert alert-info">
+                                    <h6><i class="fas fa-info-circle"></i> How Course Outcomes Are Calculated</h6>
+                                    <p class="mb-0">Each course outcome's achievement is calculated based on student performance on questions associated with that outcome across all exams, weighted by the exam weights.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>Course Outcome</th>
+                                        <th>Description</th>
+                                        <th>Achievement Level</th>
+                                        <th>Related Program Outcomes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for co_code, co_data in course_outcome_results.items() %}
+                                        <tr>
+                                            <td><strong>{{ co_code }}</strong></td>
+                                            <td>{{ co_data.description|truncate(120) }}</td>
+                                            <td>
+                                                <div class="progress" style="height: 25px;">
+                                                    <div class="progress-bar bg-{{ 'success' if co_data.percentage >= 70 else 'warning' if co_data.percentage >= 50 else 'danger' }}" 
+                                                         role="progressbar" 
+                                                         style="width: {{ co_data.percentage }}%;" 
+                                                         aria-valuenow="{{ co_data.percentage }}" 
+                                                         aria-valuemin="0" 
+                                                         aria-valuemax="100">
+                                                        {{ "%.1f"|format(co_data.percentage) }}%
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {% for po_code in co_data.program_outcomes %}
+                                                    <span class="badge bg-primary">{{ po_code }}</span>
+                                                {% else %}
+                                                    <span class="text-muted">None</span>
+                                                {% endfor %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Student Results Tab -->
+            <div class="tab-pane fade" id="student-results" role="tabpanel" aria-labelledby="student-results-tab">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Student Achievement Data</h5>
+                            <div class="input-group" style="max-width: 300px;">
+                                <input type="text" class="form-control" id="studentSearch" 
+                                       placeholder="Search students..." aria-label="Search">
+                                <span class="input-group-text">
+                                    <i class="fas fa-search"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover" id="studentResultsTable">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>Student ID</th>
+                                        <th>Name</th>
+                                        <th>Overall Score</th>
+                                        <th>Course Outcomes Achievement</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for student_id, student_data in student_results.items() %}
+                                        <tr>
+                                            <td>{{ student_data.student_id }}</td>
+                                            <td>{{ student_data.name }}</td>
+                                            <td>
+                                                <div class="progress" style="height: 25px;">
+                                                    <div class="progress-bar bg-{{ 'success' if student_data.overall_percentage >= 70 else 'warning' if student_data.overall_percentage >= 50 else 'danger' }}" 
+                                                         role="progressbar" 
+                                                         style="width: {{ student_data.overall_percentage }}%;" 
+                                                         aria-valuenow="{{ student_data.overall_percentage }}" 
+                                                         aria-valuemin="0" 
+                                                         aria-valuemax="100">
+                                                        {{ "%.1f"|format(student_data.overall_percentage) }}%
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-info" type="button" 
+                                                        data-bs-toggle="collapse" 
+                                                        data-bs-target="#student{{ student_id }}Details" 
+                                                        aria-expanded="false" 
+                                                        aria-controls="student{{ student_id }}Details">
+                                                    Show Details
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        <tr class="collapse" id="student{{ student_id }}Details">
+                                            <td colspan="4" class="p-0">
+                                                <div class="p-3 bg-light">
+                                                    <h6>Course Outcome Achievement for {{ student_data.name }}</h6>
+                                                    <div class="row">
+                                                        {% for co_code, percentage in student_data.course_outcomes.items() %}
+                                                            <div class="col-md-6 mb-2">
+                                                                <small><strong>{{ co_code }}:</strong></small>
+                                                                <div class="progress" style="height: 15px;">
+                                                                    <div class="progress-bar bg-{{ 'success' if percentage >= 70 else 'warning' if percentage >= 50 else 'danger' }}" 
+                                                                         role="progressbar" 
+                                                                         style="width: {{ percentage }}%;" 
+                                                                         aria-valuenow="{{ percentage }}" 
+                                                                         aria-valuemin="0" 
+                                                                         aria-valuemax="100">
+                                                                        {{ "%.1f"|format(percentage) }}%
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        {% endfor %}
+                                                    </div>
+                                                    
+                                                    <h6 class="mt-3">Exam Scores</h6>
+                                                    <div class="row">
+                                                        {% for exam_name, percentage in student_data.exam_scores.items() %}
+                                                            <div class="col-md-6 mb-2">
+                                                                <small><strong>{{ exam_name }}:</strong></small>
+                                                                <div class="progress" style="height: 15px;">
+                                                                    <div class="progress-bar bg-{{ 'success' if percentage >= 70 else 'warning' if percentage >= 50 else 'danger' }}" 
+                                                                         role="progressbar" 
+                                                                         style="width: {{ percentage }}%;" 
+                                                                         aria-valuenow="{{ percentage }}" 
+                                                                         aria-valuemin="0" 
+                                                                         aria-valuemax="100">
+                                                                        {{ "%.1f"|format(percentage) }}%
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+{% if program_outcome_results and course_outcome_results %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Program Outcomes Chart
+        const poCtx = document.getElementById('programOutcomesChart').getContext('2d');
+        const poChart = new Chart(poCtx, {
+            type: 'bar',
+            data: {
+                labels: [
+                    {% for po_code in program_outcome_results %}
+                        '{{ po_code }}',
+                    {% endfor %}
+                ],
+                datasets: [{
+                    label: 'Achievement Level (%)',
+                    data: [
+                        {% for po_code, po_data in program_outcome_results.items() %}
+                            {{ "%.1f"|format(po_data.percentage) }},
+                        {% endfor %}
+                    ],
+                    backgroundColor: [
+                        {% for po_code, po_data in program_outcome_results.items() %}
+                            '{{ 'rgba(40, 167, 69, 0.7)' if po_data.percentage >= 70 else 'rgba(255, 193, 7, 0.7)' if po_data.percentage >= 50 else 'rgba(220, 53, 69, 0.7)' }}',
+                        {% endfor %}
+                    ],
+                    borderColor: [
+                        {% for po_code, po_data in program_outcome_results.items() %}
+                            '{{ 'rgba(40, 167, 69, 1)' if po_data.percentage >= 70 else 'rgba(255, 193, 7, 1)' if po_data.percentage >= 50 else 'rgba(220, 53, 69, 1)' }}',
+                        {% endfor %}
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Achievement Level (%)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Program Outcomes'
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Program Outcome Achievement Levels',
+                        font: {
+                            size: 16
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Course Outcomes Chart
+        const coCtx = document.getElementById('courseOutcomesChart').getContext('2d');
+        const coChart = new Chart(coCtx, {
+            type: 'bar',
+            data: {
+                labels: [
+                    {% for co_code in course_outcome_results %}
+                        '{{ co_code }}',
+                    {% endfor %}
+                ],
+                datasets: [{
+                    label: 'Achievement Level (%)',
+                    data: [
+                        {% for co_code, co_data in course_outcome_results.items() %}
+                            {{ "%.1f"|format(co_data.percentage) }},
+                        {% endfor %}
+                    ],
+                    backgroundColor: [
+                        {% for co_code, co_data in course_outcome_results.items() %}
+                            '{{ 'rgba(23, 162, 184, 0.7)' if co_data.percentage >= 70 else 'rgba(255, 193, 7, 0.7)' if co_data.percentage >= 50 else 'rgba(220, 53, 69, 0.7)' }}',
+                        {% endfor %}
+                    ],
+                    borderColor: [
+                        {% for co_code, co_data in course_outcome_results.items() %}
+                            '{{ 'rgba(23, 162, 184, 1)' if co_data.percentage >= 70 else 'rgba(255, 193, 7, 1)' if co_data.percentage >= 50 else 'rgba(220, 53, 69, 1)' }}',
+                        {% endfor %}
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Achievement Level (%)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Course Outcomes'
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Course Outcome Achievement Levels',
+                        font: {
+                            size: 16
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Student search functionality
+        const searchInput = document.getElementById('studentSearch');
+        const table = document.getElementById('studentResultsTable');
+        
+        if (searchInput && table) {
+            searchInput.addEventListener('keyup', function() {
+                const searchTerm = this.value.toLowerCase();
+                const rows = table.querySelectorAll('tbody tr:not(.collapse)');
+                
+                rows.forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    const studentId = row.id ? row.id : row.querySelector('td:first-child').textContent;
+                    const detailsRow = document.getElementById(`student${studentId}Details`);
+                    
+                    if (text.includes(searchTerm)) {
+                        row.style.display = '';
+                        if (detailsRow) detailsRow.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                        if (detailsRow) detailsRow.style.display = 'none';
+                    }
+                });
+            });
+        }
+    });
+    
+    function exportResults() {
+        window.location.href = "{{ url_for('calculation.export_results', course_id=course.id) }}";
+    }
+</script>
+{% endif %}
+{% endblock %} 

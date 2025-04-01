@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block title %}Utilities - ABET Calculator{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+<li class="breadcrumb-item active">Utilities</li>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Utilities</h1>
+    
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        <!-- Backup Database -->
+        <div class="col">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-download text-primary"></i> Backup Database</h5>
+                    <p class="card-text">Create backups of your ABET Calculator database to prevent data loss.</p>
+                </div>
+                <div class="card-footer bg-transparent border-top-0">
+                    <a href="{{ url_for('utility.backup_database') }}" class="btn btn-primary">
+                        <i class="fas fa-download"></i> Backup
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Restore Database -->
+        <div class="col">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-upload text-warning"></i> Restore Database</h5>
+                    <p class="card-text">Restore your database from previously created backups.</p>
+                </div>
+                <div class="card-footer bg-transparent border-top-0">
+                    <a href="{{ url_for('utility.restore_database') }}" class="btn btn-warning">
+                        <i class="fas fa-upload"></i> Restore
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Merge Courses -->
+        <div class="col">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-object-group text-success"></i> Merge Courses</h5>
+                    <p class="card-text">Combine data from multiple course sections into a single course.</p>
+                </div>
+                <div class="card-footer bg-transparent border-top-0">
+                    <a href="{{ url_for('utility.merge_database') }}" class="btn btn-success">
+                        <i class="fas fa-object-group"></i> Merge
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- System Logs -->
+        <div class="col">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-list-alt text-info"></i> System Logs</h5>
+                    <p class="card-text">View and export system activity logs to track changes in the application.</p>
+                </div>
+                <div class="card-footer bg-transparent border-top-0">
+                    <a href="{{ url_for('utility.view_logs') }}" class="btn btn-info text-white">
+                        <i class="fas fa-list-alt"></i> View Logs
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Help & Documentation -->
+        <div class="col">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-question-circle text-secondary"></i> Help & Documentation</h5>
+                    <p class="card-text">Access comprehensive documentation and usage guides for ABET Calculator.</p>
+                </div>
+                <div class="card-footer bg-transparent border-top-0">
+                    <a href="{{ url_for('utility.help_page') }}" class="btn btn-secondary">
+                        <i class="fas fa-question-circle"></i> Help
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Support & Feedback -->
+        <div class="col">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-life-ring text-danger"></i> Support & Feedback</h5>
+                    <p class="card-text">Report issues, submit feature requests, and get assistance with ABET Calculator.</p>
+                </div>
+                <div class="card-footer bg-transparent border-top-0">
+                    <a href="{{ url_for('utility.help_page') }}#contact" class="btn btn-danger">
+                        <i class="fas fa-life-ring"></i> Support
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
