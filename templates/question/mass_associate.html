@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+
+{% block title %}Mass Associate Questions with Outcomes - {{ course.code }} - ABET Calculator{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('course.course_detail', course_id=course.id) }}">{{ course.code }}</a></li>
+<li class="breadcrumb-item active">Mass Associate Questions</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="card">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Mass Associate Questions with Outcomes: {{ course.code }}</h4>
+            <a href="{{ url_for('course.course_detail', course_id=course.id) }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Course
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info mb-4">
+                <i class="fas fa-info-circle"></i> 
+                Efficiently manage associations between questions and course outcomes. Select multiple outcomes for each question.
+                <strong>Changes are saved automatically.</strong>
+            </div>
+            
+            <!-- Status indicator for auto-save -->
+            <div id="autoSaveStatus" class="alert alert-success d-none" role="alert">
+                <i class="fas fa-check-circle"></i> <span id="autoSaveMessage">Changes saved successfully!</span>
+            </div>
+            
+            <!-- Exam Filter Dropdown -->
+            <div class="mb-4">
+                <label for="examFilter" class="form-label fw-bold">Filter by Exam:</label>
+                <select id="examFilter" class="form-select">
+                    <option value="all">All Exams</option>
+                    {% for exam in exams %}
+                        <option value="{{ exam.id }}">{{ exam.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <form method="POST" id="massAssociateForm">
+                <div class="d-flex justify-content-end mb-3">
+                    <button type="button" class="btn btn-outline-primary me-2" id="expandAllBtn">
+                        <i class="fas fa-expand-alt"></i> Expand All
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" id="collapseAllBtn">
+                        <i class="fas fa-compress-alt"></i> Collapse All
+                    </button>
+                </div>
+                
+                <div class="accordion" id="questionsAccordion">
+                    {% for question in questions %}
+                        <div class="accordion-item exam-item" data-exam-id="{{ question.exam_id }}">
+                            <h2 class="accordion-header" id="heading{{ question.id }}">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                        data-bs-target="#collapse{{ question.id }}" aria-expanded="false" 
+                                        aria-controls="collapse{{ question.id }}">
+                                    {{ question.exam_name }} - Q{{ question.number }} ({{ question.max_score }} pts)
+                                </button>
+                            </h2>
+                            <div id="collapse{{ question.id }}" class="accordion-collapse collapse" 
+                                 aria-labelledby="heading{{ question.id }}" data-bs-parent="#questionsAccordion">
+                                <div class="accordion-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p class="text-muted">{{ question.text }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Course Outcomes:</label>
+                                                <div class="outcome-checkboxes">
+                                                    {% for outcome in course_outcomes %}
+                                                        <div class="form-check">
+                                                            <input class="form-check-input auto-save-checkbox" type="checkbox" 
+                                                                name="outcomes_{{ question.id }}" 
+                                                                value="{{ outcome.id }}" 
+                                                                id="outcome_{{ question.id }}_{{ outcome.id }}"
+                                                                data-question-id="{{ question.id }}"
+                                                                data-outcome-id="{{ outcome.id }}"
+                                                                {% if outcome.id in question.outcomes %}checked{% endif %}>
+                                                            <label class="form-check-label" for="outcome_{{ question.id }}_{{ outcome.id }}">
+                                                                {{ outcome.code }}: {{ outcome.description }}
+                                                            </label>
+                                                        </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{{ url_for('course.course_detail', course_id=course.id) }}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save All Associations
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-save functionality
+        const autoSaveStatus = document.getElementById('autoSaveStatus');
+        const autoSaveMessage = document.getElementById('autoSaveMessage');
+        let saveTimeout;
+
+        // Add event listeners to all checkboxes
+        document.querySelectorAll('.auto-save-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const questionId = this.dataset.questionId;
+                const outcomeId = this.dataset.outcomeId;
+                const isChecked = this.checked;
+                
+                // Show saving indicator
+                autoSaveStatus.classList.remove('d-none', 'alert-success', 'alert-danger');
+                autoSaveStatus.classList.add('alert-warning');
+                autoSaveMessage.textContent = 'Saving changes...';
+                
+                // Send AJAX request to update the association
+                fetch('/api/update-question-outcome', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question_id: questionId,
+                        outcome_id: outcomeId,
+                        checked: isChecked
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Update status message
+                    autoSaveStatus.classList.remove('alert-warning');
+                    
+                    if (data.success) {
+                        autoSaveStatus.classList.add('alert-success');
+                        autoSaveMessage.textContent = data.message;
+                    } else {
+                        autoSaveStatus.classList.add('alert-danger');
+                        autoSaveMessage.textContent = 'Error: ' + data.message;
+                    }
+                    
+                    // Hide the status message after 3 seconds
+                    clearTimeout(saveTimeout);
+                    saveTimeout = setTimeout(() => {
+                        autoSaveStatus.classList.add('d-none');
+                    }, 3000);
+                })
+                .catch(error => {
+                    autoSaveStatus.classList.remove('alert-warning');
+                    autoSaveStatus.classList.add('alert-danger');
+                    autoSaveMessage.textContent = 'Error saving changes: ' + error.message;
+                    
+                    // Hide the status message after 5 seconds
+                    clearTimeout(saveTimeout);
+                    saveTimeout = setTimeout(() => {
+                        autoSaveStatus.classList.add('d-none');
+                    }, 5000);
+                });
+            });
+        });
+        
+        // Form submission - keep for bulk save
+        document.getElementById('massAssociateForm').addEventListener('submit', function(e) {
+            // Show feedback when form is submitted manually
+            autoSaveStatus.classList.remove('d-none');
+            autoSaveStatus.classList.remove('alert-danger');
+            autoSaveStatus.classList.add('alert-success');
+            autoSaveMessage.textContent = 'All changes saved successfully!';
+            
+            // Hide the status message after 3 seconds
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                autoSaveStatus.classList.add('d-none');
+            }, 3000);
+        });
+
+        // Expand/collapse all accordions
+        document.getElementById('expandAllBtn').addEventListener('click', function() {
+            document.querySelectorAll('.accordion-button.collapsed').forEach(button => {
+                button.click();
+            });
+        });
+        
+        document.getElementById('collapseAllBtn').addEventListener('click', function() {
+            document.querySelectorAll('.accordion-button:not(.collapsed)').forEach(button => {
+                button.click();
+            });
+        });
+        
+        // Exam filter functionality
+        const examFilter = document.getElementById('examFilter');
+        examFilter.addEventListener('change', function() {
+            const selectedExamId = this.value;
+            const questionItems = document.querySelectorAll('.exam-item');
+            
+            questionItems.forEach(item => {
+                if (selectedExamId === 'all' || item.dataset.examId === selectedExamId) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+        
+        // Initialize select2 - no longer needed, using checkboxes instead
+        // Keeping this code commented for reference
+        /*
+        if (typeof $.fn.select2 !== 'undefined') {
+            $('.outcome-select').select2({
+                width: '100%',
+                placeholder: "Select course outcomes"
+            });
+        }
+        */
+    });
+</script>
+{% endblock %} 

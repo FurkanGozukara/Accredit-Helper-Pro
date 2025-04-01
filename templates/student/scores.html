@@ -38,6 +38,7 @@
                                 <th class="text-center" colspan="{{ questions|length }}">Questions</th>
                                 <th class="align-middle" rowspan="2">Total Score</th>
                                 <th class="align-middle" rowspan="2">Percentage</th>
+                                <th class="align-middle" rowspan="2">ABET Scores</th>
                             </tr>
                             <tr>
                                 {% for question in questions|sort(attribute='number') %}
@@ -72,6 +73,17 @@
                                     
                                     <td class="text-center student-total" id="total_{{ student.id }}">0</td>
                                     <td class="text-center student-percentage" id="percentage_{{ student.id }}">0%</td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-outline-info" 
+                                                data-bs-toggle="popover" 
+                                                data-bs-trigger="focus" 
+                                                data-bs-html="true"
+                                                title="ABET Outcomes for {{ student.first_name }} {{ student.last_name }}"
+                                                data-bs-content="<div id='abet-scores-{{ student.id }}'>Computing...</div>"
+                                                onclick="calculateAbetScores({{ student.id }})">
+                                            <i class="fas fa-chart-bar"></i> View ABET Scores
+                                        </button>
+                                    </td>
                                 </tr>
                             {% endfor %}
                         </tbody>
@@ -89,6 +101,12 @@
         const saveStatus = document.getElementById('saveStatus');
         const saveAllButton = document.getElementById('saveAllButton');
         const form = document.getElementById('scoresForm');
+        
+        // Initialize popovers
+        const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+        popoverTriggerList.map(function (popoverTriggerEl) {
+            return new bootstrap.Popover(popoverTriggerEl);
+        });
         
         // Calculate initial totals
         updateAllTotals();
@@ -217,6 +235,110 @@
                 saveStatus.className = 'text-danger';
                 console.error('Error:', error);
             });
+        }
+        
+        // Function to calculate ABET scores for a student
+        function calculateAbetScores(studentId) {
+            const container = document.getElementById(`abet-scores-${studentId}`);
+            
+            // Show loading indicator
+            container.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading ABET scores...</div>';
+            
+            // Get all question scores for this student
+            const inputs = document.querySelectorAll(`.student-${studentId}`);
+            const scores = {};
+            
+            inputs.forEach(input => {
+                if (input.value) {
+                    scores[input.dataset.questionId] = {
+                        score: parseFloat(input.value) || 0,
+                        maxScore: parseFloat(input.dataset.maxScore) || 0
+                    };
+                }
+            });
+            
+            // Call API to get course outcomes for each question
+            fetch(`/api/exam/{{ exam.id }}/question-outcomes`)
+                .then(response => response.json())
+                .then(data => {
+                    // Process outcome data and calculate scores
+                    const outcomeScores = calculateOutcomeScores(scores, data);
+                    displayOutcomeScores(container, outcomeScores);
+                })
+                .catch(error => {
+                    container.innerHTML = `<div class="alert alert-danger">Error loading ABET scores: ${error.message}</div>`;
+                    console.error('Error:', error);
+                });
+        }
+        
+        function calculateOutcomeScores(questionScores, questionOutcomes) {
+            const outcomes = {};
+            const outcomeScores = {};
+            
+            // Group questions by outcome
+            for (const qId in questionOutcomes) {
+                const questionOutcomesList = questionOutcomes[qId];
+                
+                for (const outcome of questionOutcomesList) {
+                    if (!outcomes[outcome.id]) {
+                        outcomes[outcome.id] = {
+                            id: outcome.id,
+                            code: outcome.code,
+                            questions: [],
+                            totalScore: 0,
+                            maxScore: 0
+                        };
+                    }
+                    
+                    if (questionScores[qId]) {
+                        outcomes[outcome.id].questions.push(qId);
+                        outcomes[outcome.id].totalScore += questionScores[qId].score;
+                        outcomes[outcome.id].maxScore += questionScores[qId].maxScore;
+                    }
+                }
+            }
+            
+            // Calculate percentage for each outcome
+            for (const id in outcomes) {
+                const outcome = outcomes[id];
+                if (outcome.maxScore > 0) {
+                    outcomeScores[id] = {
+                        code: outcome.code,
+                        percentage: (outcome.totalScore / outcome.maxScore) * 100
+                    };
+                }
+            }
+            
+            return outcomeScores;
+        }
+        
+        function displayOutcomeScores(container, outcomeScores) {
+            if (Object.keys(outcomeScores).length === 0) {
+                container.innerHTML = '<div class="alert alert-info">No outcome data available for the current questions.</div>';
+                return;
+            }
+            
+            let html = '<div class="table-responsive"><table class="table table-sm">';
+            html += '<thead><tr><th>Outcome</th><th>Score</th></tr></thead><tbody>';
+            
+            for (const id in outcomeScores) {
+                const score = outcomeScores[id];
+                let colorClass = 'text-danger';
+                
+                if (score.percentage >= 70) {
+                    colorClass = 'text-success';
+                } else if (score.percentage >= 50) {
+                    colorClass = 'text-warning';
+                }
+                
+                html += `<tr>
+                    <td>${score.code}</td>
+                    <td class="${colorClass}">${score.percentage.toFixed(1)}%</td>
+                </tr>`;
+            }
+            
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
         }
     });
 </script>

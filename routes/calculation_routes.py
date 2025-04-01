@@ -44,8 +44,8 @@ def course_calculations(course_id):
             weights[exam.id] = 0
     
     # Check if weights are properly set
-    if abs(total_weight - 100) > 0.01:  # Allow small floating-point error
-        flash(f'Exam weights do not add up to 100%. Current total: {total_weight}%. Please update weights.', 'warning')
+    if abs(total_weight - 1.0) > 0.01:  # Allow small floating-point error
+        flash(f'Exam weights do not add up to 100%. Current total: {total_weight*100:.1f}%. Please update weights.', 'warning')
         return redirect(url_for('exam.manage_weights', course_id=course_id))
     
     # Calculate student results
@@ -90,7 +90,7 @@ def course_calculations(course_id):
         # Calculate weighted score
         weighted_score = 0
         for exam_id, score in student_results[student.id]['exam_scores'].items():
-            weighted_score += score * (weights[exam_id] / 100)
+            weighted_score += score * weights[exam_id]
         
         student_results[student.id]['weighted_score'] = weighted_score
         
@@ -128,6 +128,75 @@ def course_calculations(course_id):
         else:
             class_results['program_outcome_scores'][outcome.id] = None
     
+    # Create course_outcome_results and program_outcome_results for template
+    course_outcome_results = {}
+    program_outcome_results = {}
+    
+    # Format course outcome results
+    for outcome in course_outcomes:
+        avg_score = class_results['course_outcome_scores'].get(outcome.id)
+        course_outcome_results[outcome.code] = {
+            'description': outcome.description,
+            'percentage': avg_score if avg_score is not None else 0,
+            'program_outcomes': [po.code for po in outcome.program_outcomes]
+        }
+    
+    # Format program outcome results
+    for outcome in program_outcomes:
+        avg_score = class_results['program_outcome_scores'].get(outcome.id)
+        related_course_outcomes = [co.code for co in outcome.course_outcomes if co.course_id == course_id]
+        program_outcome_results[outcome.code] = {
+            'description': outcome.description,
+            'percentage': avg_score if avg_score is not None else 0,
+            'course_outcomes': related_course_outcomes
+        }
+    
+    # Format student results for template
+    formatted_student_results = {}
+    for student_id, data in student_results.items():
+        if data.get('skip'):
+            continue
+            
+        student = data['student']
+        
+        # Format course outcome scores - ensure percentages are numbers not dictionaries
+        course_outcome_scores = {}
+        for outcome in course_outcomes:
+            percentage = data['course_outcome_scores'].get(outcome.id)
+            course_outcome_scores[outcome.code] = percentage if percentage is not None else 0
+        
+        # Format exam scores to include names
+        exam_scores = {}
+        for exam_id, score in data['exam_scores'].items():
+            exam = next((e for e in exams if e.id == exam_id), None)
+            if exam:
+                exam_scores[exam.name] = score
+        
+        formatted_student_results[student_id] = {
+            'student_id': student.student_id,
+            'name': f"{student.first_name} {student.last_name}".strip(),
+            'overall_percentage': data['weighted_score'],
+            'course_outcomes': course_outcome_scores,
+            'exam_scores': exam_scores
+        }
+    
+    # Check if we have questions with course outcomes
+    has_exam_questions = False
+    for exam in exams:
+        questions = Question.query.filter_by(exam_id=exam.id).all()
+        for question in questions:
+            if question.course_outcomes:
+                has_exam_questions = True
+                break
+        if has_exam_questions:
+            break
+    
+    # Check if we have student scores
+    has_student_scores = Score.query.join(Question).join(Exam).filter(Exam.course_id == course_id).first() is not None
+    
+    # Check if weights are valid (already calculated above)
+    has_valid_weights = abs(total_weight - 1.0) <= 0.01
+    
     # Log calculation action
     log = Log(action="CALCULATE_RESULTS", 
              description=f"Calculated ABET results for course: {course.code}")
@@ -140,9 +209,15 @@ def course_calculations(course_id):
                          course_outcomes=course_outcomes,
                          program_outcomes=program_outcomes,
                          students=students,
-                         student_results=student_results,
+                         student_results=formatted_student_results,
+                         course_outcome_results=course_outcome_results,
+                         program_outcome_results=program_outcome_results,
                          class_results=class_results,
                          weights=weights,
+                         has_course_outcomes=bool(course_outcomes),
+                         has_exam_questions=has_exam_questions,
+                         has_student_scores=has_student_scores,
+                         has_valid_weights=has_valid_weights,
                          active_page='courses')
 
 @calculation_bp.route('/course/<int:course_id>/export')
@@ -195,13 +270,13 @@ def export_results(course_id):
                 makeup_score = calculate_student_exam_score(student.id, makeup_exam.id)
                 if makeup_score is not None:
                     has_final_or_makeup = True
-                    final_score += makeup_score * (weights[exam.id] / 100)
+                    final_score += makeup_score * weights[exam.id]
                     continue
             
             # Otherwise use regular exam score
             exam_score = calculate_student_exam_score(student.id, exam.id)
             if exam_score is not None:
-                final_score += exam_score * (weights[exam.id] / 100)
+                final_score += exam_score * weights[exam.id]
         
         # Skip student if they didn't take final or makeup
         if not has_final_or_makeup:

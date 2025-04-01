@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+{% block title %}Batch Add Questions - {{ exam.name }} - ABET Calculator{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('course.course_detail', course_id=course.id) }}">{{ course.code }}</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('exam.exam_detail', exam_id=exam.id) }}">{{ exam.name }}</a></li>
+<li class="breadcrumb-item active">Batch Add Questions</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="card">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Batch Add Questions to: {{ exam.name }} ({{ course.code }})</h4>
+            <a href="{{ url_for('exam.exam_detail', exam_id=exam.id) }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Exam
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info mb-4">
+                <i class="fas fa-info-circle"></i> 
+                Add multiple questions at once. Set the maximum score for each question and associate them with relevant course outcomes.
+            </div>
+            
+            <form method="POST" id="questionForm">
+                <div class="mb-3">
+                    <label for="num_questions" class="form-label">Number of Questions:</label>
+                    <div class="input-group">
+                        <input type="number" id="num_questions" name="num_questions" class="form-control" 
+                               value="{{ num_questions }}" min="1" max="100">
+                        <button type="button" id="update_num" class="btn btn-outline-primary">
+                            <i class="fas fa-sync-alt"></i> Update
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-striped table-bordered" id="questionsTable">
+                        <thead class="thead-light">
+                            <tr>
+                                <th width="5%">No.</th>
+                                <th width="40%">Question Text</th>
+                                <th width="10%">Max Points</th>
+                                <th width="45%">Course Outcomes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for i in range(num_questions) %}
+                                <tr>
+                                    <td>{{ i + 1 }}</td>
+                                    <td>
+                                        <input type="text" name="text_{{ i }}" class="form-control" 
+                                               placeholder="Question text (optional)">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="max_score_{{ i }}" class="form-control" 
+                                               value="1" min="0.5" step="0.5" required>
+                                    </td>
+                                    <td>
+                                        <select name="course_outcomes_{{ i }}" class="form-select outcome-select" 
+                                                multiple required data-placeholder="Select outcomes">
+                                            {% for outcome in course_outcomes %}
+                                                <option value="{{ outcome.id }}">{{ outcome.code }}: {{ outcome.description }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{{ url_for('exam.exam_detail', exam_id=exam.id) }}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save All Questions
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Update number of questions
+        document.getElementById('update_num').addEventListener('click', function() {
+            const numQuestions = parseInt(document.getElementById('num_questions').value) || 1;
+            if (numQuestions > 0 && numQuestions <= 100) {
+                window.location.href = "{{ url_for('question.batch_add_questions', exam_id=exam.id) }}?num_questions=" + numQuestions;
+            } else {
+                alert('Please enter a valid number between 1 and 100');
+            }
+        });
+        
+        // Initialize select2 for better multi-select experience
+        if (typeof $.fn.select2 !== 'undefined') {
+            $('.outcome-select').select2({
+                width: '100%',
+                placeholder: "Select course outcomes"
+            });
+        }
+    });
+</script>
+{% endblock %} 

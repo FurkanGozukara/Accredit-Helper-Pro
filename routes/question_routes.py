@@ -247,4 +247,160 @@ def auto_assign_scores(exam_id):
         logging.error(f"Error auto-assigning scores: {str(e)}")
         flash('An error occurred while assigning scores', 'error')
     
-    return redirect(url_for('exam.exam_detail', exam_id=exam_id)) 
+    return redirect(url_for('exam.exam_detail', exam_id=exam_id))
+
+@question_bp.route('/exam/<int:exam_id>/batch-add', methods=['GET', 'POST'])
+def batch_add_questions(exam_id):
+    """Add multiple questions to an exam at once"""
+    exam = Exam.query.get_or_404(exam_id)
+    course = Course.query.get_or_404(exam.course_id)
+    course_outcomes = CourseOutcome.query.filter_by(course_id=course.id).all()
+    
+    # Check if there are any course outcomes defined
+    if not course_outcomes:
+        flash('You need to define course outcomes before adding questions', 'warning')
+        return redirect(url_for('outcome.add_course_outcome', course_id=course.id))
+    
+    if request.method == 'POST':
+        num_questions = int(request.form.get('num_questions', 0))
+        
+        if num_questions <= 0:
+            flash('Please specify a valid number of questions to add', 'error')
+            return render_template('question/batch_add.html', 
+                                 exam=exam, 
+                                 course=course,
+                                 course_outcomes=course_outcomes,
+                                 active_page='courses')
+        
+        # Get next question number
+        next_question_number = 1
+        last_question = Question.query.filter_by(exam_id=exam_id).order_by(Question.number.desc()).first()
+        if last_question:
+            next_question_number = last_question.number + 1
+        
+        try:
+            questions_added = 0
+            
+            for i in range(num_questions):
+                text = request.form.get(f'text_{i}', '')
+                max_score = request.form.get(f'max_score_{i}', 0)
+                selected_outcomes = request.form.getlist(f'course_outcomes_{i}')
+                
+                try:
+                    max_score = float(max_score)
+                    if max_score <= 0:
+                        continue  # Skip invalid questions
+                    
+                    # Create new question
+                    new_question = Question(
+                        text=text,
+                        max_score=max_score,
+                        number=next_question_number + i,
+                        exam_id=exam_id
+                    )
+                    
+                    db.session.add(new_question)
+                    db.session.flush()  # Assign ID without committing
+                    
+                    # Associate with course outcomes
+                    for outcome_id in selected_outcomes:
+                        outcome = CourseOutcome.query.get(outcome_id)
+                        if outcome:
+                            new_question.course_outcomes.append(outcome)
+                    
+                    questions_added += 1
+                    
+                except ValueError:
+                    continue  # Skip invalid questions
+            
+            if questions_added > 0:
+                # Log action
+                log = Log(action="BATCH_ADD_QUESTIONS", 
+                         description=f"Added {questions_added} questions to exam: {exam.name}")
+                db.session.add(log)
+                
+                db.session.commit()
+                flash(f'{questions_added} questions added successfully', 'success')
+                return redirect(url_for('exam.exam_detail', exam_id=exam_id))
+            else:
+                flash('No valid questions were provided', 'warning')
+                
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error adding batch questions: {str(e)}")
+            flash('An error occurred while adding the questions', 'error')
+    
+    return render_template('question/batch_add.html', 
+                         exam=exam, 
+                         course=course,
+                         course_outcomes=course_outcomes,
+                         num_questions=40,  # Default number
+                         active_page='courses')
+
+@question_bp.route('/mass-associate/<int:course_id>', methods=['GET', 'POST'])
+def mass_associate_outcomes(course_id):
+    """Mass associate questions with course outcomes"""
+    course = Course.query.get_or_404(course_id)
+    exams = Exam.query.filter_by(course_id=course_id).all()
+    course_outcomes = CourseOutcome.query.filter_by(course_id=course_id).all()
+    
+    if not course_outcomes:
+        flash('You need to define course outcomes first', 'warning')
+        return redirect(url_for('outcome.add_course_outcome', course_id=course_id))
+    
+    if not exams:
+        flash('You need to create exams first', 'warning')
+        return redirect(url_for('course.course_detail', course_id=course_id))
+    
+    questions = []
+    for exam in exams:
+        exam_questions = Question.query.filter_by(exam_id=exam.id).order_by(Question.number).all()
+        for question in exam_questions:
+            questions.append({
+                'id': question.id,
+                'exam_id': exam.id,
+                'exam_name': exam.name,
+                'number': question.number,
+                'text': question.text,
+                'max_score': question.max_score,
+                'outcomes': [outcome.id for outcome in question.course_outcomes]
+            })
+    
+    if request.method == 'POST':
+        try:
+            updates = 0
+            
+            for question in questions:
+                question_id = question['id']
+                selected_outcomes = request.form.getlist(f'outcomes_{question_id}')
+                
+                db_question = Question.query.get(question_id)
+                if db_question:
+                    # Clear and reassociate with course outcomes
+                    db_question.course_outcomes = []
+                    for outcome_id in selected_outcomes:
+                        outcome = CourseOutcome.query.get(outcome_id)
+                        if outcome:
+                            db_question.course_outcomes.append(outcome)
+                    updates += 1
+            
+            # Log action
+            log = Log(action="MASS_ASSOCIATE_OUTCOMES", 
+                     description=f"Updated outcome associations for {updates} questions in course: {course.code}")
+            db.session.add(log)
+            
+            db.session.commit()
+            flash(f'Updated outcome associations for {updates} questions', 'success')
+            return redirect(url_for('question.mass_associate_outcomes', course_id=course_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error updating outcome associations: {str(e)}")
+            flash('An error occurred while updating outcome associations', 'error')
+    
+    return render_template('question/mass_associate.html', 
+                         course=course,
+                         questions=questions,
+                         course_outcomes=course_outcomes,
+                         exams=exams,
+                         active_page='courses') 
