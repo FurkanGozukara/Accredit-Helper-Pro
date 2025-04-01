@@ -150,13 +150,14 @@
                                             </td>
                                             <td class="summary-cell" rowspan="{{ num_rows }}">
                                                 <div class="summary-label">ABET Scores</div>
-                                                <button type="button" class="btn btn-sm btn-outline-info" 
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-info abet-scores-btn" 
                                                         data-bs-toggle="popover" 
                                                         data-bs-trigger="focus" 
                                                         data-bs-html="true"
                                                         title="ABET Outcomes for {{ student.first_name }} {{ student.last_name }}"
                                                         data-bs-content="<div id='abet-scores-{{ student.id }}'>Computing...</div>"
-                                                        onclick="calculateAbetScores({{ student.id }})">
+                                                        data-student-id="{{ student.id }}">
                                                     <i class="fas fa-chart-bar"></i> View ABET Scores
                                                 </button>
                                             </td>
@@ -239,6 +240,14 @@
                     validateScore(this);
                     updateStudentTotal(this.dataset.studentId);
                 }
+            });
+        });
+        
+        // Add event listeners to ABET score buttons
+        document.querySelectorAll('.abet-scores-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const studentId = this.dataset.studentId;
+                calculateAbetScores(studentId);
             });
         });
         
@@ -356,23 +365,16 @@
             const container = document.getElementById(`abet-scores-${studentId}`);
             container.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading ABET scores...</div>';
             
-            const inputs = document.querySelectorAll(`.student-${studentId}`);
-            const scores = {};
-            
-            inputs.forEach(input => {
-                if (input.value) {
-                    scores[input.dataset.questionId] = {
-                        score: parseFloat(parseFloat(input.value).toFixed(1)) || 0,
-                        maxScore: parseFloat(input.dataset.maxScore) || 0
-                    };
-                }
-            });
-            
-            fetch(`/api/exam/{{ exam.id }}/question-outcomes`)
-                .then(response => response.json())
+            // Fix the URL path to match the API endpoint
+            fetch(`/api/student/${studentId}/abet-scores/{{ exam.id }}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    const outcomeScores = calculateOutcomeScores(scores, data);
-                    displayOutcomeScores(container, outcomeScores);
+                    displayAbetScores(container, data);
                 })
                 .catch(error => {
                     container.innerHTML = `<div class="alert alert-danger">Error loading ABET scores: ${error.message}</div>`;
@@ -380,66 +382,27 @@
                 });
         }
         
-        function calculateOutcomeScores(questionScores, questionOutcomes) {
-            const outcomes = {};
-            const outcomeScores = {};
-            
-            for (const qId in questionOutcomes) {
-                const questionOutcomesList = questionOutcomes[qId];
-                for (const outcome of questionOutcomesList) {
-                    if (!outcomes[outcome.id]) {
-                        outcomes[outcome.id] = {
-                            id: outcome.id,
-                            code: outcome.code,
-                            questions: [],
-                            totalScore: 0,
-                            maxScore: 0
-                        };
-                    }
-                    
-                    if (questionScores[qId]) {
-                        outcomes[outcome.id].questions.push(qId);
-                        outcomes[outcome.id].totalScore += questionScores[qId].score;
-                        outcomes[outcome.id].maxScore += questionScores[qId].maxScore;
-                    }
-                }
-            }
-            
-            for (const id in outcomes) {
-                const outcome = outcomes[id];
-                if (outcome.maxScore > 0) {
-                    outcomeScores[id] = {
-                        code: outcome.code,
-                        percentage: (outcome.totalScore / outcome.maxScore) * 100
-                    };
-                }
-            }
-            
-            return outcomeScores;
-        }
-        
-        function displayOutcomeScores(container, outcomeScores) {
-            if (Object.keys(outcomeScores).length === 0) {
-                container.innerHTML = '<div class="alert alert-info">No outcome data available for the current questions.</div>';
+        function displayAbetScores(container, outcomes) {
+            if (!outcomes || outcomes.length === 0) {
+                container.innerHTML = '<div class="alert alert-info">No outcome data available for this student.</div>';
                 return;
             }
             
             let html = '<div class="table-responsive"><table class="table table-sm">';
             html += '<thead><tr><th>Outcome</th><th>Score</th></tr></thead><tbody>';
             
-            for (const id in outcomeScores) {
-                const score = outcomeScores[id];
+            for (const outcome of outcomes) {
                 let colorClass = 'text-danger';
                 
-                if (score.percentage >= 70) {
+                if (outcome.percentage >= 70) {
                     colorClass = 'text-success';
-                } else if (score.percentage >= 50) {
+                } else if (outcome.percentage >= 50) {
                     colorClass = 'text-warning';
                 }
                 
                 html += `<tr>
-                    <td>${score.code}</td>
-                    <td class="${colorClass}">${score.percentage.toFixed(1)}%</td>
+                    <td title="${outcome.description}">${outcome.code}</td>
+                    <td class="${colorClass}">${outcome.percentage.toFixed(1)}%</td>
                 </tr>`;
             }
             

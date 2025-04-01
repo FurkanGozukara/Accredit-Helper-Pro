@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from models import Question, CourseOutcome, Log
+from models import Question, CourseOutcome, Log, Student, Exam, Score
 from app import db
 import logging
 
@@ -21,6 +21,65 @@ def get_question_outcomes(exam_id):
             })
         
         result[question.id] = outcomes
+    
+    return jsonify(result)
+
+@api_bp.route('/student/<int:student_id>/abet-scores/<int:exam_id>', methods=['GET'])
+def get_student_abet_scores(student_id, exam_id):
+    """API endpoint to get ABET scores for a specific student in an exam"""
+    student = Student.query.get_or_404(student_id)
+    exam = Exam.query.get_or_404(exam_id)
+    
+    # Get questions for this exam
+    questions = Question.query.filter_by(exam_id=exam_id).all()
+    
+    # Get student scores for these questions
+    scores = Score.query.filter_by(student_id=student_id, exam_id=exam_id).all()
+    
+    # Create a dictionary of scores by question ID
+    score_dict = {}
+    for score in scores:
+        score_dict[score.question_id] = score.score
+    
+    # Calculate outcome scores based on question-outcome associations
+    outcome_scores = {}
+    
+    for question in questions:
+        for outcome in question.course_outcomes:
+            if outcome.id not in outcome_scores:
+                outcome_scores[outcome.id] = {
+                    'code': outcome.code,
+                    'description': outcome.description,
+                    'total_score': 0.0,
+                    'max_score': 0.0
+                }
+            
+            # Add score for this question/outcome if available
+            if question.id in score_dict:
+                outcome_scores[outcome.id]['total_score'] += score_dict[question.id]
+            
+            # Add max possible score
+            outcome_scores[outcome.id]['max_score'] += question.max_score
+    
+    # Calculate percentages
+    result = []
+    for outcome_id, data in outcome_scores.items():
+        if data['max_score'] > 0:
+            percentage = (data['total_score'] / data['max_score']) * 100
+        else:
+            percentage = 0
+            
+        result.append({
+            'outcome_id': outcome_id,
+            'code': data['code'],
+            'description': data['description'],
+            'score': data['total_score'],
+            'max_score': data['max_score'],
+            'percentage': percentage
+        })
+    
+    # Sort by outcome code
+    result.sort(key=lambda x: x['code'])
     
     return jsonify(result)
 
