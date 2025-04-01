@@ -312,9 +312,9 @@ def generate_questions(exams, course_outcomes):
         if "Quiz" in exam.name or "Homework" in exam.name:
             num_questions = random.randint(5, 10)
         elif "Midterm" in exam.name:
-            num_questions = random.randint(10, 20)
+            num_questions = random.randint(1, 10)
         elif "Final" in exam.name:
-            num_questions = random.randint(15, 25)
+            num_questions = random.randint(40, 40)
         elif "Project" in exam.name:
             num_questions = random.randint(3, 6)
         else:
