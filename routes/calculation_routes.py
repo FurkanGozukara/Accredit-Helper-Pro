@@ -360,31 +360,58 @@ def calculate_student_exam_score(student_id, exam_id):
     
     return (total_score / total_possible) * Decimal('100')
 
-# Helper function to calculate a student's score for a course outcome
 def calculate_course_outcome_score(student_id, outcome_id):
     """Calculate a student's score for a course outcome based on related questions"""
     outcome = CourseOutcome.query.get(outcome_id)
-    questions = outcome.questions
-    
-    if not questions:
+    if not outcome:
+        # Added check if outcome exists
         return None
-    
+
+    # Get all questions associated with this course outcome
+    questions = outcome.questions
+
+    if not questions:
+        # No questions linked to this outcome
+        return None
+
+    # --- Correction Start ---
+    # 1. Calculate the total possible score from ALL relevant questions first.
+    total_possible = sum(q.max_score for q in questions)
+
+    # Handle cases where an outcome might be linked only to 0-point questions
+    if total_possible == Decimal('0'):
+        # Similar logic as optimized: check if student scored any points on these 0-max_score questions
+        student_score_exists_positive = False
+        for question in questions:
+            score = Score.query.filter_by(
+                student_id=student_id,
+                question_id=question.id
+                # Note: This filter might still be ambiguous if question.id appears in multiple exams.
+                # The optimized version correctly uses (student_id, question.id, exam_id)
+            ).first()
+            if score and score.score > 0:
+                student_score_exists_positive = True
+                break
+        # Return 100% if they scored positive points on 0-possible, else 0%
+        return Decimal('100.0') if student_score_exists_positive else Decimal('0.0')
+
+    # 2. Calculate the student's total score, treating missing scores as 0.
     total_score = Decimal('0')
-    total_possible = Decimal('0')
-    
     for question in questions:
+        # Query for the specific score
         score = Score.query.filter_by(
             student_id=student_id,
             question_id=question.id
+            # Ambiguity concern noted above still applies here.
         ).first()
-        
-        if score:
-            total_score += score.score
-            total_possible += question.max_score
-    
-    if total_possible == Decimal('0'):
-        return None
-    
+
+        if score: # Check if score record exists
+            # Ensure score is Decimal
+            total_score += Decimal(score.score)
+        # Implicitly, if score record doesn't exist, we add 0, which is correct.
+
+    # 3. Calculate the percentage.
+    # total_possible is guaranteed non-zero here.
     return (total_score / total_possible) * Decimal('100')
 
 # Helper function to calculate a student's score for a program outcome
@@ -790,28 +817,48 @@ def calculate_student_exam_score_optimized(student_id, exam_id, scores_dict, que
     
     return (total_score / total_possible) * Decimal('100')
 
-# Optimized helper function to calculate a student's score for a course outcome
 def calculate_course_outcome_score_optimized(student_id, outcome_id, all_scores, outcome_questions):
     """Calculate a student's score for a course outcome using preloaded data"""
     questions = outcome_questions.get(outcome_id, [])
-    
+
     if not questions:
-        return None
-    
+        return None # No questions linked to this outcome
+
+    # --- Correction Start ---
+    # 1. Calculate the total possible score from ALL relevant questions first.
+    total_possible = sum(q.max_score for q in questions)
+
+    # Handle cases where an outcome might be linked only to 0-point questions
+    if total_possible == Decimal('0'):
+        # If total possible is 0, achievement is undefined or could be considered 100% if any score > 0 exists?
+        # Returning None is safest, or 0 if preferred. Or check if any score > 0.
+        # Let's check if any score exists and is positive for this outcome's questions.
+        student_score_exists_positive = False
+        for question in questions:
+            exam_id = question.exam_id
+            score_value = all_scores.get((student_id, question.id, exam_id))
+            if score_value and score_value > 0:
+                student_score_exists_positive = True
+                break
+        # If possible is 0, but student scored > 0 (extra credit?), return 100%. Otherwise 0 or None.
+        # Returning 0 is a reasonable default if no points were possible and none were scored.
+        return Decimal('100.0') if student_score_exists_positive else Decimal('0.0')
+
+
+    # 2. Calculate the student's total score, treating missing scores as 0.
     total_score = Decimal('0')
-    total_possible = Decimal('0')
-    
     for question in questions:
         exam_id = question.exam_id
+        # Use .get() which returns None if the key is not found
         score_value = all_scores.get((student_id, question.id, exam_id))
-        
-        if score_value:
-            total_score += score_value
-            total_possible += question.max_score
-    
-    if total_possible == Decimal('0'):
-        return None
-    
+
+        if score_value is not None: # Check if score exists
+             # Ensure score_value is Decimal for consistency
+            total_score += Decimal(score_value)
+        # Implicitly, if score_value is None, we add 0, which is correct.
+
+    # 3. Calculate the percentage.
+    # total_possible is guaranteed non-zero here due to the check above.
     return (total_score / total_possible) * Decimal('100')
 
 # Optimized helper function to calculate a student's score for a program outcome

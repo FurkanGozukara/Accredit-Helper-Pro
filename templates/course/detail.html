@@ -92,6 +92,9 @@
                                     {% if exam.is_makeup %}
                                         <span class="badge bg-info me-1">Makeup</span>
                                     {% endif %}
+                                    {% if exam.is_final %}
+                                        <span class="badge bg-danger me-1">Final</span>
+                                    {% endif %}
                                     <a href="{{ url_for('exam.exam_detail', exam_id=exam.id) }}">{{ exam.name }}</a>
                                 </td>
                                 <td>{{ exam.exam_date.strftime('%Y-%m-%d') if exam.exam_date else 'Not set' }}</td>

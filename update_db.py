@@ -1,5 +1,8 @@
 import sqlite3
 from app import create_app
+import logging
+from sqlalchemy import Column, Boolean, text
+from sqlalchemy.exc import OperationalError
 
 def add_missing_column():
     # Create app context
@@ -49,5 +52,35 @@ def add_missing_column():
         # Close connection
         conn.close()
 
+def update_database():
+    app = create_app()
+    with app.app_context():
+        try:
+            # Add is_final column to exam table if it doesn't exist
+            from models import db
+            db.session.execute(text("SELECT is_final FROM exam LIMIT 1"))
+            logging.info("is_final column already exists in exam table")
+        except OperationalError:
+            try:
+                from models import db
+                logging.info("Adding is_final column to exam table")
+                db.session.execute(text("ALTER TABLE exam ADD COLUMN is_final BOOLEAN DEFAULT FALSE"))
+                
+                # Add index for the new column
+                db.session.execute(text("CREATE INDEX idx_exam_is_final ON exam (is_final)"))
+                
+                # Add composite index for course_id and is_final
+                db.session.execute(text("CREATE INDEX idx_exam_course_final ON exam (course_id, is_final)"))
+                
+                db.session.commit()
+                logging.info("Successfully added is_final column to exam table")
+            except Exception as e:
+                from models import db
+                db.session.rollback()
+                logging.error(f"Error adding is_final column: {str(e)}")
+        
+        # Add other database updates here as needed
+
 if __name__ == '__main__':
-    add_missing_column() 
+    add_missing_column()
+    update_database() 

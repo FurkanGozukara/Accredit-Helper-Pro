@@ -48,6 +48,7 @@ class Exam(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     is_makeup = db.Column(db.Boolean, default=False, index=True)
+    is_final = db.Column(db.Boolean, default=False, index=True)
     makeup_for = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=True, index=True)
     is_mandatory = db.Column(db.Boolean, default=False, index=True)
     
@@ -62,6 +63,7 @@ class Exam(db.Model):
         db.Index('idx_exam_course_makeup', 'course_id', 'is_makeup'),
         db.Index('idx_exam_course_mandatory', 'course_id', 'is_mandatory'),
         db.Index('idx_exam_course_name', 'course_id', 'name'),
+        db.Index('idx_exam_course_final', 'course_id', 'is_final'),
     )
     
     def __repr__(self):

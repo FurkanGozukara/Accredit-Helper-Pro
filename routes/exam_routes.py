@@ -21,6 +21,7 @@ def add_exam(course_id):
         max_score = request.form.get('max_score')
         exam_date_str = request.form.get('exam_date')
         is_makeup = True if request.form.get('is_makeup') else False
+        is_final = True if request.form.get('is_final') else False
         makeup_for = request.form.get('makeup_for')
         
         # Basic validation
@@ -52,7 +53,8 @@ def add_exam(course_id):
                 max_score=max_score,
                 exam_date=exam_date,
                 course_id=course_id,
-                is_makeup=is_makeup
+                is_makeup=is_makeup,
+                is_final=is_final
             )
             
             # Set makeup exam relationship if applicable
@@ -118,6 +120,7 @@ def edit_exam(exam_id):
         max_score = request.form.get('max_score')
         exam_date_str = request.form.get('exam_date')
         is_makeup = True if request.form.get('is_makeup') else False
+        is_final = True if request.form.get('is_final') else False
         makeup_for = request.form.get('makeup_for')
         
         # Basic validation
@@ -150,6 +153,7 @@ def edit_exam(exam_id):
             exam.max_score = max_score
             exam.exam_date = exam_date
             exam.is_makeup = is_makeup
+            exam.is_final = is_final
             exam.updated_at = datetime.now()
             
             # Update makeup relationship

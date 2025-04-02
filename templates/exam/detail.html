@@ -52,6 +52,8 @@
                             {% if exam.original_exam %}
                                 <br><small class="text-muted">For: {{ exam.original_exam.name }}</small>
                             {% endif %}
+                        {% elif exam.is_final %}
+                            <span class="badge bg-danger">Final Exam</span>
                         {% else %}
                             <span class="badge bg-primary">Regular Exam</span>
                             {% if exam.makeup_exam %}
