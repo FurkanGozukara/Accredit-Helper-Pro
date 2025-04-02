@@ -22,61 +22,84 @@ def index():
 @utility_bp.route('/backup', methods=['GET', 'POST'])
 def backup_database():
     """Create a backup of the database"""
-    if request.method == 'POST':
-        try:
-            # Get current database path
-            db_path = os.path.join('instance', 'abet_data.db')
-            
-            if not os.path.exists(db_path):
-                flash('Database file not found', 'error')
-                return redirect(url_for('utility.backup_database'))
-            
-            # Create backup directory if it doesn't exist
-            backup_dir = app.config['BACKUP_FOLDER']
-            os.makedirs(backup_dir, exist_ok=True)
-            
-            # Create backup filename with timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            backup_filename = f"abet_data_backup_{timestamp}.db"
-            backup_path = os.path.join(backup_dir, backup_filename)
-            
-            # Copy database file
-            shutil.copy2(db_path, backup_path)
-            
-            # Log action
-            log = Log(action="BACKUP_DATABASE", 
-                     description=f"Created database backup: {backup_filename}")
-            db.session.add(log)
-            db.session.commit()
-            
-            flash(f'Database backup created successfully: {backup_filename}', 'success')
-        except Exception as e:
-            logging.error(f"Error creating backup: {str(e)}")
-            flash(f'An error occurred while creating the backup: {str(e)}', 'error')
-    
-    # Get list of available backups
-    backup_dir = app.config['BACKUP_FOLDER']
-    backups = []
-    
-    if os.path.exists(backup_dir):
-        backup_files = glob.glob(os.path.join(backup_dir, "abet_data_backup_*.db"))
-        for backup_file in backup_files:
-            filename = os.path.basename(backup_file)
-            created_at = os.path.getmtime(backup_file)
-            size = os.path.getsize(backup_file) / (1024 * 1024)  # Size in MB
-            
-            backups.append({
-                'filename': filename,
-                'created_at': datetime.fromtimestamp(created_at),
-                'size': round(size, 2)
-            })
-    
-    # Sort backups by creation time (newest first)
-    backups.sort(key=lambda x: x['created_at'], reverse=True)
-    
-    return render_template('utility/backup.html', 
-                         backups=backups, 
-                         active_page='utilities')
+    try:
+        if request.method == 'POST':
+            try:
+                # Get current database path
+                db_path = os.path.join('instance', 'abet_data.db')
+                
+                if not os.path.exists(db_path):
+                    flash('Database file not found', 'error')
+                    return redirect(url_for('utility.backup_database'))
+                
+                # Create backup directory if it doesn't exist
+                backup_dir = app.config['BACKUP_FOLDER']
+                os.makedirs(backup_dir, exist_ok=True)
+                
+                # Create backup filename with timestamp
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                backup_filename = f"abet_data_backup_{timestamp}.db"
+                backup_path = os.path.join(backup_dir, backup_filename)
+                
+                # Copy database file
+                shutil.copy2(db_path, backup_path)
+                
+                # Log action
+                log = Log(action="BACKUP_DATABASE", 
+                        description=f"Created database backup: {backup_filename}")
+                db.session.add(log)
+                db.session.commit()
+                
+                flash(f'Database backup created successfully: {backup_filename}', 'success')
+            except Exception as e:
+                logging.error(f"Error creating backup: {str(e)}")
+                flash(f'An error occurred while creating the backup: {str(e)}', 'error')
+        
+        # Get list of available backups
+        backup_dir = app.config['BACKUP_FOLDER']
+        backups = []
+        
+        if os.path.exists(backup_dir):
+            backup_files = glob.glob(os.path.join(backup_dir, "abet_data_backup_*.db"))
+            for backup_file in backup_files:
+                filename = os.path.basename(backup_file)
+                created_at = os.path.getmtime(backup_file)
+                size = os.path.getsize(backup_file) / (1024 * 1024)  # Size in MB
+                
+                backups.append({
+                    'filename': filename,
+                    'created_at': datetime.fromtimestamp(created_at),
+                    'size': round(size, 2),
+                    'size_formatted': f"{round(size, 2)} MB",
+                    'description': ''  # Add empty description to match template
+                })
+        
+        # Sort backups by creation time (newest first)
+        backups.sort(key=lambda x: x['created_at'], reverse=True)
+        
+        # Set the total backups and auto backup defaults for the template
+        total_backups = len(backups)
+        last_backup = backups[0] if backups else None
+        auto_backup_enabled = False
+        auto_backup_frequency = 'weekly'
+        
+        return render_template('utility/backup.html', 
+                            backups=backups,
+                            total_backups=total_backups,
+                            last_backup=last_backup,
+                            auto_backup_enabled=auto_backup_enabled,
+                            auto_backup_frequency=auto_backup_frequency,
+                            active_page='utilities')
+    except Exception as e:
+        logging.error(f"Error in backup page: {str(e)}")
+        flash(f'An error occurred: {str(e)}', 'error')
+        return redirect(url_for('utility.index'))
+
+# Add alias for backup_database for backward compatibility with templates
+@utility_bp.route('/backup/create', methods=['GET', 'POST'])
+def create_backup():
+    """Alias for backup_database for backward compatibility"""
+    return backup_database()
 
 @utility_bp.route('/backup/download/<filename>')
 def download_backup(filename):
@@ -127,65 +150,95 @@ def delete_backup(filename):
 @utility_bp.route('/restore', methods=['GET', 'POST'])
 def restore_database():
     """Restore database from a backup"""
-    if request.method == 'POST':
-        # Check if file is provided
-        if 'backup_file' not in request.files:
-            flash('No backup file provided', 'error')
-            return redirect(url_for('utility.restore_database'))
-        
-        backup_file = request.files['backup_file']
-        
-        if backup_file.filename == '':
-            flash('No backup file selected', 'error')
-            return redirect(url_for('utility.restore_database'))
-        
-        try:
-            # Create a temporary file for the uploaded backup
-            temp_path = os.path.join(app.config['BACKUP_FOLDER'], 'temp_restore.db')
-            backup_file.save(temp_path)
-            
-            # Verify this is a valid SQLite database
-            try:
-                conn = sqlite3.connect(temp_path)
-                conn.close()
-            except sqlite3.Error:
-                os.remove(temp_path)
-                flash('Invalid database file', 'error')
+    try:
+        if request.method == 'POST':
+            # Check if file is provided
+            if 'backup_file' not in request.files:
+                flash('No backup file provided', 'error')
                 return redirect(url_for('utility.restore_database'))
             
-            # Get current database path
-            db_path = os.path.join('instance', 'abet_data.db')
+            backup_file = request.files['backup_file']
             
-            # Create a backup of current database before restore
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            pre_restore_backup = os.path.join(app.config['BACKUP_FOLDER'], f"pre_restore_backup_{timestamp}.db")
+            if backup_file.filename == '':
+                flash('No backup file selected', 'error')
+                return redirect(url_for('utility.restore_database'))
             
-            if os.path.exists(db_path):
-                shutil.copy2(db_path, pre_restore_backup)
-            
-            # Close the current database connection
-            db.session.close()
-            
-            # Copy the backup file to the database location
-            shutil.copy2(temp_path, db_path)
-            
-            # Remove temporary file
-            os.remove(temp_path)
-            
-            # Log action using a new connection
-            engine = db.get_engine()
-            connection = engine.connect()
-            connection.execute("INSERT INTO log (action, description, timestamp) VALUES (?, ?, ?)",
-                             ("RESTORE_DATABASE", f"Restored database from uploaded backup: {backup_file.filename}", datetime.now()))
-            connection.commit()
-            connection.close()
-            
-            flash('Database restored successfully. Please restart the application for all changes to take effect.', 'success')
-        except Exception as e:
-            logging.error(f"Error restoring database: {str(e)}\n{traceback.format_exc()}")
-            flash(f'An error occurred while restoring the database: {str(e)}', 'error')
-    
-    return render_template('utility/restore.html', active_page='utilities')
+            try:
+                # Create a temporary file for the uploaded backup
+                temp_path = os.path.join(app.config['BACKUP_FOLDER'], 'temp_restore.db')
+                backup_file.save(temp_path)
+                
+                # Verify this is a valid SQLite database
+                try:
+                    conn = sqlite3.connect(temp_path)
+                    conn.close()
+                except sqlite3.Error:
+                    os.remove(temp_path)
+                    flash('Invalid database file', 'error')
+                    return redirect(url_for('utility.restore_database'))
+                
+                # Get current database path
+                db_path = os.path.join('instance', 'abet_data.db')
+                
+                # Create a backup of current database before restore
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                pre_restore_backup = os.path.join(app.config['BACKUP_FOLDER'], f"pre_restore_backup_{timestamp}.db")
+                
+                if os.path.exists(db_path):
+                    shutil.copy2(db_path, pre_restore_backup)
+                
+                # Close the current database connection
+                db.session.close()
+                
+                # Copy the backup file to the database location
+                shutil.copy2(temp_path, db_path)
+                
+                # Remove temporary file
+                os.remove(temp_path)
+                
+                # Log action using a new connection
+                try:
+                    engine = db.get_engine()
+                    connection = engine.connect()
+                    connection.execute("INSERT INTO log (action, description, timestamp) VALUES (?, ?, ?)",
+                                    ("RESTORE_DATABASE", f"Restored database from uploaded backup: {backup_file.filename}", datetime.now()))
+                    connection.commit()
+                    connection.close()
+                except Exception as e:
+                    logging.error(f"Error logging restore action: {str(e)}")
+                
+                flash('Database restored successfully. Please restart the application for all changes to take effect.', 'success')
+            except Exception as e:
+                logging.error(f"Error restoring database: {str(e)}\n{traceback.format_exc()}")
+                flash(f'An error occurred while restoring the database: {str(e)}', 'error')
+        
+        # Get list of available backups for restoration
+        backup_dir = app.config['BACKUP_FOLDER']
+        backups = []
+        
+        if os.path.exists(backup_dir):
+            backup_files = glob.glob(os.path.join(backup_dir, "abet_data_backup_*.db"))
+            for backup_file in backup_files:
+                filename = os.path.basename(backup_file)
+                created_at = os.path.getmtime(backup_file)
+                size = os.path.getsize(backup_file) / (1024 * 1024)  # Size in MB
+                
+                backups.append({
+                    'filename': filename,
+                    'created_at': datetime.fromtimestamp(created_at),
+                    'size': round(size, 2)
+                })
+        
+        # Sort backups by creation time (newest first)
+        backups.sort(key=lambda x: x['created_at'], reverse=True)
+        
+        return render_template('utility/restore.html', 
+                             backups=backups,
+                             active_page='utilities')
+    except Exception as e:
+        logging.error(f"Error in restore page: {str(e)}")
+        flash(f'An error occurred: {str(e)}', 'error')
+        return redirect(url_for('utility.index'))
 
 @utility_bp.route('/restore/file', methods=['POST'])
 def restore_from_file():
@@ -258,44 +311,54 @@ def restore_from_file():
 @utility_bp.route('/restore/<filename>', methods=['POST'])
 def restore_from_backup(filename):
     """Restore database from an existing backup"""
-    backup_dir = app.config['BACKUP_FOLDER']
-    backup_path = os.path.join(backup_dir, filename)
-    
-    if not os.path.exists(backup_path):
-        flash('Backup file not found', 'error')
-        return redirect(url_for('utility.backup_database'))
-    
     try:
+        backup_dir = app.config['BACKUP_FOLDER']
+        backup_path = os.path.join(backup_dir, filename)
+        
+        if not os.path.exists(backup_path):
+            flash('Backup file not found', 'error')
+            return redirect(url_for('utility.restore_database'))
+        
         # Get current database path
         db_path = os.path.join('instance', 'abet_data.db')
         
-        # Create a backup of current database before restore
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        pre_restore_backup = os.path.join(app.config['BACKUP_FOLDER'], f"pre_restore_backup_{timestamp}.db")
+        # Check if user wants to backup current database before restore
+        backup_current = request.form.get('backup_current', '0') == '1'
         
-        if os.path.exists(db_path):
+        if backup_current and os.path.exists(db_path):
+            # Create a backup of current database before restore
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            pre_restore_backup = os.path.join(app.config['BACKUP_FOLDER'], f"pre_restore_backup_{timestamp}.db")
             shutil.copy2(db_path, pre_restore_backup)
+            flash(f'Created backup of current database before restore: pre_restore_backup_{timestamp}.db', 'info')
         
         # Close the current database connection
         db.session.close()
         
         # Copy the backup file to the database location
-        shutil.copy2(backup_path, db_path)
-        
-        # Log action using a new connection
-        engine = db.get_engine()
-        connection = engine.connect()
-        connection.execute("INSERT INTO log (action, description, timestamp) VALUES (?, ?, ?)",
-                         ("RESTORE_DATABASE", f"Restored database from backup: {filename}", datetime.now()))
-        connection.commit()
-        connection.close()
-        
-        flash('Database restored successfully. Please restart the application for all changes to take effect.', 'success')
+        try:
+            shutil.copy2(backup_path, db_path)
+            
+            # Log action using a new connection
+            try:
+                engine = db.get_engine()
+                connection = engine.connect()
+                connection.execute("INSERT INTO log (action, description, timestamp) VALUES (?, ?, ?)",
+                                ("RESTORE_DATABASE", f"Restored database from backup: {filename}", datetime.now()))
+                connection.commit()
+                connection.close()
+            except Exception as e:
+                logging.error(f"Error logging restore action: {str(e)}")
+            
+            flash('Database restored successfully. Please restart the application for all changes to take effect.', 'success')
+        except Exception as e:
+            logging.error(f"Error copying backup file: {str(e)}")
+            flash(f'An error occurred while restoring the database: {str(e)}', 'error')
     except Exception as e:
-        logging.error(f"Error restoring database: {str(e)}\n{traceback.format_exc()}")
+        logging.error(f"Error in restore_from_backup: {str(e)}\n{traceback.format_exc()}")
         flash(f'An error occurred while restoring the database: {str(e)}', 'error')
     
-    return redirect(url_for('utility.backup_database'))
+    return redirect(url_for('utility.restore_database'))
 
 @utility_bp.route('/merge', methods=['GET', 'POST'])
 def merge_database():
@@ -561,63 +624,63 @@ def help_page():
 @utility_bp.route('/logs')
 def view_logs():
     """View system logs"""
-    # Get filter parameters
-    action_type = request.args.get('action_type', '')
-    date_from = request.args.get('date_from', '')
-    date_to = request.args.get('date_to', '')
-    limit = request.args.get('limit', '100', type=int)
-    page = request.args.get('page', 1, type=int)
-    
-    # Build query
-    query = Log.query
-    
-    if action_type:
-        query = query.filter(Log.action == action_type)
-    
-    if date_from:
-        try:
-            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d')
-            query = query.filter(Log.timestamp >= date_from_obj)
-        except ValueError:
-            pass
-    
-    if date_to:
-        try:
-            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d')
-            # Add one day to include the entire day
-            date_to_obj = datetime.combine(date_to_obj.date(), datetime.max.time())
-            query = query.filter(Log.timestamp <= date_to_obj)
-        except ValueError:
-            pass
-    
-    # Get total count for pagination
-    total_logs = query.count()
-    
-    # Get available actions for filter dropdown
-    available_actions = db.session.query(Log.action).distinct().order_by(Log.action).all()
-    available_actions = [action[0] for action in available_actions]
-    
-    # Calculate pagination
-    total_pages = (total_logs + limit - 1) // limit
-    if page < 1:
-        page = 1
-    if page > total_pages and total_pages > 0:
-        page = total_pages
-    
-    # Get logs for current page
-    logs = query.order_by(Log.timestamp.desc()).offset((page-1)*limit).limit(limit).all()
-    
-    return render_template('utility/logs.html', 
-                          logs=logs,
-                          total_logs=total_logs,
-                          current_page=page,
-                          total_pages=total_pages,
-                          limit=limit,
-                          selected_action=action_type,
-                          available_actions=available_actions,
-                          date_from=date_from,
-                          date_to=date_to,
-                          active_page='utilities')
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        
+        # Get filter parameters
+        action_filter = request.args.get('action', '')
+        date_from = request.args.get('date_from', '')
+        date_to = request.args.get('date_to', '')
+        
+        # Start with base query
+        query = Log.query
+        
+        # Apply filters
+        if action_filter:
+            query = query.filter(Log.action.like(f'%{action_filter}%'))
+        
+        if date_from:
+            try:
+                date_from_obj = datetime.strptime(date_from, '%Y-%m-%d')
+                query = query.filter(Log.timestamp >= date_from_obj)
+            except ValueError:
+                flash('Invalid date format for From Date', 'error')
+        
+        if date_to:
+            try:
+                date_to_obj = datetime.strptime(date_to, '%Y-%m-%d')
+                # Add one day to include all logs from the selected day
+                date_to_obj = date_to_obj.replace(hour=23, minute=59, second=59)
+                query = query.filter(Log.timestamp <= date_to_obj)
+            except ValueError:
+                flash('Invalid date format for To Date', 'error')
+        
+        # Get distinct actions for filter dropdown
+        distinct_actions = db.session.query(Log.action).distinct().all()
+        actions = [action[0] for action in distinct_actions]
+        
+        # Order by timestamp descending and paginate
+        logs = query.order_by(Log.timestamp.desc()).paginate(page=page, per_page=per_page)
+        
+        return render_template('utility/logs.html', 
+                             logs=logs,
+                             actions=actions,
+                             action_filter=action_filter,
+                             date_from=date_from,
+                             date_to=date_to,
+                             active_page='utilities')
+                             
+    except Exception as e:
+        logging.error(f"Error viewing logs: {str(e)}")
+        flash(f'An error occurred while retrieving logs: {str(e)}', 'error')
+        return redirect(url_for('utility.index'))
+
+# Add logs alias for backward compatibility
+@utility_bp.route('/logs/view')
+def logs():
+    """Alias for view_logs for backward compatibility"""
+    return view_logs()
 
 @utility_bp.route('/logs/export', methods=['GET'])
 def export_logs():
@@ -754,4 +817,29 @@ def list_backups():
     
     return render_template('utility/backup_list.html', 
                          backups=backups, 
-                         active_page='utilities') 
+                         active_page='utilities')
+
+@utility_bp.route('/update_auto_backup', methods=['POST'])
+def update_auto_backup():
+    """Update automatic backup settings"""
+    try:
+        auto_backup_enabled = request.form.get('auto_backup_enabled') == 'on'
+        auto_backup_frequency = request.form.get('auto_backup_frequency', 'daily')
+        
+        # TODO: Save these settings to database or config file
+        # For now, we'll just show a message
+        
+        # Log the action
+        log = Log(
+            action="UPDATE_AUTO_BACKUP_SETTINGS",
+            description=f"Updated auto-backup settings: enabled={auto_backup_enabled}, frequency={auto_backup_frequency}"
+        )
+        db.session.add(log)
+        db.session.commit()
+        
+        flash('Auto-backup settings updated successfully', 'success')
+    except Exception as e:
+        logging.error(f"Error updating auto-backup settings: {str(e)}")
+        flash(f'An error occurred while updating auto-backup settings: {str(e)}', 'error')
+    
+    return redirect(url_for('utility.backup_database')) 

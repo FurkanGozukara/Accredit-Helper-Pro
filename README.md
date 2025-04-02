@@ -1,8 +1,8 @@
 # ABET Helper Pro
 
 A comprehensive tool for teachers to calculate and track achievement of course outcomes for ABET (Accreditation Board for Engineering and Technology) requirements.
-Please purchase from here to use : https://www.patreon.com/c/SECourses
 
+**Official Download**: [Patreon - SE Courses](https://www.patreon.com/c/SECourses)
 
 ## Features
 
@@ -17,18 +17,41 @@ Please purchase from here to use : https://www.patreon.com/c/SECourses
 
 ## Installation
 
-The application comes with a Windows installer to set up a virtual environment. The installer will create a Python virtual environment and install all necessary dependencies.
-
 ### Prerequisites
 
 - Python 3.8 or higher
 - Git
 
-### Installation Steps
+### Installation Methods
+
+#### Option 1: Windows Installer (Recommended)
 
 1. Run the `Windows_Install.bat` file by double-clicking it
 2. Wait for the installation to complete
 3. Run the application using the provided shortcut or by running `python app.py` in the command prompt
+
+#### Option 2: Manual Installation
+
+1. Clone the repository or download the source code
+2. Create a virtual environment: `python -m venv venv`
+3. Activate the virtual environment:
+   - Windows: `venv\Scripts\activate`
+   - Unix/MacOS: `source venv/bin/activate`
+4. Install dependencies: `pip install -r requirements.txt`
+
+## Running the Application
+
+### Using the PowerShell Script (Recommended)
+
+1. Right-click on `run_app.ps1` and select "Run with PowerShell" or
+2. Open PowerShell and run: `powershell -ExecutionPolicy Bypass -File run_app.ps1`
+3. Access the application in your browser at: `http://localhost:5000`
+
+### Alternative Method
+
+1. Activate the virtual environment (if not already activated)
+2. Run `python app.py`
+3. Access the application in your browser at: `http://localhost:5000`
 
 ## Usage
 
@@ -99,6 +122,12 @@ The system can import student lists in the following formats:
 11220030102	Name1	Surname
 11220030126	Name1 Name2	Surname
 ```
+
+## Troubleshooting
+
+- **Application won't start**: Ensure Python is installed correctly and added to PATH
+- **Database errors**: Check file permissions in the application directory
+- **Import issues**: Verify that student data matches one of the supported formats
 
 ## License
 

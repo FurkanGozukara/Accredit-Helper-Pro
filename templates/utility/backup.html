@@ -27,7 +27,7 @@
                     <p>Creating a backup will save a complete copy of your database as it exists right now.</p>
                     <p>This allows you to restore your data to this exact state in the future if needed.</p>
                     
-                    <form method="POST" action="{{ url_for('utility.create_backup') }}">
+                    <form method="POST" action="{{ url_for('utility.backup_database') }}">
                         <div class="mb-3">
                             <label for="description" class="form-label">Backup Description (Optional)</label>
                             <input type="text" class="form-control" id="description" name="description" 
@@ -66,7 +66,7 @@
                         <a href="{{ url_for('utility.list_backups') }}" class="btn btn-outline-primary">
                             <i class="fas fa-list"></i> View All Backups
                         </a>
-                        <a href="{{ url_for('utility.restore_backup') }}" class="btn btn-outline-warning">
+                        <a href="{{ url_for('utility.restore_database') }}" class="btn btn-outline-warning">
                             <i class="fas fa-undo"></i> Restore from Backup
                         </a>
                     </div>

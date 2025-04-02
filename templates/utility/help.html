@@ -277,56 +277,58 @@
                                         <div class="card-body">
                                             <h6><i class="fas fa-envelope"></i> Email Support</h6>
                                             <p>For technical issues or feature requests:</p>
-                                            <p><a href="mailto:support@abet-calculator.example.com">support@abet-calculator.example.com</a></p>
+                                            <p><a href="mailto:furkangozukara@gmail.com">support@abet-calculator.example.com</a></p>
                                         </div>
                                     </div>
                                 </div>
-                                
-                                <div class="col-md-6">
-                                    <div class="card h-100">
-                                        <div class="card-body">
-                                            <h6><i class="fas fa-phone"></i> Phone Support</h6>
-                                            <p>Available Monday-Friday, 9am-5pm:</p>
-                                            <p><a href="tel:+11234567890">+1 (123) 456-7890</a></p>
+
+                                <div class="row mt-4">
+                                    <div class="col-md-6">
+                                        <div class="card h-100">
+                                            <div class="card-body">
+                                                <h6><i class="fas fa-envelope"></i> LinkedIn Chat Support</h6>
+                                                <p>For technical issues or feature requests:</p>
+                                                <p><a href="https://www.linkedin.com/in/furkangozukara/">https://www.linkedin.com/in/furkangozukara/</a></p>
+                                            </div>
                                         </div>
                                     </div>
+
                                 </div>
+
+                                <h5 class="mt-4">Feedback</h5>
+                                <p>We welcome your feedback to improve the ABET Calculator. Please share your suggestions or report issues using the form below:</p>
+
+                                <form action="{{ url_for('utility.submit_feedback') }}" method="POST" class="mt-3">
+                                    <div class="mb-3">
+                                        <label for="feedback_name" class="form-label">Your Name</label>
+                                        <input type="text" class="form-control" id="feedback_name" name="name">
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="feedback_email" class="form-label">Email Address</label>
+                                        <input type="email" class="form-control" id="feedback_email" name="email">
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="feedback_type" class="form-label">Feedback Type</label>
+                                        <select class="form-select" id="feedback_type" name="feedback_type">
+                                            <option value="bug">Bug Report</option>
+                                            <option value="feature">Feature Request</option>
+                                            <option value="suggestion">Suggestion</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="feedback_message" class="form-label">Your Message</label>
+                                        <textarea class="form-control" id="feedback_message" name="message" rows="5" required></textarea>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-paper-plane"></i> Submit Feedback
+                                    </button>
+                                </form>
                             </div>
-                            
-                            <h5 class="mt-4">Feedback</h5>
-                            <p>We welcome your feedback to improve the ABET Calculator. Please share your suggestions or report issues using the form below:</p>
-                            
-                            <form action="{{ url_for('utility.submit_feedback') }}" method="POST" class="mt-3">
-                                <div class="mb-3">
-                                    <label for="feedback_name" class="form-label">Your Name</label>
-                                    <input type="text" class="form-control" id="feedback_name" name="name">
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="feedback_email" class="form-label">Email Address</label>
-                                    <input type="email" class="form-control" id="feedback_email" name="email">
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="feedback_type" class="form-label">Feedback Type</label>
-                                    <select class="form-select" id="feedback_type" name="feedback_type">
-                                        <option value="bug">Bug Report</option>
-                                        <option value="feature">Feature Request</option>
-                                        <option value="suggestion">Suggestion</option>
-                                        <option value="other">Other</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="feedback_message" class="form-label">Your Message</label>
-                                    <textarea class="form-control" id="feedback_message" name="message" rows="5" required></textarea>
-                                </div>
-                                
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-paper-plane"></i> Submit Feedback
-                                </button>
-                            </form>
-                        </div>
                     </div>
                 </div>
                 

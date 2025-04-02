@@ -49,7 +49,7 @@
                                         <button type="button" class="btn btn-sm btn-warning" 
                                                 data-bs-toggle="modal" 
                                                 data-bs-target="#confirmRestoreModal" 
-                                                data-backup-id="{{ backup.id }}"
+                                                data-backup-id="{{ backup.filename }}"
                                                 data-backup-date="{{ backup.created_at.strftime('%Y-%m-%d %H:%M:%S') }}">
                                             <i class="fas fa-undo"></i> Restore
                                         </button>
@@ -63,7 +63,7 @@
         </div>
     {% else %}
         <div class="alert alert-info">
-            <i class="fas fa-info-circle"></i> No backups available. Please <a href="{{ url_for('utility.backup') }}" class="alert-link">create a backup</a> first.
+            <i class="fas fa-info-circle"></i> No backups available. Please <a href="{{ url_for('utility.backup_database') }}" class="alert-link">create a backup</a> first.
         </div>
     {% endif %}
     
@@ -145,7 +145,7 @@
                 const backupDate = button.getAttribute('data-backup-date');
                 
                 document.getElementById('backupDateToRestore').textContent = backupDate;
-                document.getElementById('restoreForm').action = `/utility/restore/${backupId}`;
+                document.getElementById('restoreForm').action = "{{ url_for('utility.restore_from_backup', filename='') }}" + backupId;
                 
                 // Reset checkbox and button state
                 document.getElementById('confirm_restore').checked = false;
