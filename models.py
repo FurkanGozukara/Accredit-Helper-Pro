@@ -31,6 +31,7 @@ class Course(db.Model):
     course_outcomes = db.relationship('CourseOutcome', backref='course', lazy=True, cascade="all, delete-orphan")
     students = db.relationship('Student', backref='course', lazy=True, cascade="all, delete-orphan")
     exam_weights = db.relationship('ExamWeight', backref='course', lazy=True, cascade="all, delete-orphan")
+    # Note: 'settings' backref is defined in CourseSettings model
     
     def __repr__(self):
         return f"<Course {self.code}: {self.name}>"
@@ -46,6 +47,7 @@ class Exam(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     is_makeup = db.Column(db.Boolean, default=False)
     makeup_for = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=True)
+    is_mandatory = db.Column(db.Boolean, default=False)
     
     # Relationships
     questions = db.relationship('Question', backref='exam', lazy=True, cascade="all, delete-orphan")
@@ -156,4 +158,19 @@ class Log(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.now)
     
     def __repr__(self):
-        return f"<Log {self.action} at {self.timestamp}>" 
+        return f"<Log {self.action} at {self.timestamp}>"
+
+class CourseSettings(db.Model):
+    """CourseSettings model for storing course-specific settings like success rate calculation method"""
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False, unique=True)
+    success_rate_method = db.Column(db.String(20), nullable=False, default='absolute')  # 'absolute' or 'relative'
+    relative_success_threshold = db.Column(db.Numeric(10, 2), nullable=False, default=60.0)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    # Relationship
+    course = db.relationship('Course', backref=db.backref('settings', uselist=False), lazy=True)
+    
+    def __repr__(self):
+        return f"<CourseSettings for Course {self.course_id}>" 

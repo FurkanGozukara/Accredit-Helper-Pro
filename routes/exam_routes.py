@@ -393,4 +393,26 @@ def export_exam_scores(exam_id):
         data.append(student_row)
     
     # Export data using utility function
-    return export_to_excel_csv(data, f"scores_{course.code}_{exam.name.replace(' ', '_')}", headers) 
+    return export_to_excel_csv(data, f"scores_{course.code}_{exam.name.replace(' ', '_')}", headers)
+
+@exam_bp.route('/course/<int:course_id>/manage_exams')
+def manage_exams(course_id):
+    """Manage exams, including mandatory exam settings"""
+    course = Course.query.get_or_404(course_id)
+    exams = Exam.query.filter_by(course_id=course_id).all()
+    regular_exams = [e for e in exams if not e.is_makeup]
+    makeup_exams = [e for e in exams if e.is_makeup]
+
+    # Get weights for display
+    weights = {}
+    for exam in exams:
+        weight = ExamWeight.query.filter_by(exam_id=exam.id).first()
+        if weight:
+            weights[exam.id] = weight.weight
+
+    return render_template('exam/manage_exams.html',
+                         course=course,
+                         regular_exams=regular_exams,
+                         makeup_exams=makeup_exams,
+                         weights=weights,
+                         active_page='courses') 

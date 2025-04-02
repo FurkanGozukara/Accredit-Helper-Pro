@@ -1,17 +1,17 @@
 {% extends 'base.html' %}
 
-{% block title %}ABET Calculations - {{ course.code }} - ABET Calculator{% endblock %}
+{% block title %}Program Outcome Scores - {{ course.code }} - ABET Calculator{% endblock %}
 
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
 <li class="breadcrumb-item"><a href="{{ url_for('course.course_detail', course_id=course.id) }}">{{ course.code }}</a></li>
-<li class="breadcrumb-item active">ABET Calculations</li>
+<li class="breadcrumb-item active">Program Outcome Scores</li>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>ABET Calculations for {{ course.code }}: {{ course.name }}</h1>
+        <h1>Program Outcome Scores for {{ course.code }}: {{ course.name }}</h1>
         <div>
             <button type="button" class="btn btn-outline-success me-2" onclick="exportResults()">
                 <i class="fas fa-file-export"></i> Export Results
