@@ -3,6 +3,10 @@ from app import db
 from models import Question, Exam, Course, CourseOutcome, Log
 from datetime import datetime
 import logging
+import io
+import csv
+from routes.utility_routes import export_to_excel_csv
+from decimal import Decimal
 
 question_bp = Blueprint('question', __name__, url_prefix='/question')
 
@@ -43,7 +47,7 @@ def add_question(exam_id):
                                  active_page='courses')
         
         try:
-            max_score = float(max_score)
+            max_score = Decimal(max_score)
             if max_score <= 0:
                 raise ValueError("Score must be positive")
             
@@ -137,7 +141,7 @@ def edit_question(question_id):
                                  active_page='courses')
         
         try:
-            max_score = float(max_score)
+            max_score = Decimal(max_score)
             if max_score <= 0:
                 raise ValueError("Score must be positive")
             
@@ -229,7 +233,7 @@ def auto_assign_scores(exam_id):
     
     try:
         # Calculate equal score for each question
-        equal_score = exam.max_score / len(questions)
+        equal_score = Decimal(exam.max_score) / len(questions)
         
         # Update all questions
         for question in questions:
@@ -287,7 +291,7 @@ def batch_add_questions(exam_id):
                 selected_outcomes = request.form.getlist(f'course_outcomes_{i}')
                 
                 try:
-                    max_score = float(max_score)
+                    max_score = Decimal(max_score)
                     if max_score <= 0:
                         continue  # Skip invalid questions
                     
@@ -403,4 +407,32 @@ def mass_associate_outcomes(course_id):
                          questions=questions,
                          course_outcomes=course_outcomes,
                          exams=exams,
-                         active_page='courses') 
+                         active_page='courses')
+
+@question_bp.route('/exam/<int:exam_id>/export')
+def export_exam_questions(exam_id):
+    """Export questions for a specific exam to CSV"""
+    exam = Exam.query.get_or_404(exam_id)
+    course = Course.query.get_or_404(exam.course_id)
+    questions = Question.query.filter_by(exam_id=exam_id).order_by(Question.number).all()
+    
+    # Prepare data for export
+    data = []
+    headers = ['Number', 'Text', 'Max Score', 'Related Course Outcomes']
+    
+    for question in questions:
+        # Get related course outcomes
+        co_codes = [co.code for co in question.course_outcomes]
+        co_text = ', '.join(co_codes) if co_codes else 'None'
+        
+        question_data = {
+            'Number': question.number,
+            'Text': question.text or '',
+            'Max Score': question.max_score,
+            'Related Course Outcomes': co_text
+        }
+        
+        data.append(question_data)
+    
+    # Export data using utility function
+    return export_to_excel_csv(data, f"questions_{course.code}_{exam.name.replace(' ', '_')}", headers) 

@@ -1,4 +1,4 @@
-// Main JavaScript for ABET Calculator
+// Main JavaScript for Accredit Helper Pro
 
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize delete confirmation modal
@@ -129,12 +129,15 @@ function calculateStudentTotal(studentId, examId) {
     let maxTotal = 0;
     
     scoreInputs.forEach(input => {
-        const score = parseFloat(input.value) || 0;
+        const value = parseFloat(input.value) || 0;
         const maxScore = parseFloat(input.getAttribute('data-max-score')) || 0;
         
-        total += score;
+        total += value;
         maxTotal += maxScore;
     });
+    
+    total = parseFloat(total.toFixed(2));
+    maxTotal = parseFloat(maxTotal.toFixed(2));
     
     const totalElement = document.getElementById(`total-${studentId}`);
     if (totalElement) {

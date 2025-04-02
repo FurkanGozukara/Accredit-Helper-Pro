@@ -6,6 +6,9 @@ import logging
 import csv
 import io
 import os
+from sqlalchemy import func
+from routes.utility_routes import export_to_excel_csv
+from decimal import Decimal
 
 calculation_bp = Blueprint('calculation', __name__, url_prefix='/calculation')
 
@@ -34,17 +37,17 @@ def course_calculations(course_id):
     
     # Get exam weights
     weights = {}
-    total_weight = 0
+    total_weight = Decimal('0')
     for exam in exams:
         weight = ExamWeight.query.filter_by(exam_id=exam.id).first()
         if weight:
             weights[exam.id] = weight.weight
             total_weight += weight.weight
         else:
-            weights[exam.id] = 0
+            weights[exam.id] = Decimal('0')
     
     # Check if weights are properly set
-    if abs(total_weight - 1.0) > 0.01:  # Allow small floating-point error
+    if abs(total_weight - Decimal('1.0')) > Decimal('0.01'):  # Allow small decimal error
         flash(f'Exam weights do not add up to 100%. Current total: {total_weight*100:.1f}%. Please update weights.', 'warning')
         return redirect(url_for('exam.manage_weights', course_id=course_id))
     
@@ -55,7 +58,7 @@ def course_calculations(course_id):
         student_results[student.id] = {
             'student': student,
             'exam_scores': {},  # Raw scores per exam
-            'weighted_score': 0,  # Final weighted score
+            'weighted_score': Decimal('0'),  # Final weighted score
             'course_outcome_scores': {},  # Scores per course outcome
             'program_outcome_scores': {}  # Scores per program outcome
         }
@@ -88,7 +91,7 @@ def course_calculations(course_id):
             continue
         
         # Calculate weighted score
-        weighted_score = 0
+        weighted_score = Decimal('0')
         for exam_id, score in student_results[student.id]['exam_scores'].items():
             weighted_score += score * weights[exam_id]
         
@@ -195,11 +198,11 @@ def course_calculations(course_id):
     has_student_scores = Score.query.join(Question).join(Exam).filter(Exam.course_id == course_id).first() is not None
     
     # Check if weights are valid (already calculated above)
-    has_valid_weights = abs(total_weight - 1.0) <= 0.01
+    has_valid_weights = abs(total_weight - Decimal('1.0')) <= Decimal('0.01')
     
     # Log calculation action
     log = Log(action="CALCULATE_RESULTS", 
-             description=f"Calculated ABET results for course: {course.code}")
+             description=f"Calculated Accredit results for course: {course.code}")
     db.session.add(log)
     db.session.commit()
     
@@ -222,7 +225,7 @@ def course_calculations(course_id):
 
 @calculation_bp.route('/course/<int:course_id>/export')
 def export_results(course_id):
-    """Export calculation results to CSV"""
+    """Export calculation results to CSV in Excel-compatible format"""
     course = Course.query.get_or_404(course_id)
     exams = Exam.query.filter_by(course_id=course_id, is_makeup=False).all()
     makeup_exams = Exam.query.filter_by(course_id=course_id, is_makeup=True).all()
@@ -230,32 +233,42 @@ def export_results(course_id):
     program_outcomes = ProgramOutcome.query.all()
     students = Student.query.filter_by(course_id=course_id).order_by(Student.student_id).all()
     
-    # Create CSV data
-    output = io.StringIO()
-    writer = csv.writer(output, delimiter=';')
+    # Prepare data for export
+    data = []
     
-    # Write header row
-    header = ['student_no', 'name', 'final_score']
-    writer.writerow(header)
+    # Create human-readable headers
+    headers = ['Student ID', 'Student Name', 'Final Score (%)']
     
-    # Write question row (for the expected output format)
-    questions_row = ['question scores:']
+    # Add exam headers
     for exam in exams:
-        questions = Question.query.filter_by(exam_id=exam.id).order_by(Question.number).all()
-        for question in questions:
-            questions_row.append(f'q{question.number} ({question.max_score})')
-    writer.writerow(questions_row)
+        headers.append(f'{exam.name} Score (%)')
     
-    # Calculate and write student results
+    # Add course outcome headers
+    for co in course_outcomes:
+        headers.append(f'CO: {co.code} (%)')
+    
+    # Add program outcome headers
+    for po in program_outcomes:
+        # Check if program outcome is linked to any course outcome
+        has_link = False
+        for co in course_outcomes:
+            if po in co.program_outcomes:
+                has_link = True
+                break
+        
+        if has_link:
+            headers.append(f'PO: {po.code} (%)')
+    
+    # Calculate and add student results
     for student in students:
         has_final_or_makeup = False
-        final_score = 0
+        final_score = Decimal('0')
         weights = {}
         
         # Get exam weights
         for exam in exams:
             weight = ExamWeight.query.filter_by(exam_id=exam.id).first()
-            weights[exam.id] = weight.weight if weight else 0
+            weights[exam.id] = weight.weight if weight else Decimal('0')
             
             if exam.name.lower() in ['final', 'final exam']:
                 has_final_or_makeup = True
@@ -282,28 +295,40 @@ def export_results(course_id):
         if not has_final_or_makeup:
             continue
         
-        # Format student row
-        student_row = [
-            student.student_id,
-            f"{student.first_name} {student.last_name}".strip(),
-            round(final_score, 2)
-        ]
+        # Create student data row
+        student_row = {
+            'Student ID': student.student_id,
+            'Student Name': f"{student.first_name} {student.last_name}".strip(),
+            'Final Score (%)': round(final_score, 2)
+        }
         
-        writer.writerow(student_row)
+        # Add exam scores
+        for exam in exams:
+            exam_score = calculate_student_exam_score(student.id, exam.id)
+            student_row[f'{exam.name} Score (%)'] = round(exam_score, 2) if exam_score is not None else ''
+        
+        # Add course outcome scores
+        for co in course_outcomes:
+            co_score = calculate_course_outcome_score(student.id, co.id)
+            student_row[f'CO: {co.code} (%)'] = round(co_score, 2) if co_score is not None else ''
+        
+        # Add program outcome scores
+        for po in program_outcomes:
+            # Check if program outcome is linked to any course outcome
+            has_link = False
+            for co in course_outcomes:
+                if po in co.program_outcomes:
+                    has_link = True
+                    break
+            
+            if has_link:
+                po_score = calculate_program_outcome_score(student.id, po.id, course_id)
+                student_row[f'PO: {po.code} (%)'] = round(po_score, 2) if po_score is not None else ''
+        
+        data.append(student_row)
     
-    # Prepare response
-    output.seek(0)
-    
-    # Log export action
-    log = Log(action="EXPORT_RESULTS", 
-             description=f"Exported ABET results for course: {course.code}")
-    db.session.add(log)
-    db.session.commit()
-    
-    return output.getvalue(), 200, {
-        'Content-Type': 'text/csv',
-        'Content-Disposition': f'attachment; filename=results_{course.code}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
-    }
+    # Export data using the utility function
+    return export_to_excel_csv(data, f"accredit_results_{course.code}", headers)
 
 # Helper function to calculate a student's score for an exam
 def calculate_student_exam_score(student_id, exam_id):
@@ -314,8 +339,8 @@ def calculate_student_exam_score(student_id, exam_id):
     if not questions:
         return None
     
-    total_score = 0
-    total_possible = 0
+    total_score = Decimal('0')
+    total_possible = Decimal('0')
     
     for question in questions:
         score = Score.query.filter_by(
@@ -329,10 +354,10 @@ def calculate_student_exam_score(student_id, exam_id):
         
         total_possible += question.max_score
     
-    if total_possible == 0:
+    if total_possible == Decimal('0'):
         return None
     
-    return (total_score / total_possible) * 100
+    return (total_score / total_possible) * Decimal('100')
 
 # Helper function to calculate a student's score for a course outcome
 def calculate_course_outcome_score(student_id, outcome_id):
@@ -343,8 +368,8 @@ def calculate_course_outcome_score(student_id, outcome_id):
     if not questions:
         return None
     
-    total_score = 0
-    total_possible = 0
+    total_score = Decimal('0')
+    total_possible = Decimal('0')
     
     for question in questions:
         score = Score.query.filter_by(
@@ -356,10 +381,10 @@ def calculate_course_outcome_score(student_id, outcome_id):
             total_score += score.score
             total_possible += question.max_score
     
-    if total_possible == 0:
+    if total_possible == Decimal('0'):
         return None
     
-    return (total_score / total_possible) * 100
+    return (total_score / total_possible) * Decimal('100')
 
 # Helper function to calculate a student's score for a program outcome
 def calculate_program_outcome_score(student_id, outcome_id, course_id):
@@ -373,7 +398,7 @@ def calculate_program_outcome_score(student_id, outcome_id, course_id):
     if not related_course_outcomes:
         return None
     
-    total_score = 0
+    total_score = Decimal('0')
     count = 0
     
     for course_outcome in related_course_outcomes:

@@ -20,7 +20,7 @@ def create_app():
     
     # Configuration
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key_for_local_use')
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(base_dir, "instance", "abet_data.db")}'
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(base_dir, "instance", "accredit_data.db")}'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['BACKUP_FOLDER'] = os.path.join(base_dir, 'backups')
     

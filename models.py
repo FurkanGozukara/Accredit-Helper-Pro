@@ -39,7 +39,7 @@ class Exam(db.Model):
     """Exam model representing course assessments (midterm, final, homework, etc.)"""
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
-    max_score = db.Column(db.Float, nullable=False, default=100.0)
+    max_score = db.Column(db.Numeric(10, 2), nullable=False, default=100.0)
     exam_date = db.Column(db.Date, nullable=True)
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now)
@@ -61,7 +61,7 @@ class ExamWeight(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     exam_id = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=False)
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
-    weight = db.Column(db.Float, nullable=False)
+    weight = db.Column(db.Numeric(10, 2), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     
@@ -105,7 +105,7 @@ class Question(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     text = db.Column(db.Text, nullable=True)
     number = db.Column(db.Integer, nullable=False)
-    max_score = db.Column(db.Float, nullable=False)
+    max_score = db.Column(db.Numeric(10, 2), nullable=False)
     exam_id = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
@@ -129,13 +129,16 @@ class Student(db.Model):
     # Relationships
     scores = db.relationship('Score', backref='student', lazy=True, cascade="all, delete-orphan")
     
+    # Add a unique constraint to ensure student_id is unique per course
+    __table_args__ = (db.UniqueConstraint('student_id', 'course_id', name='_student_course_uc'),)
+    
     def __repr__(self):
         return f"<Student {self.student_id}: {self.first_name} {self.last_name}>"
 
 class Score(db.Model):
     """Score model representing a student's score on a specific question of an exam"""
     id = db.Column(db.Integer, primary_key=True)
-    score = db.Column(db.Float, nullable=False)
+    score = db.Column(db.Numeric(10, 2), nullable=False)
     student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
     question_id = db.Column(db.Integer, db.ForeignKey('question.id'), nullable=False)
     exam_id = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=False)

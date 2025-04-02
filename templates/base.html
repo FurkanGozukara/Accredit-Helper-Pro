@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-100">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}ABET Calculator{% endblock %}</title>
+    <title>{% block title %}Accredit Helper Pro{% endblock %}</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
@@ -14,63 +14,65 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="{{ url_for('index') }}">
-                <i class="bi bi-calculator"></i> ABET Calculator
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link {% if active_page == 'courses' %}active{% endif %}" href="{{ url_for('index') }}">
-                            <i class="bi bi-book"></i> Courses
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if active_page == 'program_outcomes' %}active{% endif %}" href="{{ url_for('outcome.list_program_outcomes') }}">
-                            <i class="bi bi-list-check"></i> Program Outcomes
-                        </a>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if active_page == 'utilities' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-tools"></i> Utilities
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('utility.backup_database') }}">
-                                    <i class="bi bi-download"></i> Backup Database
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('utility.restore_database') }}">
-                                    <i class="bi bi-upload"></i> Restore Database
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('utility.merge_database') }}">
-                                    <i class="bi bi-intersect"></i> Merge Courses
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{{ url_for('utility.view_logs') }}">
-                                    <i class="bi bi-journal-text"></i> View Logs
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if active_page == 'help' %}active{% endif %}" href="{{ url_for('utility.help_page') }}">
-                            <i class="bi bi-question-circle"></i> Help
-                        </a>
-                    </li>
-                </ul>
+<body class="d-flex flex-column h-100">
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="{{ url_for('index') }}">
+                    <i class="bi bi-calculator"></i> Accredit Helper Pro
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <a class="nav-link {% if active_page == 'courses' %}active{% endif %}" href="{{ url_for('index') }}">
+                                <i class="bi bi-book"></i> Courses
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if active_page == 'program_outcomes' %}active{% endif %}" href="{{ url_for('outcome.list_program_outcomes') }}">
+                                <i class="bi bi-list-check"></i> Program Outcomes
+                            </a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle {% if active_page == 'utilities' %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-tools"></i> Utilities
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('utility.backup_database') }}">
+                                        <i class="bi bi-download"></i> Backup Database
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('utility.restore_database') }}">
+                                        <i class="bi bi-upload"></i> Restore Database
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('utility.merge_database') }}">
+                                        <i class="bi bi-intersect"></i> Merge Courses
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('utility.view_logs') }}">
+                                        <i class="bi bi-journal-text"></i> View Logs
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if active_page == 'help' %}active{% endif %}" href="{{ url_for('utility.help_page') }}">
+                                <i class="bi bi-question-circle"></i> Help
+                            </a>
+                        </li>
+                    </ul>
+                </div>
             </div>
-        </div>
-    </nav>
+        </nav>
+    </header>
 
     <div class="container mt-4 mb-5">
         <!-- Breadcrumb navigation -->
@@ -100,7 +102,7 @@
 
     <footer class="footer mt-auto py-3 bg-light">
         <div class="container text-center">
-            <span class="text-muted">ABET Helper Pro by SECourses V5 - Only Authorized Purchase from <a href="https://www.patreon.com/c/SECourses">www.patreon.com/c/SECourses</a> - Per License Needed for Per Department (e.g. Computer Engineering) - All Rights Reserved | <a href="{{ url_for('utility.help_page') }}">Help</a></span>
+            <span class="text-muted">Accredit Helper Pro by SECourses V5 - Only Authorized Purchase from <a href="https://www.patreon.com/c/SECourses">www.patreon.com/c/SECourses</a> - Per License Needed for Per Department (e.g. Computer Engineering) - All Rights Reserved | <a href="{{ url_for('utility.help_page') }}">Help</a></span>
         </div>
     </footer>
 

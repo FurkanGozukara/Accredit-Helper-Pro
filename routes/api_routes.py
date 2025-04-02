@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from models import Question, CourseOutcome, Log, Student, Exam, Score
 from app import db
 import logging
+from decimal import Decimal
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -50,8 +51,8 @@ def get_student_abet_scores(student_id, exam_id):
                 outcome_scores[outcome.id] = {
                     'code': outcome.code,
                     'description': outcome.description,
-                    'total_score': 0.0,
-                    'max_score': 0.0
+                    'total_score': Decimal('0'),
+                    'max_score': Decimal('0')
                 }
             
             # Add score for this question/outcome if available

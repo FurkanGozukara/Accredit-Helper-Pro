@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, current_app as app
 from app import db
 from models import Student, Course, Exam, Question, Score, Log
 from datetime import datetime
@@ -6,6 +6,8 @@ import logging
 import csv
 import io
 import re
+from routes.utility_routes import export_to_excel_csv
+from decimal import Decimal
 
 student_bp = Blueprint('student', __name__, url_prefix='/student')
 
@@ -52,6 +54,9 @@ def import_students(course_id):
         students_added = 0
         errors = []
         
+        # Keep track of student IDs for uniqueness validation during import
+        imported_student_ids = set()
+        
         for i, line in enumerate(lines, 1):
             # Skip empty lines
             if not line.strip():
@@ -90,6 +95,13 @@ def import_students(course_id):
                 if existing_student:
                     errors.append(f"Line {i}: Student with ID {student_id} already exists in this course")
                     continue
+                
+                # Check for duplicate student IDs in the current import batch
+                if student_id in imported_student_ids:
+                    errors.append(f"Line {i}: Duplicate student ID {student_id} in import data")
+                    continue
+                
+                imported_student_ids.add(student_id)
                 
                 # Create new student
                 new_student = Student(
@@ -210,10 +222,10 @@ def manage_scores(exam_id):
                         continue
                     
                     try:
-                        score_value = float(score_value)
+                        score_value = Decimal(score_value)
                         # Validate score is within range
                         if score_value < 0:
-                            score_value = 0
+                            score_value = Decimal('0')
                         elif score_value > question.max_score:
                             score_value = question.max_score
                         
@@ -293,10 +305,10 @@ def auto_save_score(exam_id):
         
         # Convert and validate score
         try:
-            score_value = float(score_value)
+            score_value = Decimal(score_value)
             
             if score_value < 0:
-                score_value = 0
+                score_value = Decimal('0')
             elif score_value > question.max_score:
                 score_value = question.max_score
                 
@@ -399,62 +411,51 @@ def import_scores(exam_id):
             student = students_dict[student_id]
             
             # Process scores (format q1:score1;q2:score2;...)
-            for score_part in parts[2:]:
-                if ':' not in score_part:
-                    errors.append(f"Line {i}: Invalid score format '{score_part}' (expected qX:score)")
+            for j, score_str in enumerate(parts[2:], 1):
+                # Skip empty scores
+                if not score_str:
                     continue
                 
-                q_part, score_value = score_part.split(':', 1)
+                # Map score to question number
+                if j > len(questions):
+                    errors.append(f"Line {i}: Too many scores provided (only {len(questions)} questions exist)")
+                    break
                 
-                # Extract question number
-                if not q_part.startswith('q') and not q_part.startswith('Q'):
-                    errors.append(f"Line {i}: Invalid question format '{q_part}' (expected qX)")
-                    continue
-                
+                # Try to convert score to number
                 try:
-                    q_num = int(q_part[1:])
-                    if q_num not in questions:
-                        errors.append(f"Line {i}: Question number {q_num} not found in this exam")
-                        continue
+                    score_value = Decimal(score_str)
                     
-                    question = questions[q_num]
+                    # Get corresponding question
+                    question = questions[j]
                     
-                    # Parse and validate score
-                    try:
-                        score_value = float(score_value)
-                        # Ensure score is within valid range
-                        if score_value < 0:
-                            score_value = 0
-                        elif score_value > question.max_score:
-                            score_value = question.max_score
-                            
-                        # Get or create score record
-                        score = Score.query.filter_by(
+                    # Validate score is within range
+                    if score_value < 0:
+                        score_value = Decimal('0')
+                    elif score_value > question.max_score:
+                        score_value = question.max_score
+                        
+                    # Update or create score
+                    score = Score.query.filter_by(
+                        student_id=student.id,
+                        question_id=question.id,
+                        exam_id=exam_id
+                    ).first()
+                    
+                    if score:
+                        score.score = score_value
+                    else:
+                        score = Score(
+                            score=score_value,
                             student_id=student.id,
                             question_id=question.id,
                             exam_id=exam_id
-                        ).first()
-                        
-                        if score:
-                            score.score = score_value
-                            score.updated_at = datetime.now()
-                        else:
-                            score = Score(
-                                score=score_value,
-                                student_id=student.id,
-                                question_id=question.id,
-                                exam_id=exam_id
-                            )
-                            db.session.add(score)
-                        
-                        scores_added += 1
-                        
-                    except ValueError:
-                        errors.append(f"Line {i}: Invalid score value '{score_value}' for question {q_num}")
-                        continue
+                        )
+                        db.session.add(score)
                     
-                except ValueError:
-                    errors.append(f"Line {i}: Invalid question number '{q_part[1:]}' (expected integer)")
+                    scores_added += 1
+                    
+                except (ValueError, KeyError) as e:
+                    errors.append(f"Line {i}: Error processing score {score_str} for question {j}: {str(e)}")
                     continue
         
         except Exception as e:
@@ -488,4 +489,142 @@ def import_scores(exam_id):
         if len(errors) > 10:
             flash(f'... and {len(errors) - 10} more errors', 'warning')
     
-    return redirect(url_for('student.manage_scores', exam_id=exam_id)) 
+    return redirect(url_for('student.manage_scores', exam_id=exam_id))
+
+@student_bp.route('/course/<int:course_id>/export')
+def export_students(course_id):
+    """Export students from a course to a CSV file"""
+    course = Course.query.get_or_404(course_id)
+    students = Student.query.filter_by(course_id=course_id).order_by(Student.student_id).all()
+    
+    # Prepare data for export
+    data = []
+    headers = ['Student ID', 'First Name', 'Last Name', 'Full Name']
+    
+    for student in students:
+        data.append({
+            'Student ID': student.student_id,
+            'First Name': student.first_name,
+            'Last Name': student.last_name,
+            'Full Name': f"{student.first_name} {student.last_name}".strip()
+        })
+    
+    # Export data using utility function
+    return export_to_excel_csv(data, f"students_{course.code}", headers)
+
+@student_bp.route('/edit/<int:student_id>', methods=['GET', 'POST'])
+def edit_student(student_id):
+    """Edit an existing student"""
+    student = Student.query.get_or_404(student_id)
+    course = Course.query.get_or_404(student.course_id)
+    
+    if request.method == 'POST':
+        student_id_new = request.form.get('student_id')
+        first_name = request.form.get('first_name')
+        last_name = request.form.get('last_name')
+        
+        # Basic validation
+        if not student_id_new or not first_name:
+            flash('Student ID and First Name are required', 'error')
+            return render_template('student/edit.html', 
+                                student=student,
+                                course=course,
+                                active_page='courses')
+        
+        # Check if student ID already exists in this course (if changed)
+        if student_id_new != student.student_id:
+            existing_student = Student.query.filter_by(student_id=student_id_new, course_id=course.id).first()
+            if existing_student:
+                flash(f'Student with ID {student_id_new} already exists in this course', 'error')
+                return render_template('student/edit.html', 
+                                    student=student,
+                                    course=course,
+                                    active_page='courses')
+        
+        # Update student
+        student.student_id = student_id_new
+        student.first_name = first_name
+        student.last_name = last_name
+        student.updated_at = datetime.now()
+        
+        # Log action
+        log = Log(action="EDIT_STUDENT", 
+                description=f"Edited student {student_id_new} in course: {course.code}")
+        db.session.add(log)
+        
+        try:
+            db.session.commit()
+            flash(f'Student {student_id_new} updated successfully', 'success')
+            return redirect(url_for('course.course_detail', course_id=course.id))
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error updating student: {str(e)}")
+            flash('An error occurred while updating the student', 'error')
+            return render_template('student/edit.html', 
+                                student=student,
+                                course=course,
+                                active_page='courses')
+    
+    # GET request
+    return render_template('student/edit.html', 
+                        student=student,
+                        course=course,
+                        active_page='courses')
+
+@student_bp.route('/course/<int:course_id>/add', methods=['GET', 'POST'])
+def add_student(course_id):
+    """Add a new student to a course"""
+    course = Course.query.get_or_404(course_id)
+    
+    if request.method == 'POST':
+        student_id = request.form.get('student_id')
+        first_name = request.form.get('first_name')
+        last_name = request.form.get('last_name')
+        
+        # Basic validation
+        if not student_id or not first_name:
+            flash('Student ID and First Name are required', 'error')
+            return render_template('student/add.html', 
+                                course=course,
+                                active_page='courses')
+        
+        # Check if student ID already exists in this course
+        existing_student = Student.query.filter_by(student_id=student_id, course_id=course_id).first()
+        if existing_student:
+            flash(f'Student with ID {student_id} already exists in this course', 'error')
+            return render_template('student/add.html', 
+                                course=course,
+                                active_page='courses')
+        
+        # Create new student
+        new_student = Student(
+            student_id=student_id,
+            first_name=first_name,
+            last_name=last_name,
+            course_id=course_id,
+            created_at=datetime.now(),
+            updated_at=datetime.now()
+        )
+        
+        # Log action
+        log = Log(action="ADD_STUDENT", 
+                description=f"Added student {student_id} to course: {course.code}")
+        db.session.add(log)
+        db.session.add(new_student)
+        
+        try:
+            db.session.commit()
+            flash(f'Student {student_id} added successfully', 'success')
+            return redirect(url_for('course.course_detail', course_id=course.id))
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error adding student: {str(e)}")
+            flash('An error occurred while adding the student', 'error')
+            return render_template('student/add.html', 
+                                course=course,
+                                active_page='courses')
+    
+    # GET request
+    return render_template('student/add.html', 
+                        course=course,
+                        active_page='courses') 

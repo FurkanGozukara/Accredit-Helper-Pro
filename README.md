@@ -1,4 +1,4 @@
-# ABET Helper Pro
+# Accredit Helper Pro
 
 A comprehensive tool for teachers to calculate and track achievement of course outcomes for ABET (Accreditation Board for Engineering and Technology) requirements.
 

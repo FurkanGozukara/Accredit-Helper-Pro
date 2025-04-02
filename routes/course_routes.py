@@ -1,8 +1,9 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from app import db
-from models import Course, Exam, CourseOutcome, Student, Log
+from models import Course, Exam, CourseOutcome, Student, Log, ExamWeight
 from datetime import datetime
 import logging
+from routes.utility_routes import export_to_excel_csv
 
 course_bp = Blueprint('course', __name__, url_prefix='/course')
 
@@ -127,10 +128,14 @@ def course_detail(course_id):
     exams = Exam.query.filter_by(course_id=course_id).all()
     course_outcomes = CourseOutcome.query.filter_by(course_id=course_id).all()
     
+    # Get exam weights
+    exam_weights = ExamWeight.query.filter_by(course_id=course_id).all()
+    
     return render_template('course/detail.html', 
                          course=course, 
                          exams=exams, 
                          course_outcomes=course_outcomes,
+                         exam_weights=exam_weights,
                          active_page='courses')
 
 @course_bp.route('/search')
@@ -146,4 +151,30 @@ def search_courses():
     else:
         courses = Course.query.all()
     
-    return render_template('course/list.html', courses=courses, search_term=search_term, active_page='courses') 
+    return render_template('course/list.html', courses=courses, search_term=search_term, active_page='courses')
+
+@course_bp.route('/export')
+def export_courses():
+    """Export courses to a CSV file"""
+    courses = Course.query.order_by(Course.code).all()
+    
+    # Prepare data for export
+    data = []
+    headers = ['Code', 'Name', 'Semester', 'Student Count', 'Exam Count', 'Course Outcomes']
+    
+    for course in courses:
+        student_count = Student.query.filter_by(course_id=course.id).count()
+        exam_count = Exam.query.filter_by(course_id=course.id).count()
+        outcome_count = CourseOutcome.query.filter_by(course_id=course.id).count()
+        
+        data.append({
+            'Code': course.code,
+            'Name': course.name,
+            'Semester': course.semester,
+            'Student Count': student_count,
+            'Exam Count': exam_count,
+            'Course Outcomes': outcome_count
+        })
+    
+    # Export data using utility function
+    return export_to_excel_csv(data, "courses", headers) 

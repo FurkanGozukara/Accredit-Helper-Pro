@@ -3,6 +3,9 @@ from app import db
 from models import CourseOutcome, ProgramOutcome, Course, Log
 from datetime import datetime
 import logging
+import io
+import csv
+from routes.utility_routes import export_to_excel_csv
 
 outcome_bp = Blueprint('outcome', __name__, url_prefix='/outcome')
 
@@ -306,4 +309,54 @@ def delete_program_outcome(outcome_id):
         logging.error(f"Error deleting program outcome: {str(e)}")
         flash('An error occurred while deleting the program outcome', 'error')
     
-    return redirect(url_for('outcome.list_program_outcomes')) 
+    return redirect(url_for('outcome.list_program_outcomes'))
+
+@outcome_bp.route('/course/<int:course_id>/export')
+def export_course_outcomes(course_id):
+    """Export course outcomes to CSV"""
+    course = Course.query.get_or_404(course_id)
+    course_outcomes = CourseOutcome.query.filter_by(course_id=course_id).order_by(CourseOutcome.code).all()
+    
+    # Prepare data for export
+    data = []
+    headers = ['Code', 'Description', 'Related Program Outcomes', 'Related Questions']
+    
+    for co in course_outcomes:
+        # Get related program outcomes
+        po_codes = [po.code for po in co.program_outcomes]
+        po_text = ', '.join(po_codes) if po_codes else 'None'
+        
+        # Get related questions
+        question_count = len(co.questions)
+        
+        co_data = {
+            'Code': co.code,
+            'Description': co.description,
+            'Related Program Outcomes': po_text,
+            'Related Questions': question_count
+        }
+        
+        data.append(co_data)
+    
+    # Export data using utility function
+    return export_to_excel_csv(data, f"outcomes_{course.code}", headers)
+
+@outcome_bp.route('/program/export')
+def export_program_outcomes():
+    """Export program outcomes to CSV"""
+    program_outcomes = ProgramOutcome.query.order_by(ProgramOutcome.code).all()
+    
+    # Prepare data for export
+    data = []
+    headers = ['Code', 'Description']
+    
+    for po in program_outcomes:
+        po_data = {
+            'Code': po.code,
+            'Description': po.description
+        }
+        
+        data.append(po_data)
+    
+    # Export data using utility function
+    return export_to_excel_csv(data, "program_outcomes", headers) 

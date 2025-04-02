@@ -1,8 +1,13 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from app import db
-from models import Course, Exam, Question, CourseOutcome, ExamWeight, Log
+from models import Course, Exam, Question, CourseOutcome, ExamWeight, Log, Score, Student
 from datetime import datetime
 import logging
+import io
+import csv
+from decimal import Decimal
+
+from routes.utility_routes import export_to_excel_csv
 
 exam_bp = Blueprint('exam', __name__, url_prefix='/exam')
 
@@ -26,7 +31,7 @@ def add_exam(course_id):
                                  active_page='courses')
         
         try:
-            max_score = float(max_score)
+            max_score = Decimal(max_score)
             if max_score <= 0:
                 raise ValueError("Score must be positive")
                 
@@ -124,7 +129,7 @@ def edit_exam(exam_id):
                                  active_page='courses')
         
         try:
-            max_score = float(max_score)
+            max_score = Decimal(max_score)
             if max_score <= 0:
                 raise ValueError("Score must be positive")
                 
@@ -226,96 +231,61 @@ def exam_detail(exam_id):
 
 @exam_bp.route('/course/<int:course_id>/weights', methods=['GET', 'POST'])
 def manage_weights(course_id):
-    """Manage the weights of exams in a course"""
+    """Manage weights for each exam in a course"""
     course = Course.query.get_or_404(course_id)
-    
-    # Get regular exams (not makeup exams)
     exams = Exam.query.filter_by(course_id=course_id, is_makeup=False).all()
     
-    # If there are no exams, redirect back to course with a message
-    if not exams:
-        flash('You need to add exams before setting weights', 'warning')
-        return redirect(url_for('course.course_detail', course_id=course_id))
+    # Get existing weights
+    weights = ExamWeight.query.filter_by(course_id=course_id).all()
     
-    # Get weights for all exams
-    weights = []
-    for exam in exams:
-        # Check if a weight already exists
-        weight = ExamWeight.query.filter_by(exam_id=exam.id, course_id=course_id).first()
-        
-        if not weight:
-            # Create a default weight
-            weight = ExamWeight(
-                exam_id=exam.id,
-                course_id=course_id,
-                weight=0
-            )
-            db.session.add(weight)
-            db.session.commit()
-        
-        weights.append(weight)
-        
-        # Also handle makeup exams - they should have same weight as original
-        if exam.makeup_exam:
-            makeup_weight = ExamWeight.query.filter_by(exam_id=exam.makeup_exam.id, course_id=course_id).first()
-            
-            if not makeup_weight:
-                makeup_weight = ExamWeight(
-                    exam_id=exam.makeup_exam.id,
-                    course_id=course_id,
-                    weight=weight.weight  # Same as original
-                )
-                db.session.add(makeup_weight)
-                db.session.commit()
-            
-            weights.append(makeup_weight)
+    # Create a dictionary to map exam_id to its weight
+    exam_weight_map = {w.exam_id: w for w in weights}
     
     if request.method == 'POST':
         try:
-            total_weight = 0
+            total_weight = Decimal('0')
+            exam_weights = {}
             
-            # Update weights from form
-            for weight in weights:
-                weight_value = request.form.get(f'weight_{weight.id}', 0)
+            # Process each exam weight
+            for exam in exams:
+                weight_key = f'weight_{exam.id}'
+                weight_value = request.form.get(weight_key, '0')
                 
                 try:
-                    weight_value = float(weight_value) / 100  # Convert percentage to decimal
-                    
-                    # Skip makeup exams - their weights are set automatically
-                    if Exam.query.get(weight.exam_id).is_makeup:
-                        continue
-                    
-                    # Validate weight
+                    weight_value = Decimal(weight_value) / 100  # Convert percentage to decimal
                     if weight_value < 0:
-                        weight_value = 0
-                    elif weight_value > 1:
-                        weight_value = 1
+                        weight_value = Decimal('0')
+                    if weight_value > 1:
+                        weight_value = Decimal('1')
                     
-                    weight.weight = weight_value
+                    exam_weights[exam.id] = weight_value
                     total_weight += weight_value
-                    
-                    # Update makeup exam weight if exists
-                    exam = Exam.query.get(weight.exam_id)
-                    if exam.makeup_exam:
-                        makeup_weight = ExamWeight.query.filter_by(exam_id=exam.makeup_exam.id, course_id=course_id).first()
-                        if makeup_weight:
-                            makeup_weight.weight = weight_value
-                    
                 except ValueError:
-                    weight.weight = 0
+                    flash(f'Invalid weight value for {exam.name}', 'error')
+                    return redirect(url_for('exam.manage_weights', course_id=course_id))
             
-            # Validate total is close to 100%
-            if abs(total_weight - 1.0) > 0.01:
-                flash(f'Total weight ({total_weight*100:.1f}%) is not 100%. Please adjust the weights.', 'error')
-                return render_template('exam/weights.html', 
-                                     course=course,
-                                     weights=weights,
-                                     active_page='courses')
+            # Ensure weights sum to 1 (100%)
+            if abs(total_weight - Decimal('1.0')) > Decimal('0.01'):  # Allow small decimal error
+                flash('The sum of weights must equal 100%', 'error')
+                return redirect(url_for('exam.manage_weights', course_id=course_id))
             
             # Log action
             log = Log(action="UPDATE_EXAM_WEIGHTS", 
                      description=f"Updated exam weights for course: {course.code}")
             db.session.add(log)
+            
+            # Update weights in the database
+            for exam_id, weight in exam_weights.items():
+                # Check if the weight already exists
+                existing_weight = ExamWeight.query.filter_by(exam_id=exam_id, course_id=course_id).first()
+                
+                if existing_weight:
+                    # Update the existing weight
+                    existing_weight.weight = weight
+                else:
+                    # Create a new weight
+                    new_weight = ExamWeight(exam_id=exam_id, course_id=course_id, weight=weight)
+                    db.session.add(new_weight)
             
             db.session.commit()
             flash('Exam weights updated successfully', 'success')
@@ -326,7 +296,101 @@ def manage_weights(course_id):
             logging.error(f"Error updating exam weights: {str(e)}")
             flash('An error occurred while updating exam weights', 'error')
     
+    # Prepare weights for the template
+    weights_for_template = []
+    for exam in exams:
+        # Check if there's an existing weight
+        if exam.id in exam_weight_map:
+            weights_for_template.append(exam_weight_map[exam.id])
+        else:
+            # Create a temporary weight object (not in DB)
+            temp_weight = ExamWeight(exam_id=exam.id, course_id=course_id, weight=Decimal('0'))
+            temp_weight.exam = exam
+            weights_for_template.append(temp_weight)
+    
     return render_template('exam/weights.html', 
                          course=course,
-                         weights=weights,
-                         active_page='courses') 
+                         exams=exams,
+                         weights=weights_for_template,
+                         active_page='courses')
+
+@exam_bp.route('/course/<int:course_id>/export')
+def export_exams(course_id):
+    """Export all exams for a course to CSV"""
+    course = Course.query.get_or_404(course_id)
+    exams = Exam.query.filter_by(course_id=course_id).order_by(Exam.name).all()
+    
+    # Prepare data for export
+    data = []
+    headers = ['Exam Name', 'Max Score', 'Date', 'Question Count', 'Is Makeup', 'Makeup For']
+    
+    for exam in exams:
+        question_count = Question.query.filter_by(exam_id=exam.id).count()
+        
+        exam_data = {
+            'Exam Name': exam.name,
+            'Max Score': exam.max_score,
+            'Date': exam.exam_date.strftime('%Y-%m-%d') if exam.exam_date else 'N/A',
+            'Question Count': question_count,
+            'Is Makeup': 'Yes' if exam.is_makeup else 'No',
+            'Makeup For': exam.original_exam.name if exam.is_makeup and exam.original_exam else 'N/A'
+        }
+        
+        data.append(exam_data)
+    
+    # Export data using utility function
+    return export_to_excel_csv(data, f"exams_{course.code}", headers)
+
+@exam_bp.route('/<int:exam_id>/export_scores')
+def export_exam_scores(exam_id):
+    """Export scores for a specific exam to CSV"""
+    exam = Exam.query.get_or_404(exam_id)
+    course = Course.query.get_or_404(exam.course_id)
+    questions = Question.query.filter_by(exam_id=exam.id).order_by(Question.number).all()
+    students = Student.query.filter_by(course_id=course.id).order_by(Student.student_id).all()
+    
+    # Prepare data for export
+    data = []
+    
+    # Create headers
+    headers = ['Student ID', 'Student Name', 'Total Score']
+    
+    # Add question headers
+    for question in questions:
+        headers.append(f'Q{question.number} ({question.max_score})')
+    
+    # Add data rows
+    for student in students:
+        student_row = {
+            'Student ID': student.student_id,
+            'Student Name': f"{student.first_name} {student.last_name}".strip(),
+            'Total Score': 0
+        }
+        
+        # Calculate total score and add question scores
+        total_score = 0
+        total_possible = 0
+        
+        for question in questions:
+            score = Score.query.filter_by(
+                student_id=student.id,
+                question_id=question.id,
+                exam_id=exam.id
+            ).first()
+            
+            if score:
+                student_row[f'Q{question.number} ({question.max_score})'] = score.score
+                total_score += score.score
+            else:
+                student_row[f'Q{question.number} ({question.max_score})'] = ''
+            
+            total_possible += question.max_score
+        
+        # Calculate percentage if possible
+        if total_possible > 0:
+            student_row['Total Score'] = f"{total_score} / {total_possible} ({round((total_score / total_possible) * 100, 2)}%)"
+        
+        data.append(student_row)
+    
+    # Export data using utility function
+    return export_to_excel_csv(data, f"scores_{course.code}_{exam.name.replace(' ', '_')}", headers) 

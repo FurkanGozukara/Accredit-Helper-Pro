@@ -393,16 +393,17 @@
             
             for (const outcome of outcomes) {
                 let colorClass = 'text-danger';
+                let percentage = parseFloat(outcome.percentage);
                 
-                if (outcome.percentage >= 70) {
+                if (percentage >= 70) {
                     colorClass = 'text-success';
-                } else if (outcome.percentage >= 50) {
+                } else if (percentage >= 50) {
                     colorClass = 'text-warning';
                 }
                 
                 html += `<tr>
                     <td title="${outcome.description}">${outcome.code}</td>
-                    <td class="${colorClass}">${outcome.percentage.toFixed(1)}%</td>
+                    <td class="${colorClass}">${isNaN(percentage) ? '0.0' : percentage.toFixed(1)}%</td>
                 </tr>`;
             }
             

@@ -54,6 +54,9 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h3>Exams</h3>
             <div>
+                <a href="{{ url_for('exam.export_exams', course_id=course.id) }}" class="btn btn-outline-success me-2">
+                    <i class="bi bi-file-earmark-excel"></i> Export Exams
+                </a>
                 <a href="{{ url_for('exam.manage_weights', course_id=course.id) }}" class="btn btn-outline-secondary me-2">
                     <i class="bi bi-percent"></i> Manage Weights
                 </a>
@@ -135,9 +138,14 @@
     <div class="tab-pane fade" id="outcomes" role="tabpanel" aria-labelledby="outcomes-tab">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h3>Course Outcomes</h3>
-            <a href="{{ url_for('outcome.add_course_outcome', course_id=course.id) }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle"></i> Add Course Outcome
-            </a>
+            <div>
+                <a href="{{ url_for('outcome.export_course_outcomes', course_id=course.id) }}" class="btn btn-outline-success me-2">
+                    <i class="bi bi-file-earmark-excel"></i> Export Outcomes
+                </a>
+                <a href="{{ url_for('outcome.add_course_outcome', course_id=course.id) }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Add Course Outcome
+                </a>
+            </div>
         </div>
         
         {% if course_outcomes %}
@@ -191,9 +199,17 @@
     <div class="tab-pane fade" id="students" role="tabpanel" aria-labelledby="students-tab">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h3>Students</h3>
-            <a href="{{ url_for('student.import_students', course_id=course.id) }}" class="btn btn-primary">
-                <i class="bi bi-upload"></i> Import Students
-            </a>
+            <div>
+                <a href="{{ url_for('student.export_students', course_id=course.id) }}" class="btn btn-outline-success me-2">
+                    <i class="bi bi-file-earmark-excel"></i> Export Students
+                </a>
+                <a href="{{ url_for('student.add_student', course_id=course.id) }}" class="btn btn-outline-primary me-2">
+                    <i class="bi bi-person-plus"></i> Add Student
+                </a>
+                <a href="{{ url_for('student.import_students', course_id=course.id) }}" class="btn btn-primary">
+                    <i class="bi bi-upload"></i> Import Students
+                </a>
+            </div>
         </div>
         
         {% set students = course.students %}
@@ -213,11 +229,16 @@
                                 <td>{{ student.student_id }}</td>
                                 <td>{{ student.first_name }} {{ student.last_name }}</td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-danger"
-                                            data-delete-url="{{ url_for('student.delete_student', student_id=student.id) }}"
-                                            data-delete-name="student '{{ student.student_id }}'">
-                                        <i class="bi bi-trash"></i> Delete
-                                    </button>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('student.edit_student', student_id=student.id) }}" class="btn btn-outline-secondary">
+                                            <i class="bi bi-pencil"></i> Edit
+                                        </a>
+                                        <button class="btn btn-outline-danger"
+                                                data-delete-url="{{ url_for('student.delete_student', student_id=student.id) }}"
+                                                data-delete-name="student '{{ student.student_id }}'">
+                                            <i class="bi bi-trash"></i> Delete
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         {% endfor %}
@@ -226,7 +247,7 @@
             </div>
         {% else %}
             <div class="alert alert-info">
-                <i class="bi bi-info-circle"></i> No students found. Import students by clicking the "Import Students" button.
+                <i class="bi bi-info-circle"></i> No students found. Import students by clicking the "Import Students" button or add students individually.
             </div>
         {% endif %}
     </div>

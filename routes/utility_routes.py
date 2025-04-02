@@ -11,8 +11,74 @@ import traceback
 import glob
 import csv
 import tempfile
+import io
 
 utility_bp = Blueprint('utility', __name__, url_prefix='/utility')
+
+def export_to_excel_csv(data, filename, headers=None):
+    """
+    Generic function to export data to Excel-compatible CSV format
+    
+    Args:
+        data: List of dictionaries or list of lists containing the data to export
+        filename: The filename for the exported file (without extension)
+        headers: Optional list of column headers. If None and data is list of dicts, 
+                dict keys will be used as headers
+    
+    Returns:
+        A Flask response object with the CSV file
+    """
+    try:
+        # Create a StringIO object to store the CSV
+        output = io.StringIO()
+        
+        # Add BOM (Byte Order Mark) for Excel UTF-8 compatibility
+        output.write('\ufeff')
+        
+        # Determine delimiter based on data structure
+        delimiter = ';'  # Semicolon is often better for Excel in many locales
+        
+        # If data is a list of dictionaries and no headers provided, use dict keys
+        if data and isinstance(data[0], dict) and not headers:
+            headers = list(data[0].keys())
+        
+        # Create CSV writer
+        writer = csv.writer(output, delimiter=delimiter)
+        
+        # Write headers if provided
+        if headers:
+            writer.writerow(headers)
+        
+        # Write data rows
+        if data and isinstance(data[0], dict):
+            for row in data:
+                writer.writerow([row.get(key, '') for key in headers])
+        else:
+            writer.writerows(data)
+        
+        # Prepare response
+        output.seek(0)
+        
+        # Generate timestamp for filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # Add .csv extension to filename
+        full_filename = f"{filename}_{timestamp}.csv"
+        
+        # Log export action
+        log = Log(action="EXPORT_DATA", 
+                 description=f"Exported data to: {full_filename}")
+        db.session.add(log)
+        db.session.commit()
+        
+        return output.getvalue(), 200, {
+            'Content-Type': 'text/csv; charset=utf-8',
+            'Content-Disposition': f'attachment; filename="{full_filename}"'
+        }
+    except Exception as e:
+        logging.error(f"Error exporting data: {str(e)}")
+        flash(f'An error occurred while exporting data: {str(e)}', 'error')
+        return None
 
 @utility_bp.route('/')
 def index():
@@ -26,7 +92,7 @@ def backup_database():
         if request.method == 'POST':
             try:
                 # Get current database path
-                db_path = os.path.join('instance', 'abet_data.db')
+                db_path = os.path.join('instance', 'accredit_data.db')
                 
                 if not os.path.exists(db_path):
                     flash('Database file not found', 'error')
@@ -38,7 +104,7 @@ def backup_database():
                 
                 # Create backup filename with timestamp
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                backup_filename = f"abet_data_backup_{timestamp}.db"
+                backup_filename = f"accredit_data_backup_{timestamp}.db"
                 backup_path = os.path.join(backup_dir, backup_filename)
                 
                 # Copy database file
@@ -60,7 +126,7 @@ def backup_database():
         backups = []
         
         if os.path.exists(backup_dir):
-            backup_files = glob.glob(os.path.join(backup_dir, "abet_data_backup_*.db"))
+            backup_files = glob.glob(os.path.join(backup_dir, "accredit_data_backup_*.db"))
             for backup_file in backup_files:
                 filename = os.path.basename(backup_file)
                 created_at = os.path.getmtime(backup_file)
@@ -178,7 +244,7 @@ def restore_database():
                     return redirect(url_for('utility.restore_database'))
                 
                 # Get current database path
-                db_path = os.path.join('instance', 'abet_data.db')
+                db_path = os.path.join('instance', 'accredit_data.db')
                 
                 # Create a backup of current database before restore
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -217,7 +283,7 @@ def restore_database():
         backups = []
         
         if os.path.exists(backup_dir):
-            backup_files = glob.glob(os.path.join(backup_dir, "abet_data_backup_*.db"))
+            backup_files = glob.glob(os.path.join(backup_dir, "accredit_data_backup_*.db"))
             for backup_file in backup_files:
                 filename = os.path.basename(backup_file)
                 created_at = os.path.getmtime(backup_file)
@@ -274,7 +340,7 @@ def restore_from_file():
             return redirect(url_for('utility.restore_database'))
         
         # Get current database path
-        db_path = os.path.join('instance', 'abet_data.db')
+        db_path = os.path.join('instance', 'accredit_data.db')
         
         # Create a backup of current database before restore
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -320,7 +386,7 @@ def restore_from_backup(filename):
             return redirect(url_for('utility.restore_database'))
         
         # Get current database path
-        db_path = os.path.join('instance', 'abet_data.db')
+        db_path = os.path.join('instance', 'accredit_data.db')
         
         # Check if user wants to backup current database before restore
         backup_current = request.form.get('backup_current', '0') == '1'
@@ -588,7 +654,7 @@ def backup_database_before_merge():
     """Create a backup before merging courses"""
     try:
         # Get current database path
-        db_path = os.path.join('instance', 'abet_data.db')
+        db_path = os.path.join('instance', 'accredit_data.db')
         
         if not os.path.exists(db_path):
             logging.warning("Database file not found for pre-merge backup")
@@ -710,41 +776,19 @@ def export_logs():
         # Get logs ordered by timestamp (newest first)
         logs = query.order_by(Log.timestamp.desc()).all()
         
-        # Create a temporary file for CSV
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.csv')
-        temp_file_path = temp_file.name
+        # Prepare data for export
+        data = []
+        headers = ['Timestamp', 'Action', 'Description']
         
-        # Write to CSV
-        with open(temp_file_path, 'w', newline='') as csvfile:
-            fieldnames = ['Timestamp', 'Action', 'Description']
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        for log in logs:
+            data.append({
+                'Timestamp': log.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                'Action': log.action,
+                'Description': log.description
+            })
             
-            writer.writeheader()
-            for log in logs:
-                writer.writerow({
-                    'Timestamp': log.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-                    'Action': log.action,
-                    'Description': log.description
-                })
-        
-        # Generate filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"abet_logs_{timestamp}.csv"
-        
-        # Log the export
-        log_entry = Log(
-            action="EXPORT_LOGS",
-            description=f"Exported {len(logs)} logs to CSV"
-        )
-        db.session.add(log_entry)
-        db.session.commit()
-        
-        return send_file(
-            temp_file_path,
-            as_attachment=True,
-            download_name=filename,
-            mimetype='text/csv'
-        )
+        # Export data using utility function
+        return export_to_excel_csv(data, "abet_logs", headers)
     except Exception as e:
         logging.error(f"Error exporting logs: {str(e)}")
         flash(f'An error occurred while exporting logs: {str(e)}', 'error')

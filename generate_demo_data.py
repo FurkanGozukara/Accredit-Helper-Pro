@@ -4,10 +4,11 @@ import random
 import datetime
 import json
 from faker import Faker
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
 from flask import Flask
+from decimal import Decimal
 
 # Make sure we can import from the current directory
 sys.path.append('.')
@@ -23,6 +24,11 @@ fake = Faker()
 random.seed(42)
 fake.seed_instance(42)
 
+# Global variables
+engine = None
+Session = None
+session = None
+
 def create_database_if_not_exists():
     """Create the database and tables if they don't exist"""
     # Get the absolute path to the current directory
@@ -34,7 +40,7 @@ def create_database_if_not_exists():
     
     # Create a Flask app to initialize the database
     app = Flask(__name__)
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(instance_dir, "abet_data.db")}'
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(instance_dir, "accredit_data.db")}'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     # Initialize db with app
@@ -206,24 +212,24 @@ def generate_exams(courses):
     # Define weight distributions per course to ensure total is 100%
     weight_distributions = {
         "CSE101": {
-            "Quiz": 0.1,       # 10% for each quiz (2 total = 20%)
-            "Midterm": 0.2,    # 20% for the midterm
-            "Project": 0.2,    # 20% for the project
-            "Final Exam": 0.4  # 40% for the final
+            "Quiz": Decimal('0.1'),       # 10% for each quiz (2 total = 20%)
+            "Midterm": Decimal('0.2'),    # 20% for the midterm
+            "Project": Decimal('0.2'),    # 20% for the project
+            "Final Exam": Decimal('0.4')  # 40% for the final
         },
         "CSE301": {
-            "Homework": 0.05,  # 5% for each homework (2 total = 10%)
-            "Midterm": 0.15,   # 15% for each midterm (2 total = 30%)
-            "Project": 0.2,    # 20% for the project
-            "Final Exam": 0.4  # 40% for the final
+            "Homework": Decimal('0.05'),  # 5% for each homework (2 total = 10%)
+            "Midterm": Decimal('0.15'),   # 15% for each midterm (2 total = 30%)
+            "Project": Decimal('0.2'),    # 20% for the project
+            "Final Exam": Decimal('0.4')  # 40% for the final
         },
         "DEFAULT": {
-            "Quiz": 0.05,      # Default weight distributions for unknown courses
-            "Homework": 0.05,
-            "Midterm": 0.15,
-            "Project": 0.2,
-            "Final Exam": 0.4,
-            "Other": 0.1
+            "Quiz": Decimal('0.05'),      # Default weight distributions for unknown courses
+            "Homework": Decimal('0.05'),
+            "Midterm": Decimal('0.15'),
+            "Project": Decimal('0.2'),
+            "Final Exam": Decimal('0.4'),
+            "Other": Decimal('0.1')
         }
     }
     
@@ -266,11 +272,11 @@ def generate_exams(courses):
         weight_dist = weight_distributions.get(course.code, weight_distributions["DEFAULT"])
         
         # Track weights to ensure they sum to 100%
-        total_weight = 0
+        total_weight = Decimal('0')
         
         for i, exam in enumerate(course_exams):
             # Determine weight based on exam name and course's weight distribution
-            weight = 0
+            weight = Decimal('0')
             # Check each exam type in the weight distribution
             for exam_type, type_weight in weight_dist.items():
                 if exam_type in exam.name:
@@ -278,11 +284,11 @@ def generate_exams(courses):
                     break
             else:
                 # If no match found, use "Other" weight or default to 10%
-                weight = weight_dist.get("Other", 0.1)
+                weight = weight_dist.get("Other", Decimal('0.1'))
             
             # For the last exam, adjust to make total exactly 100%
             if i == len(course_exams) - 1:
-                weight = round(1.0 - total_weight, 2)
+                weight = (Decimal('1.0') - total_weight).quantize(Decimal('0.01'))
             else:
                 total_weight += weight
             
@@ -320,19 +326,22 @@ def generate_questions(exams, course_outcomes):
         else:
             num_questions = random.randint(5, 15)
         
-        total_points = exam.max_score
-        points_per_question = total_points / num_questions
+        total_points = Decimal(str(exam.max_score))
+        points_per_question = total_points / Decimal(str(num_questions))
         
         for q_num in range(1, num_questions + 1):
             # Vary the point values a bit
             if q_num == num_questions:
                 # Make sure the last question's points make the total exactly max_score
-                previous_points_sum = sum(q.max_score for q in all_questions if q.exam_id == exam.id)
+                previous_points_sum = sum(Decimal(str(q.max_score)) for q in all_questions if q.exam_id == exam.id)
                 point_value = total_points - previous_points_sum
             else:
-                variation = points_per_question * 0.2
-                point_value = points_per_question + random.uniform(-variation, variation)
-                point_value = round(point_value, 1)
+                variation = points_per_question * Decimal('0.2')
+                # Generate random variation within the range without converting to float
+                random_factor = Decimal(str(random.uniform(-1, 1)))
+                random_variation = variation * random_factor
+                point_value = points_per_question + random_variation
+                point_value = point_value.quantize(Decimal('0.1'), rounding='ROUND_HALF_UP')
             
             question = Question(
                 text=f"Question {q_num}: {fake.sentence()}",
@@ -366,18 +375,26 @@ def generate_students(courses):
         "CSE301": 20   # Advanced course has fewer students
     }
     
-    # Create a set of student IDs to ensure uniqueness
-    student_ids = set()
+    # Create a dictionary of student IDs per course to ensure uniqueness within each course
+    course_student_ids = {course.id: set() for course in courses}
     
     for course in courses:
         num_students = student_counts.get(course.code, 25)
         
         for _ in range(num_students):
-            # Generate a unique student ID
+            # Generate a unique student ID for this course
             while True:
-                student_id = f"{random.randint(1, 9)}{random.randint(100000, 999999)}"
-                if student_id not in student_ids:
-                    student_ids.add(student_id)
+                # Use strings for student IDs with different formats
+                id_format = random.choice([
+                    lambda: f"S{random.randint(100000, 999999)}",  # Format: S######
+                    lambda: f"{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}{random.randint(10000, 99999)}",  # Format: A#####
+                    lambda: f"{random.randint(2020, 2024)}{random.randint(1000, 9999)}",  # Format: YYYY####
+                    lambda: f"{random.choice(['CS', 'EE', 'ME', 'SE'])}-{random.randint(10000, 99999)}"  # Format: XX-#####
+                ])
+                
+                student_id = id_format()
+                if student_id not in course_student_ids[course.id]:
+                    course_student_ids[course.id].add(student_id)
                     break
             
             student = Student(
@@ -404,22 +421,29 @@ def generate_scores(questions, students):
         relevant_questions = [q for q in questions if q.exam.course_id == student.course_id]
         
         for question in relevant_questions:
-            # Generate a score following a normal distribution
-            # Mean score of 75% of max with standard deviation of 15%
-            mean_score_pct = 0.75
-            std_dev_pct = 0.15
+            # Generate score as before
+            mean_score_pct = Decimal('0.75')
+            std_dev_pct = Decimal('0.15')
             
-            # Add some randomness to the student's overall performance level (±15%)
-            student_performance_modifier = random.uniform(-0.15, 0.15)
-            student_mean_score_pct = mean_score_pct + student_performance_modifier
+            # Simplified approach - use random.gauss for the random component
+            # but convert to Decimal immediately
+            random_factor = Decimal(str(random.gauss(0, 1)))  # Standard normal distribution
             
-            # Ensure the percentage stays in a valid range
-            student_mean_score_pct = max(0.05, min(0.95, student_mean_score_pct))
+            # Add student-specific performance modifier (±15%)
+            student_performance_modifier = Decimal(str(random.uniform(-0.15, 0.15)))
             
-            # Calculate the actual score
-            max_score = question.max_score
-            raw_score = random.normalvariate(student_mean_score_pct * max_score, std_dev_pct * max_score)
-            score_value = max(0, min(max_score, round(raw_score, 1)))
+            # Calculate the student's score percentage (base + student factor + random factor)
+            student_score_pct = mean_score_pct + student_performance_modifier + (random_factor * std_dev_pct)
+            
+            # Ensure it's in valid range [0.05, 0.95]
+            student_score_pct = max(Decimal('0.05'), min(Decimal('0.95'), student_score_pct))
+            
+            # Calculate actual score based on question max score
+            max_score = Decimal(str(question.max_score))
+            raw_score = student_score_pct * max_score
+            
+            # Round to one decimal place and ensure it's within bounds
+            score_value = max(Decimal('0'), min(max_score, raw_score.quantize(Decimal('0.1'), rounding='ROUND_HALF_UP')))
             
             score = Score(
                 score=score_value,
@@ -437,7 +461,7 @@ def generate_scores(questions, students):
     return all_scores
 
 def main():
-    print("Generating demo data for ABET Helper Pro...")
+    print("Generating demo data for Accredit Helper Pro...")
     
     # First, create the database if it doesn't exist
     create_database_if_not_exists()
@@ -445,7 +469,7 @@ def main():
     # Now connect to the database for data generation
     base_dir = os.path.abspath(os.path.dirname(__file__))
     instance_dir = os.path.join(base_dir, 'instance')
-    db_path = os.path.join(instance_dir, 'abet_data.db')
+    db_path = os.path.join(instance_dir, 'accredit_data.db')
     
     # Connect to the database
     global engine, Session, session
@@ -578,14 +602,28 @@ def main():
                 continue
                 
             # Generate score as before
-            mean_score_pct = 0.75
-            std_dev_pct = 0.15
-            student_performance_modifier = random.uniform(-0.15, 0.15)
-            student_mean_score_pct = max(0.05, min(0.95, mean_score_pct + student_performance_modifier))
+            mean_score_pct = Decimal('0.75')
+            std_dev_pct = Decimal('0.15')
             
-            max_score = question.max_score
-            raw_score = random.normalvariate(student_mean_score_pct * max_score, std_dev_pct * max_score)
-            score_value = max(0, min(max_score, round(raw_score, 1)))
+            # Simplified approach - use random.gauss for the random component
+            # but convert to Decimal immediately
+            random_factor = Decimal(str(random.gauss(0, 1)))  # Standard normal distribution
+            
+            # Add student-specific performance modifier (±15%)
+            student_performance_modifier = Decimal(str(random.uniform(-0.15, 0.15)))
+            
+            # Calculate the student's score percentage (base + student factor + random factor)
+            student_score_pct = mean_score_pct + student_performance_modifier + (random_factor * std_dev_pct)
+            
+            # Ensure it's in valid range [0.05, 0.95]
+            student_score_pct = max(Decimal('0.05'), min(Decimal('0.95'), student_score_pct))
+            
+            # Calculate actual score based on question max score
+            max_score = Decimal(str(question.max_score))
+            raw_score = student_score_pct * max_score
+            
+            # Round to one decimal place and ensure it's within bounds
+            score_value = max(Decimal('0'), min(max_score, raw_score.quantize(Decimal('0.1'), rounding='ROUND_HALF_UP')))
             
             score = Score(
                 score=score_value,
