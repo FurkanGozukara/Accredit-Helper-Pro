@@ -90,6 +90,27 @@
                         <i class="fas fa-save"></i> Save All Questions
                     </button>
                 </div>
+                
+                <!-- Mass Relationship Import -->
+                <div class="card mt-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Mass Import Relationships</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> 
+                            Import relationships in format: <code>q1:oc1:oc3:oc5;q2:oc2;q3:oc3:oc4</code><br>
+                            Where <code>q1</code> is question 1, <code>oc1</code> is outcome 1, etc.
+                        </div>
+                        <div class="mb-3">
+                            <label for="mass_import" class="form-label">Import Relationships:</label>
+                            <textarea id="mass_import" class="form-control" rows="3" placeholder="e.g., q1:oc1:oc3:oc5;q2:oc2;q3:oc3:oc4"></textarea>
+                        </div>
+                        <button type="button" id="apply_mass_import" class="btn btn-success">
+                            <i class="fas fa-file-import"></i> Apply Import
+                        </button>
+                    </div>
+                </div>
             </form>
         </div>
     </div>
@@ -253,6 +274,134 @@
                     }
                 });
             }
+        }
+        
+        // Mass Relationship Import functionality
+        document.getElementById('apply_mass_import').addEventListener('click', function() {
+            const importText = document.getElementById('mass_import').value.trim();
+            if (!importText) {
+                alert('Please enter relationship data to import');
+                return;
+            }
+            
+            try {
+                // Reset all checkboxes first
+                document.querySelectorAll('.outcome-checkbox').forEach(cb => {
+                    cb.checked = false;
+                    const container = cb.closest('.form-check');
+                    if (container) {
+                        container.style.backgroundColor = '';
+                        container.style.borderLeftColor = 'transparent';
+                    }
+                });
+                
+                // Parse the relationships
+                const relationships = importText.split(';');
+                let maxQuestionNum = 0;
+                
+                relationships.forEach(rel => {
+                    const parts = rel.split(':');
+                    if (parts.length >= 2) {
+                        // Extract question number (q1 -> 1)
+                        const qMatch = parts[0].match(/q(\d+)/i);
+                        if (!qMatch) return;
+                        
+                        const questionNum = parseInt(qMatch[1]);
+                        if (isNaN(questionNum) || questionNum < 1) return;
+                        
+                        // Track the highest question number
+                        maxQuestionNum = Math.max(maxQuestionNum, questionNum);
+                        
+                        // Question index is 0-based (UI is 1-based)
+                        const questionIndex = questionNum - 1;
+                        
+                        // Extract outcomes (oc1 -> 1)
+                        const outcomes = [];
+                        for (let i = 1; i < parts.length; i++) {
+                            const ocMatch = parts[i].match(/oc(\d+)/i);
+                            if (ocMatch) {
+                                const outcomeNum = parseInt(ocMatch[1]);
+                                if (!isNaN(outcomeNum) && outcomeNum > 0) {
+                                    outcomes.push(outcomeNum);
+                                }
+                            }
+                        }
+                        
+                        // Find the course outcome IDs that match these numbers
+                        const courseOutcomes = [
+                            {% for outcome in course_outcomes %}
+                            {
+                                id: {{ outcome.id }},
+                                code: "{{ outcome.code }}",
+                                description: "{{ outcome.description|truncate(50)|e }}"
+                            }{% if not loop.last %},{% endif %}
+                            {% endfor %}
+                        ];
+                        const outcomeMap = {};
+                        courseOutcomes.forEach(outcome => {
+                            // Extract numeric part from outcome code (CSE301-1 -> 1)
+                            const codeMatch = outcome.code.match(/\D*(\d+)$/);
+                            if (codeMatch) {
+                                outcomeMap[parseInt(codeMatch[1])] = outcome.id;
+                            }
+                        });
+                        
+                        // Set the checkboxes
+                        outcomes.forEach(ocNum => {
+                            if (outcomeMap[ocNum]) {
+                                const checkbox = document.getElementById(`outcome_${questionIndex}_${outcomeMap[ocNum]}`);
+                                if (checkbox) {
+                                    checkbox.checked = true;
+                                    
+                                    // Apply styles
+                                    const container = checkbox.closest('.form-check');
+                                    if (container) {
+                                        container.style.backgroundColor = '#e8f0fe';
+                                        container.style.borderLeftColor = '#0d6efd';
+                                    }
+                                    
+                                    // Save to session storage
+                                    const storedOutcomes = JSON.parse(sessionStorage.getItem(`outcomes_${questionIndex}`) || '[]');
+                                    if (!storedOutcomes.includes(outcomeMap[ocNum].toString())) {
+                                        storedOutcomes.push(outcomeMap[ocNum].toString());
+                                        sessionStorage.setItem(`outcomes_${questionIndex}`, JSON.stringify(storedOutcomes));
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+                
+                // Check if we need to add more questions
+                const currentQuestions = parseInt(document.getElementById('num_questions').value);
+                if (maxQuestionNum > currentQuestions) {
+                    if (confirm(`You've specified relationships for ${maxQuestionNum} questions, but only ${currentQuestions} are currently shown. Would you like to increase the number of questions to ${maxQuestionNum}?`)) {
+                        document.getElementById('num_questions').value = maxQuestionNum;
+                        // Store the import text in local storage to reapply after page refresh
+                        localStorage.setItem('pending_import', importText);
+                        // Trigger the update
+                        window.location.href = "{{ url_for('question.batch_add_questions', exam_id=exam.id) }}?num_questions=" + maxQuestionNum;
+                        return;
+                    }
+                }
+                
+                showSaveStatus();
+                
+            } catch (error) {
+                console.error('Error applying mass import:', error);
+                alert('Error processing the import data. Please check the format and try again.');
+            }
+        });
+        
+        // Check for pending import after page refresh
+        const pendingImport = localStorage.getItem('pending_import');
+        if (pendingImport) {
+            document.getElementById('mass_import').value = pendingImport;
+            localStorage.removeItem('pending_import');
+            // Apply the import after a short delay to ensure page is fully loaded
+            setTimeout(() => {
+                document.getElementById('apply_mass_import').click();
+            }, 500);
         }
     });
 </script>
