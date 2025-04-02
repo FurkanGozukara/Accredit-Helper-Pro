@@ -8,7 +8,20 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
+<!-- Loading Overlay -->
+<div id="loadingOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255,255,255,0.8); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+    <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <h4 class="mb-3">Calculating results for all courses...</h4>
+    <p class="text-muted">This may take a moment as we process data from all courses.</p>
+    <div class="progress mt-4" style="height: 20px; width: 60%;">
+        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+    </div>
+</div>
+
+<!-- Main Content (initially hidden) -->
+<div id="pageContent" style="display: none;" class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Program Outcome Scores for All Courses</h1>
         <div>
@@ -167,6 +180,33 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Progress bar animation
+        const progressBar = document.getElementById('progressBar');
+        let progress = 0;
+        const progressInterval = setInterval(function() {
+            // Increment progress more slowly as it approaches completion
+            const increment = Math.max(1, 10 - Math.floor(progress / 10));
+            progress = Math.min(95, progress + increment);
+            progressBar.style.width = progress + '%';
+            progressBar.setAttribute('aria-valuenow', progress);
+            progressBar.textContent = progress + '%';
+        }, 300);
+
+        // When all calculations are done, show the page content
+        window.addEventListener('load', function() {
+            // Complete the progress bar
+            clearInterval(progressInterval);
+            progressBar.style.width = '100%';
+            progressBar.setAttribute('aria-valuenow', 100);
+            progressBar.textContent = '100%';
+            
+            // Small delay to ensure all data is processed
+            setTimeout(function() {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                document.getElementById('pageContent').style.display = 'block';
+            }, 500);
+        });
+
         // Search functionality
         const searchInput = document.getElementById('courseSearch');
         if (searchInput) {
@@ -192,6 +232,10 @@
         if (displayMethodRadios.length > 0) {
             displayMethodRadios.forEach(radio => {
                 radio.addEventListener('change', function() {
+                    // Show loading overlay before making changes
+                    document.getElementById('loadingOverlay').style.display = 'flex';
+                    document.getElementById('pageContent').style.display = 'none';
+                    
                     // First save the display method to server session
                     const formData = new FormData();
                     formData.append('display_method', this.value);
