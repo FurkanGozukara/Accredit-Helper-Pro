@@ -159,6 +159,15 @@ def delete_course_outcome(outcome_id):
     course_id = course_outcome.course_id
     
     try:
+        # Check for related data (questions associated with this outcome)
+        question_count = course_outcome.questions.count()
+        
+        if question_count > 0:
+            error_message = f"Cannot delete course outcome: It is associated with {question_count} exam questions. "
+            error_message += "Remove these associations first."
+            flash(error_message, 'error')
+            return redirect(url_for('course.course_detail', course_id=course_id))
+            
         # Log action before deletion
         log = Log(action="DELETE_COURSE_OUTCOME", 
                  description=f"Deleted course outcome {course_outcome.code} from course: {course_outcome.course.code}")
@@ -170,7 +179,7 @@ def delete_course_outcome(outcome_id):
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error deleting course outcome: {str(e)}")
-        flash('An error occurred while deleting the course outcome', 'error')
+        flash(f'An error occurred while deleting the course outcome: {str(e)}', 'error')
     
     return redirect(url_for('course.course_detail', course_id=course_id))
 

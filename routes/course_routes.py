@@ -107,6 +107,25 @@ def delete_course(course_id):
     course = Course.query.get_or_404(course_id)
     
     try:
+        # Check for related data that would prevent deletion due to foreign key constraints
+        exams_count = Exam.query.filter_by(course_id=course_id).count()
+        students_count = Student.query.filter_by(course_id=course_id).count()
+        outcomes_count = CourseOutcome.query.filter_by(course_id=course_id).count()
+        
+        if exams_count > 0 or students_count > 0 or outcomes_count > 0:
+            detail_message = []
+            if exams_count > 0:
+                detail_message.append(f"{exams_count} exams")
+            if students_count > 0:
+                detail_message.append(f"{students_count} students")
+            if outcomes_count > 0:
+                detail_message.append(f"{outcomes_count} course outcomes")
+                
+            error_message = f"Cannot delete course: It has related data ({', '.join(detail_message)}). "
+            error_message += "Delete the related data first, or use the Merge utility to move data to another course."
+            flash(error_message, 'error')
+            return redirect(url_for('course.list_courses'))
+            
         # Log action before deletion
         log = Log(action="DELETE_COURSE", description=f"Deleted course: {course.code} - {course.name}")
         db.session.add(log)
@@ -117,7 +136,7 @@ def delete_course(course_id):
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error deleting course: {str(e)}")
-        flash('An error occurred while deleting the course', 'error')
+        flash(f'An error occurred while deleting the course: {str(e)}', 'error')
     
     return redirect(url_for('course.list_courses'))
 

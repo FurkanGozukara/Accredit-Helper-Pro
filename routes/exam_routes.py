@@ -196,6 +196,22 @@ def delete_exam(exam_id):
     course_id = exam.course_id
     
     try:
+        # Check for related data
+        questions_count = Question.query.filter_by(exam_id=exam_id).count()
+        scores_count = Score.query.filter_by(exam_id=exam_id).count()
+        
+        if questions_count > 0 or scores_count > 0:
+            detail_message = []
+            if questions_count > 0:
+                detail_message.append(f"{questions_count} questions")
+            if scores_count > 0:
+                detail_message.append(f"{scores_count} student scores")
+                
+            error_message = f"Cannot delete exam: It has related data ({', '.join(detail_message)}). "
+            error_message += "Delete the related data first."
+            flash(error_message, 'error')
+            return redirect(url_for('course.course_detail', course_id=course_id))
+            
         # Log action before deletion
         log = Log(action="DELETE_EXAM", description=f"Deleted exam: {exam.name} from course: {exam.course.code}")
         db.session.add(log)
@@ -206,7 +222,7 @@ def delete_exam(exam_id):
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error deleting exam: {str(e)}")
-        flash('An error occurred while deleting the exam', 'error')
+        flash(f'An error occurred while deleting the exam: {str(e)}', 'error')
     
     return redirect(url_for('course.course_detail', course_id=course_id))
 

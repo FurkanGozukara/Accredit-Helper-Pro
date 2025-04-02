@@ -173,6 +173,15 @@ def delete_student(student_id):
     course_id = student.course_id
     
     try:
+        # Check for related scores
+        scores_count = Score.query.filter_by(student_id=student_id).count()
+        
+        if scores_count > 0:
+            error_message = f"Cannot delete student: Student has {scores_count} exam scores. "
+            error_message += "Delete the student's scores first or use the import/merge utility to transfer data."
+            flash(error_message, 'error')
+            return redirect(url_for('student.list_students', course_id=course_id))
+            
         # Log action before deletion
         log = Log(action="DELETE_STUDENT", 
                  description=f"Deleted student {student.student_id} from course: {student.course.code}")
@@ -184,7 +193,7 @@ def delete_student(student_id):
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error deleting student: {str(e)}")
-        flash('An error occurred while deleting the student', 'error')
+        flash(f'An error occurred while deleting the student: {str(e)}', 'error')
     
     return redirect(url_for('student.list_students', course_id=course_id))
 

@@ -28,13 +28,13 @@
                 </div>
                 <div class="card-body">
                     <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="displayMethod" id="displayAbsolute" value="absolute" checked>
+                        <input class="form-check-input" type="radio" name="displayMethod" id="displayAbsolute" value="absolute" {% if session.get('display_method') != 'relative' %}checked{% endif %}>
                         <label class="form-check-label" for="displayAbsolute">
                             Absolute Success Rate (Average Student Score)
                         </label>
                     </div>
                     <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="displayMethod" id="displayRelative" value="relative">
+                        <input class="form-check-input" type="radio" name="displayMethod" id="displayRelative" value="relative" {% if session.get('display_method') == 'relative' %}checked{% endif %}>
                         <label class="form-check-label" for="displayRelative">
                             Relative Success Rate (% of Students Above Threshold)
                         </label>
@@ -192,6 +192,18 @@
         if (displayMethodRadios.length > 0) {
             displayMethodRadios.forEach(radio => {
                 radio.addEventListener('change', function() {
+                    // First save the display method to server session
+                    const formData = new FormData();
+                    formData.append('display_method', this.value);
+                    
+                    fetch('{{ url_for("calculation.update_display_method") }}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    
                     // Get all course settings and update them
                     const courseIds = [];
                     const forms = document.querySelectorAll('form[action*="update_course_settings"]');

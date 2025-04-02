@@ -9,6 +9,7 @@ import os
 from sqlalchemy import func
 from routes.utility_routes import export_to_excel_csv
 from decimal import Decimal
+from flask import session
 
 calculation_bp = Blueprint('calculation', __name__, url_prefix='/calculation')
 
@@ -419,6 +420,9 @@ def all_courses_calculations():
     courses = Course.query.all()
     program_outcomes = ProgramOutcome.query.all()
     
+    # Get the display method from session or default to absolute
+    display_method = session.get('display_method', 'absolute')
+    
     # Initialize data structure to hold results for all courses
     all_results = {}
     
@@ -435,11 +439,14 @@ def all_courses_calculations():
         if not settings:
             settings = CourseSettings(
                 course_id=course_id,
-                success_rate_method='absolute',
+                success_rate_method=display_method,  # Use the selected display method
                 relative_success_threshold=60.0
             )
             db.session.add(settings)
             db.session.commit()
+        
+        # Update the calculation method based on session if needed
+        settings.success_rate_method = display_method
         
         # Get exams for this course
         exams = Exam.query.filter_by(course_id=course_id, is_makeup=False).all()
@@ -641,4 +648,15 @@ def toggle_mandatory_exam(exam_id):
     db.session.commit()
     
     flash(f"Exam '{exam.name}' is now {status}.", 'success')
-    return redirect(url_for('exam.manage_exams', course_id=course.id)) 
+    return redirect(url_for('exam.manage_exams', course_id=course.id))
+
+@calculation_bp.route('/update_display_method', methods=['POST'])
+def update_display_method():
+    """Update display method preference in session"""
+    if request.method == 'POST':
+        display_method = request.form.get('display_method')
+        if display_method in ['absolute', 'relative']:
+            # Store the display method in session
+            session['display_method'] = display_method
+            return jsonify({'status': 'success'})
+    return jsonify({'status': 'error'}) 

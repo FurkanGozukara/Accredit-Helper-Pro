@@ -20,9 +20,9 @@ from models import Student, Score, ExamWeight, course_outcome_program_outcome, q
 # Initialize Faker for generating realistic data
 fake = Faker()
 
-# Configure random seed for reproducibility
-random.seed(42)
-fake.seed_instance(42)
+# Remove fixed random seed to ensure different random selections each time
+# random.seed(42)
+# fake.seed_instance(42)
 
 # Global variables
 engine = None
@@ -88,8 +88,8 @@ def initialize_program_outcomes():
         print("Initialized default program outcomes")
 
 def generate_courses():
-    """Generate two courses with different characteristics"""
-    courses = [
+    """Generate three randomly selected courses from a list of 10 potential courses"""
+    potential_courses = [
         {
             "code": "CSE101",
             "name": "Introduction to Computer Science",
@@ -99,12 +99,55 @@ def generate_courses():
             "code": "CSE301",
             "name": "Database Management Systems",
             "semester": "Spring 2024"
+        },
+        {
+            "code": "CSE201",
+            "name": "Data Structures and Algorithms",
+            "semester": "Fall 2023"
+        },
+        {
+            "code": "CSE210",
+            "name": "Object-Oriented Programming",
+            "semester": "Spring 2024"
+        },
+        {
+            "code": "CSE250",
+            "name": "Computer Networks",
+            "semester": "Fall 2023"
+        },
+        {
+            "code": "CSE310",
+            "name": "Software Engineering",
+            "semester": "Spring 2024"
+        },
+        {
+            "code": "CSE350",
+            "name": "Artificial Intelligence",
+            "semester": "Fall 2023"
+        },
+        {
+            "code": "CSE401",
+            "name": "Machine Learning",
+            "semester": "Spring 2024"
+        },
+        {
+            "code": "CSE410",
+            "name": "Computer Graphics",
+            "semester": "Fall 2023"
+        },
+        {
+            "code": "CSE450",
+            "name": "Operating Systems",
+            "semester": "Spring 2024"
         }
     ]
     
+    # Randomly select 3 courses from the list
+    selected_courses = random.sample(potential_courses, 3)
+    
     course_objects = []
     
-    for course_data in courses:
+    for course_data in selected_courses:
         course = Course(
             code=course_data["code"],
             name=course_data["name"],
@@ -116,7 +159,7 @@ def generate_courses():
         course_objects.append(course)
     
     session.commit()
-    print(f"Created {len(course_objects)} courses")
+    print(f"Created {len(course_objects)} randomly selected courses")
     return course_objects
 
 def generate_program_outcomes():
@@ -138,11 +181,59 @@ def generate_course_outcomes(courses, program_outcomes):
             {"code": "CSE101-3", "description": "Analyze algorithms for efficiency and correctness"},
             {"code": "CSE101-4", "description": "Implement data structures to organize and manipulate data"}
         ],
+        "CSE201": [
+            {"code": "CSE201-1", "description": "Implement and analyze fundamental data structures"},
+            {"code": "CSE201-2", "description": "Design and analyze algorithms for efficiency"},
+            {"code": "CSE201-3", "description": "Apply appropriate data structures to solve complex problems"},
+            {"code": "CSE201-4", "description": "Evaluate algorithm complexity in time and space"}
+        ],
+        "CSE210": [
+            {"code": "CSE210-1", "description": "Apply object-oriented design principles to software development"},
+            {"code": "CSE210-2", "description": "Design and implement class hierarchies and interfaces"},
+            {"code": "CSE210-3", "description": "Use inheritance, polymorphism, and encapsulation appropriately"},
+            {"code": "CSE210-4", "description": "Implement design patterns to solve common software problems"}
+        ],
+        "CSE250": [
+            {"code": "CSE250-1", "description": "Explain the architecture and protocols of computer networks"},
+            {"code": "CSE250-2", "description": "Design and implement network applications"},
+            {"code": "CSE250-3", "description": "Analyze network performance and security"},
+            {"code": "CSE250-4", "description": "Configure and troubleshoot network components"}
+        ],
         "CSE301": [
             {"code": "CSE301-1", "description": "Design and implement relational database schemas"},
             {"code": "CSE301-2", "description": "Develop complex SQL queries for data retrieval and manipulation"},
             {"code": "CSE301-3", "description": "Apply normalization techniques to database designs"},
             {"code": "CSE301-4", "description": "Implement database security and transaction management"}
+        ],
+        "CSE310": [
+            {"code": "CSE310-1", "description": "Apply software engineering principles to software development"},
+            {"code": "CSE310-2", "description": "Design, implement, and test software systems"},
+            {"code": "CSE310-3", "description": "Manage software development projects effectively"},
+            {"code": "CSE310-4", "description": "Work collaboratively in software development teams"}
+        ],
+        "CSE350": [
+            {"code": "CSE350-1", "description": "Explain fundamental AI concepts and algorithms"},
+            {"code": "CSE350-2", "description": "Implement search and optimization algorithms"},
+            {"code": "CSE350-3", "description": "Design and develop intelligent agent systems"},
+            {"code": "CSE350-4", "description": "Apply knowledge representation and reasoning techniques"}
+        ],
+        "CSE401": [
+            {"code": "CSE401-1", "description": "Implement and evaluate machine learning algorithms"},
+            {"code": "CSE401-2", "description": "Process and analyze data for machine learning tasks"},
+            {"code": "CSE401-3", "description": "Design and train neural networks for various applications"},
+            {"code": "CSE401-4", "description": "Evaluate and improve model performance"}
+        ],
+        "CSE410": [
+            {"code": "CSE410-1", "description": "Apply computer graphics principles and algorithms"},
+            {"code": "CSE410-2", "description": "Implement 2D and 3D rendering techniques"},
+            {"code": "CSE410-3", "description": "Design and develop interactive graphical applications"},
+            {"code": "CSE410-4", "description": "Use graphics libraries and APIs effectively"}
+        ],
+        "CSE450": [
+            {"code": "CSE450-1", "description": "Explain operating system concepts and architectures"},
+            {"code": "CSE450-2", "description": "Implement process management and scheduling algorithms"},
+            {"code": "CSE450-3", "description": "Design and implement memory management systems"},
+            {"code": "CSE450-4", "description": "Develop solutions for concurrency and synchronization"}
         ]
     }
     
@@ -199,12 +290,77 @@ def generate_exams(courses):
             {"name": "Project", "max_score": 100, "date_offset": -15},
             {"name": "Final Exam", "max_score": 100, "date_offset": -7}
         ],
+        "CSE201": [
+            {"name": "Assignment 1", "max_score": 40, "date_offset": -65},
+            {"name": "Quiz 1", "max_score": 20, "date_offset": -55},
+            {"name": "Midterm", "max_score": 100, "date_offset": -40},
+            {"name": "Assignment 2", "max_score": 40, "date_offset": -25},
+            {"name": "Quiz 2", "max_score": 20, "date_offset": -15},
+            {"name": "Final Exam", "max_score": 100, "date_offset": -5}
+        ],
+        "CSE210": [
+            {"name": "Quiz 1", "max_score": 20, "date_offset": -70},
+            {"name": "Programming Assignment 1", "max_score": 50, "date_offset": -60},
+            {"name": "Midterm", "max_score": 100, "date_offset": -45},
+            {"name": "Quiz 2", "max_score": 20, "date_offset": -35},
+            {"name": "Programming Assignment 2", "max_score": 50, "date_offset": -20},
+            {"name": "Final Project", "max_score": 100, "date_offset": -10},
+            {"name": "Final Exam", "max_score": 100, "date_offset": -3}
+        ],
+        "CSE250": [
+            {"name": "Lab 1", "max_score": 30, "date_offset": -75},
+            {"name": "Lab 2", "max_score": 30, "date_offset": -60},
+            {"name": "Midterm", "max_score": 100, "date_offset": -45},
+            {"name": "Lab 3", "max_score": 30, "date_offset": -30},
+            {"name": "Lab 4", "max_score": 30, "date_offset": -15},
+            {"name": "Final Exam", "max_score": 100, "date_offset": -5}
+        ],
         "CSE301": [
             {"name": "Homework 1", "max_score": 50, "date_offset": -70},
             {"name": "Midterm 1", "max_score": 100, "date_offset": -55},
             {"name": "Homework 2", "max_score": 50, "date_offset": -40},
             {"name": "Midterm 2", "max_score": 100, "date_offset": -25},
             {"name": "Project", "max_score": 100, "date_offset": -10},
+            {"name": "Final Exam", "max_score": 100, "date_offset": -5}
+        ],
+        "CSE310": [
+            {"name": "Requirements Document", "max_score": 50, "date_offset": -70},
+            {"name": "Design Document", "max_score": 50, "date_offset": -55},
+            {"name": "Midterm", "max_score": 100, "date_offset": -45},
+            {"name": "Implementation Phase", "max_score": 100, "date_offset": -25},
+            {"name": "Testing Document", "max_score": 50, "date_offset": -15},
+            {"name": "Final Project", "max_score": 100, "date_offset": -5}
+        ],
+        "CSE350": [
+            {"name": "Problem Set 1", "max_score": 50, "date_offset": -65},
+            {"name": "Problem Set 2", "max_score": 50, "date_offset": -50},
+            {"name": "Midterm", "max_score": 100, "date_offset": -40},
+            {"name": "Problem Set 3", "max_score": 50, "date_offset": -25},
+            {"name": "Project", "max_score": 100, "date_offset": -10},
+            {"name": "Final Exam", "max_score": 100, "date_offset": -5}
+        ],
+        "CSE401": [
+            {"name": "Data Analysis Task", "max_score": 50, "date_offset": -65},
+            {"name": "Model Implementation", "max_score": 50, "date_offset": -50},
+            {"name": "Midterm", "max_score": 100, "date_offset": -40},
+            {"name": "Model Evaluation", "max_score": 50, "date_offset": -25},
+            {"name": "Final Project", "max_score": 100, "date_offset": -10},
+            {"name": "Final Exam", "max_score": 100, "date_offset": -5}
+        ],
+        "CSE410": [
+            {"name": "2D Rendering Assignment", "max_score": 50, "date_offset": -70},
+            {"name": "3D Modeling Task", "max_score": 50, "date_offset": -55},
+            {"name": "Midterm", "max_score": 100, "date_offset": -45},
+            {"name": "Animation Project", "max_score": 50, "date_offset": -30},
+            {"name": "Interactive Graphics Project", "max_score": 100, "date_offset": -10},
+            {"name": "Final Exam", "max_score": 100, "date_offset": -5}
+        ],
+        "CSE450": [
+            {"name": "Process Scheduling Lab", "max_score": 40, "date_offset": -65},
+            {"name": "Memory Management Lab", "max_score": 40, "date_offset": -50},
+            {"name": "Midterm", "max_score": 100, "date_offset": -40},
+            {"name": "File System Lab", "max_score": 40, "date_offset": -25},
+            {"name": "Synchronization Project", "max_score": 80, "date_offset": -10},
             {"name": "Final Exam", "max_score": 100, "date_offset": -5}
         ]
     }
@@ -217,15 +373,73 @@ def generate_exams(courses):
             "Project": Decimal('0.2'),    # 20% for the project
             "Final Exam": Decimal('0.4')  # 40% for the final
         },
+        "CSE201": {
+            "Assignment": Decimal('0.1'),  # 10% for each assignment (2 total = 20%)
+            "Quiz": Decimal('0.05'),      # 5% for each quiz (2 total = 10%)
+            "Midterm": Decimal('0.3'),    # 30% for the midterm
+            "Final Exam": Decimal('0.4')  # 40% for the final
+        },
+        "CSE210": {
+            "Quiz": Decimal('0.05'),      # 5% for each quiz (2 total = 10%)
+            "Programming Assignment": Decimal('0.1'),  # 10% for each assignment (2 total = 20%)
+            "Midterm": Decimal('0.2'),    # 20% for the midterm
+            "Final Project": Decimal('0.2'),  # 20% for the final project
+            "Final Exam": Decimal('0.3')  # 30% for the final
+        },
+        "CSE250": {
+            "Lab": Decimal('0.1'),        # 10% for each lab (4 total = 40%)
+            "Midterm": Decimal('0.2'),    # 20% for the midterm
+            "Final Exam": Decimal('0.4')  # 40% for the final
+        },
         "CSE301": {
             "Homework": Decimal('0.05'),  # 5% for each homework (2 total = 10%)
             "Midterm": Decimal('0.15'),   # 15% for each midterm (2 total = 30%)
             "Project": Decimal('0.2'),    # 20% for the project
             "Final Exam": Decimal('0.4')  # 40% for the final
         },
+        "CSE310": {
+            "Requirements Document": Decimal('0.1'),  # 10% for requirements
+            "Design Document": Decimal('0.1'),       # 10% for design
+            "Midterm": Decimal('0.2'),              # 20% for midterm
+            "Implementation Phase": Decimal('0.2'),  # 20% for implementation
+            "Testing Document": Decimal('0.1'),      # 10% for testing
+            "Final Project": Decimal('0.3')         # 30% for final project
+        },
+        "CSE350": {
+            "Problem Set": Decimal('0.1'),   # 10% for each problem set (3 total = 30%)
+            "Midterm": Decimal('0.2'),      # 20% for midterm
+            "Project": Decimal('0.2'),      # 20% for project
+            "Final Exam": Decimal('0.3')    # 30% for final
+        },
+        "CSE401": {
+            "Data Analysis Task": Decimal('0.1'),    # 10% for data analysis
+            "Model Implementation": Decimal('0.15'), # 15% for model implementation
+            "Midterm": Decimal('0.2'),              # 20% for midterm
+            "Model Evaluation": Decimal('0.15'),     # 15% for model evaluation
+            "Final Project": Decimal('0.2'),         # 20% for final project
+            "Final Exam": Decimal('0.2')             # 20% for final exam
+        },
+        "CSE410": {
+            "2D Rendering Assignment": Decimal('0.1'),    # 10% for 2D rendering
+            "3D Modeling Task": Decimal('0.1'),          # 10% for 3D modeling
+            "Midterm": Decimal('0.2'),                   # 20% for midterm
+            "Animation Project": Decimal('0.1'),         # 10% for animation
+            "Interactive Graphics Project": Decimal('0.2'), # 20% for interactive graphics
+            "Final Exam": Decimal('0.3')                 # 30% for final exam
+        },
+        "CSE450": {
+            "Process Scheduling Lab": Decimal('0.1'),    # 10% for process scheduling
+            "Memory Management Lab": Decimal('0.1'),     # 10% for memory management
+            "Midterm": Decimal('0.2'),                   # 20% for midterm
+            "File System Lab": Decimal('0.1'),           # 10% for file system
+            "Synchronization Project": Decimal('0.2'),   # 20% for synchronization project
+            "Final Exam": Decimal('0.3')                 # 30% for final exam
+        },
         "DEFAULT": {
             "Quiz": Decimal('0.05'),      # Default weight distributions for unknown courses
             "Homework": Decimal('0.05'),
+            "Assignment": Decimal('0.1'),
+            "Lab": Decimal('0.05'),
             "Midterm": Decimal('0.15'),
             "Project": Decimal('0.2'),
             "Final Exam": Decimal('0.4'),
@@ -372,14 +586,22 @@ def generate_students(courses):
     # Number of students per course
     student_counts = {
         "CSE101": 30,  # Intro course has more students
-        "CSE301": 20   # Advanced course has fewer students
+        "CSE201": 25,  # Data Structures course
+        "CSE210": 25,  # Object-Oriented Programming
+        "CSE250": 20,  # Computer Networks
+        "CSE301": 20,  # Database Management
+        "CSE310": 22,  # Software Engineering
+        "CSE350": 18,  # Artificial Intelligence
+        "CSE401": 15,  # Machine Learning
+        "CSE410": 15,  # Computer Graphics
+        "CSE450": 20   # Operating Systems
     }
     
     # Create a dictionary of student IDs per course to ensure uniqueness within each course
     course_student_ids = {course.id: set() for course in courses}
     
     for course in courses:
-        num_students = student_counts.get(course.code, 25)
+        num_students = student_counts.get(course.code, 25)  # Default to 25 if course code not in dictionary
         
         for _ in range(num_students):
             # Generate a unique student ID for this course
