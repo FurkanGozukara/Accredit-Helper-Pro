@@ -52,6 +52,37 @@ def course_calculations(course_id):
         flash(f'Exam weights do not add up to 100%. Current total: {total_weight*100:.1f}%. Please update weights.', 'warning')
         return redirect(url_for('exam.manage_weights', course_id=course_id))
     
+    # Create a map of exams to their questions
+    questions_by_exam = {}
+    for exam in exams + makeup_exams:
+        questions_by_exam[exam.id] = exam.questions
+    
+    # Create a map of course outcomes to their related questions
+    outcome_questions = {}
+    for co in course_outcomes:
+        outcome_questions[co.id] = co.questions
+    
+    # Create a map of program outcomes to their related course outcomes
+    program_to_course_outcomes = {}
+    for po in program_outcomes:
+        related_cos = [co for co in course_outcomes if po in co.program_outcomes]
+        program_to_course_outcomes[po.id] = related_cos
+    
+    # Preload all scores for this course
+    student_ids = [s.id for s in students]
+    exam_ids = [e.id for e in exams + makeup_exams]
+    scores_dict = {}
+    
+    if student_ids and exam_ids:
+        scores = Score.query.filter(
+            Score.student_id.in_(student_ids),
+            Score.exam_id.in_(exam_ids)
+        ).all()
+        
+        for score in scores:
+            key = (score.student_id, score.question_id, score.exam_id)
+            scores_dict[key] = score.score
+    
     # Calculate student results
     student_results = {}
     for student in students:
@@ -75,14 +106,14 @@ def course_calculations(course_id):
             
             # If student has a makeup, use that instead
             if makeup_exam:
-                makeup_score = calculate_student_exam_score(student.id, makeup_exam.id)
+                makeup_score = calculate_student_exam_score_optimized(student.id, makeup_exam.id, scores_dict, questions_by_exam[makeup_exam.id])
                 if makeup_score is not None:
                     has_final_or_makeup = True
                     student_results[student.id]['exam_scores'][exam.id] = makeup_score
                     continue
             
             # Otherwise use regular exam score
-            exam_score = calculate_student_exam_score(student.id, exam.id)
+            exam_score = calculate_student_exam_score_optimized(student.id, exam.id, scores_dict, questions_by_exam[exam.id])
             if exam_score is not None:
                 student_results[student.id]['exam_scores'][exam.id] = exam_score
         
@@ -100,12 +131,12 @@ def course_calculations(course_id):
         
         # Calculate course outcome scores
         for outcome in course_outcomes:
-            score = calculate_course_outcome_score(student.id, outcome.id)
+            score = calculate_course_outcome_score_optimized(student.id, outcome.id, scores_dict, outcome_questions)
             student_results[student.id]['course_outcome_scores'][outcome.id] = score
         
         # Calculate program outcome scores
         for outcome in program_outcomes:
-            score = calculate_program_outcome_score(student.id, outcome.id, course_id)
+            score = calculate_program_outcome_score_optimized(student.id, outcome.id, course_id, scores_dict, program_to_course_outcomes, outcome_questions)
             student_results[student.id]['program_outcome_scores'][outcome.id] = score
     
     # Calculate average scores for the whole class
@@ -250,15 +281,43 @@ def export_results(course_id):
     
     # Add program outcome headers
     for po in program_outcomes:
-        # Check if program outcome is linked to any course outcome
-        has_link = False
-        for co in course_outcomes:
-            if po in co.program_outcomes:
-                has_link = True
-                break
-        
+        # Check if this program outcome is linked to any course outcome
+        has_link = any(po in co.program_outcomes for co in course_outcomes)
         if has_link:
             headers.append(f'PO: {po.code} (%)')
+    
+    data.append(headers)
+    
+    # Create a map of exams to their questions
+    questions_by_exam = {}
+    for exam in exams + makeup_exams:
+        questions_by_exam[exam.id] = exam.questions
+    
+    # Create a map of course outcomes to their related questions
+    outcome_questions = {}
+    for co in course_outcomes:
+        outcome_questions[co.id] = co.questions
+    
+    # Create a map of program outcomes to their related course outcomes
+    program_to_course_outcomes = {}
+    for po in program_outcomes:
+        related_cos = [co for co in course_outcomes if po in co.program_outcomes]
+        program_to_course_outcomes[po.id] = related_cos
+    
+    # Preload all scores for this course
+    student_ids = [s.id for s in students]
+    exam_ids = [e.id for e in exams + makeup_exams]
+    scores_dict = {}
+    
+    if student_ids and exam_ids:
+        scores = Score.query.filter(
+            Score.student_id.in_(student_ids),
+            Score.exam_id.in_(exam_ids)
+        ).all()
+        
+        for score in scores:
+            key = (score.student_id, score.question_id, score.exam_id)
+            scores_dict[key] = score.score
     
     # Calculate and add student results
     for student in students:
@@ -281,14 +340,14 @@ def export_results(course_id):
             
             # If student has a makeup, use that instead
             if makeup_exam:
-                makeup_score = calculate_student_exam_score(student.id, makeup_exam.id)
+                makeup_score = calculate_student_exam_score_optimized(student.id, makeup_exam.id, scores_dict, questions_by_exam[makeup_exam.id])
                 if makeup_score is not None:
                     has_final_or_makeup = True
                     final_score += makeup_score * weights[exam.id]
                     continue
             
             # Otherwise use regular exam score
-            exam_score = calculate_student_exam_score(student.id, exam.id)
+            exam_score = calculate_student_exam_score_optimized(student.id, exam.id, scores_dict, questions_by_exam[exam.id])
             if exam_score is not None:
                 final_score += exam_score * weights[exam.id]
         
@@ -305,12 +364,12 @@ def export_results(course_id):
         
         # Add exam scores
         for exam in exams:
-            exam_score = calculate_student_exam_score(student.id, exam.id)
+            exam_score = calculate_student_exam_score_optimized(student.id, exam.id, scores_dict, questions_by_exam[exam.id])
             student_row[f'{exam.name} Score (%)'] = round(exam_score, 2) if exam_score is not None else ''
         
         # Add course outcome scores
         for co in course_outcomes:
-            co_score = calculate_course_outcome_score(student.id, co.id)
+            co_score = calculate_course_outcome_score_optimized(student.id, co.id, scores_dict, outcome_questions)
             student_row[f'CO: {co.code} (%)'] = round(co_score, 2) if co_score is not None else ''
         
         # Add program outcome scores
@@ -323,7 +382,7 @@ def export_results(course_id):
                     break
             
             if has_link:
-                po_score = calculate_program_outcome_score(student.id, po.id, course_id)
+                po_score = calculate_program_outcome_score_optimized(student.id, po.id, course_id, scores_dict, program_to_course_outcomes, outcome_questions)
                 student_row[f'PO: {po.code} (%)'] = round(po_score, 2) if po_score is not None else ''
         
         data.append(student_row)
@@ -331,114 +390,6 @@ def export_results(course_id):
     # Export data using the utility function
     return export_to_excel_csv(data, f"accredit_results_{course.code}", headers)
 
-# Helper function to calculate a student's score for an exam
-def calculate_student_exam_score(student_id, exam_id):
-    """Calculate a student's total score for an exam as a percentage of possible points"""
-    exam = Exam.query.get(exam_id)
-    questions = Question.query.filter_by(exam_id=exam_id).all()
-    
-    if not questions:
-        return None
-    
-    total_score = Decimal('0')
-    total_possible = Decimal('0')
-    
-    for question in questions:
-        score = Score.query.filter_by(
-            student_id=student_id,
-            question_id=question.id,
-            exam_id=exam_id
-        ).first()
-        
-        if score:
-            total_score += score.score
-        
-        total_possible += question.max_score
-    
-    if total_possible == Decimal('0'):
-        return None
-    
-    return (total_score / total_possible) * Decimal('100')
-
-def calculate_course_outcome_score(student_id, outcome_id):
-    """Calculate a student's score for a course outcome based on related questions"""
-    outcome = CourseOutcome.query.get(outcome_id)
-    if not outcome:
-        # Added check if outcome exists
-        return None
-
-    # Get all questions associated with this course outcome
-    questions = outcome.questions
-
-    if not questions:
-        # No questions linked to this outcome
-        return None
-
-    # --- Correction Start ---
-    # 1. Calculate the total possible score from ALL relevant questions first.
-    total_possible = sum(q.max_score for q in questions)
-
-    # Handle cases where an outcome might be linked only to 0-point questions
-    if total_possible == Decimal('0'):
-        # Similar logic as optimized: check if student scored any points on these 0-max_score questions
-        student_score_exists_positive = False
-        for question in questions:
-            score = Score.query.filter_by(
-                student_id=student_id,
-                question_id=question.id
-                # Note: This filter might still be ambiguous if question.id appears in multiple exams.
-                # The optimized version correctly uses (student_id, question.id, exam_id)
-            ).first()
-            if score and score.score > 0:
-                student_score_exists_positive = True
-                break
-        # Return 100% if they scored positive points on 0-possible, else 0%
-        return Decimal('100.0') if student_score_exists_positive else Decimal('0.0')
-
-    # 2. Calculate the student's total score, treating missing scores as 0.
-    total_score = Decimal('0')
-    for question in questions:
-        # Query for the specific score
-        score = Score.query.filter_by(
-            student_id=student_id,
-            question_id=question.id
-            # Ambiguity concern noted above still applies here.
-        ).first()
-
-        if score: # Check if score record exists
-            # Ensure score is Decimal
-            total_score += Decimal(score.score)
-        # Implicitly, if score record doesn't exist, we add 0, which is correct.
-
-    # 3. Calculate the percentage.
-    # total_possible is guaranteed non-zero here.
-    return (total_score / total_possible) * Decimal('100')
-
-# Helper function to calculate a student's score for a program outcome
-def calculate_program_outcome_score(student_id, outcome_id, course_id):
-    """Calculate a student's score for a program outcome based on related course outcomes"""
-    program_outcome = ProgramOutcome.query.get(outcome_id)
-    course_outcomes = CourseOutcome.query.filter_by(course_id=course_id).all()
-    
-    # Find course outcomes associated with this program outcome
-    related_course_outcomes = [co for co in course_outcomes if program_outcome in co.program_outcomes]
-    
-    if not related_course_outcomes:
-        return None
-    
-    total_score = Decimal('0')
-    count = 0
-    
-    for course_outcome in related_course_outcomes:
-        score = calculate_course_outcome_score(student_id, course_outcome.id)
-        if score is not None:
-            total_score += score
-            count += 1
-    
-    if count == 0:
-        return None
-    
-    return total_score / count 
 
 @calculation_bp.route('/all_courses')
 def all_courses_calculations():
@@ -536,6 +487,11 @@ def all_courses_calculations():
         for co in course_outcomes:
             outcome_questions[co.id] = co.questions
         
+        # Create a map of exams to their questions
+        questions_by_exam = {}
+        for exam in exams + makeup_exams:
+            questions_by_exam[exam.id] = exam.questions
+        
         # Create a map of program outcomes to their related course outcomes
         program_to_course_outcomes = {}
         for po in program_outcomes:
@@ -556,7 +512,7 @@ def all_courses_calculations():
         if student_ids and exam_ids:
             # Preload scores in batches if there are many students/exams
             batch_size = 100
-            all_scores = {}
+            scores_dict = {}
             
             for i in range(0, len(student_ids), batch_size):
                 batch_student_ids = student_ids[i:i+batch_size]
@@ -567,7 +523,7 @@ def all_courses_calculations():
                 
                 for score in scores:
                     key = (score.student_id, score.question_id, score.exam_id)
-                    all_scores[key] = score.score
+                    scores_dict[key] = score.score
         
         for student in students:
             # Initialize student results
@@ -585,7 +541,7 @@ def all_courses_calculations():
                 for exam in mandatory_exams:
                     # Check regular exam
                     exam_score = calculate_student_exam_score_optimized(
-                        student.id, exam.id, all_scores, exam.questions
+                        student.id, exam.id, scores_dict, questions_by_exam[exam.id]
                     )
                     if exam_score is not None and exam_score > 0:
                         skip_student = False
@@ -595,7 +551,7 @@ def all_courses_calculations():
                     makeup_exam = next((m for m in makeup_exams if m.makeup_for == exam.id), None)
                     if makeup_exam:
                         makeup_score = calculate_student_exam_score_optimized(
-                            student.id, makeup_exam.id, all_scores, makeup_exam.questions
+                            student.id, makeup_exam.id, scores_dict, questions_by_exam[makeup_exam.id]
                         )
                         if makeup_score is not None and makeup_score > 0:
                             skip_student = False
@@ -612,17 +568,13 @@ def all_courses_calculations():
                 
                 # If student has a makeup, use that instead
                 if makeup_exam:
-                    makeup_score = calculate_student_exam_score_optimized(
-                        student.id, makeup_exam.id, all_scores, makeup_exam.questions
-                    )
+                    makeup_score = calculate_student_exam_score_optimized(student.id, makeup_exam.id, scores_dict, questions_by_exam[makeup_exam.id])
                     if makeup_score is not None:
                         student_results[student.id]['exam_scores'][exam.id] = makeup_score
                         continue
                 
                 # Otherwise use regular exam score
-                exam_score = calculate_student_exam_score_optimized(
-                    student.id, exam.id, all_scores, exam.questions
-                )
+                exam_score = calculate_student_exam_score_optimized(student.id, exam.id, scores_dict, questions_by_exam[exam.id])
                 if exam_score is not None:
                     student_results[student.id]['exam_scores'][exam.id] = exam_score
             
@@ -635,9 +587,7 @@ def all_courses_calculations():
             
             # Calculate program outcome scores
             for outcome in program_outcomes:
-                score = calculate_program_outcome_score_optimized(
-                    student.id, outcome.id, course_id, all_scores, program_to_course_outcomes, outcome_questions
-                )
+                score = calculate_program_outcome_score_optimized(student.id, outcome.id, course_id, scores_dict, program_to_course_outcomes, outcome_questions)
                 student_results[student.id]['program_outcome_scores'][outcome.id] = score
                 
             # Count successes for relative method
@@ -795,29 +745,30 @@ def update_display_method():
             return jsonify({'status': 'success'})
     return jsonify({'status': 'error'})
 
-# Optimized helper function to calculate a student's score without database hits
 def calculate_student_exam_score_optimized(student_id, exam_id, scores_dict, questions):
-    """Calculate a student's total score for an exam using preloaded data"""
+    """Calculate a student's total score for an exam using preloaded data.
+    
+    This improved version uses an explicit check for None so that a valid score of 0 is not skipped.
+    """
     if not questions:
         return None
-    
+
     total_score = Decimal('0')
     total_possible = Decimal('0')
-    
+
     for question in questions:
         score_value = scores_dict.get((student_id, question.id, exam_id))
-        
-        if score_value:
-            total_score += score_value
-        
+        # Use explicit check for None to include a valid score of 0
+        if score_value is not None:
+            total_score += Decimal(score_value)
         total_possible += question.max_score
-    
+
     if total_possible == Decimal('0'):
         return None
-    
+
     return (total_score / total_possible) * Decimal('100')
 
-def calculate_course_outcome_score_optimized(student_id, outcome_id, all_scores, outcome_questions):
+def calculate_course_outcome_score_optimized(student_id, outcome_id, scores_dict, outcome_questions):
     """Calculate a student's score for a course outcome using preloaded data"""
     questions = outcome_questions.get(outcome_id, [])
 
@@ -836,7 +787,7 @@ def calculate_course_outcome_score_optimized(student_id, outcome_id, all_scores,
         student_score_exists_positive = False
         for question in questions:
             exam_id = question.exam_id
-            score_value = all_scores.get((student_id, question.id, exam_id))
+            score_value = scores_dict.get((student_id, question.id, exam_id))
             if score_value and score_value > 0:
                 student_score_exists_positive = True
                 break
@@ -850,7 +801,7 @@ def calculate_course_outcome_score_optimized(student_id, outcome_id, all_scores,
     for question in questions:
         exam_id = question.exam_id
         # Use .get() which returns None if the key is not found
-        score_value = all_scores.get((student_id, question.id, exam_id))
+        score_value = scores_dict.get((student_id, question.id, exam_id))
 
         if score_value is not None: # Check if score exists
              # Ensure score_value is Decimal for consistency
@@ -862,7 +813,7 @@ def calculate_course_outcome_score_optimized(student_id, outcome_id, all_scores,
     return (total_score / total_possible) * Decimal('100')
 
 # Optimized helper function to calculate a student's score for a program outcome
-def calculate_program_outcome_score_optimized(student_id, outcome_id, course_id, all_scores, 
+def calculate_program_outcome_score_optimized(student_id, outcome_id, course_id, scores_dict, 
                                              program_to_course_outcomes, outcome_questions):
     """Calculate a student's score for a program outcome using preloaded data"""
     # Get related course outcomes from the preloaded mapping
@@ -876,7 +827,7 @@ def calculate_program_outcome_score_optimized(student_id, outcome_id, course_id,
     
     for course_outcome in related_course_outcomes:
         score = calculate_course_outcome_score_optimized(
-            student_id, course_outcome.id, all_scores, outcome_questions
+            student_id, course_outcome.id, scores_dict, outcome_questions
         )
         if score is not None:
             total_score += score
