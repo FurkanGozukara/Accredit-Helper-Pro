@@ -458,10 +458,14 @@ def generate_exams(courses):
                 {"name": "Midterm", "max_score": 100, "date_offset": -45},
                 {"name": "Final Exam", "max_score": 100, "date_offset": -7}
             ]
-            
+        
+        course_exams = []
         for exam_data in exams_data:
             today = datetime.now().date()
             exam_date = today + timedelta(days=exam_data["date_offset"])
+            
+            # Determine if this exam is a final based on name
+            is_final_exam = "Final" in exam_data["name"]
             
             exam = Exam(
                 name=exam_data["name"],
@@ -470,14 +474,38 @@ def generate_exams(courses):
                 course_id=course.id,
                 created_at=datetime.now(),
                 updated_at=datetime.now(),
-                is_makeup=False
+                is_makeup=False,
+                is_final=is_final_exam,
+                is_mandatory=is_final_exam  # Final exams are mandatory
             )
             session.add(exam)
+            course_exams.append(exam)
             all_exams.append(exam)
+        
+        # Add makeup exams for final exams and some midterms
+        for exam in course_exams:
+            if exam.is_final or ("Midterm" in exam.name and random.random() < 0.5):
+                makeup_date = exam.exam_date + timedelta(days=random.randint(7, 14))
+                makeup_name = f"Makeup {exam.name}"
+                
+                makeup_exam = Exam(
+                    name=makeup_name,
+                    max_score=exam.max_score,
+                    exam_date=makeup_date,
+                    course_id=course.id,
+                    created_at=datetime.now(),
+                    updated_at=datetime.now(),
+                    is_makeup=True,
+                    is_final=exam.is_final,
+                    is_mandatory=True,  # Makeup exams are also mandatory
+                    makeup_for=exam.id  # Link to the original exam
+                )
+                session.add(makeup_exam)
+                all_exams.append(makeup_exam)
     
     # Commit to get exam IDs
     session.commit()
-    print(f"Created {len(all_exams)} exams")
+    print(f"Created {len(all_exams)} exams (including makeup exams)")
     
     # Now create the exam weights with valid exam IDs
     for course in courses:
@@ -643,22 +671,13 @@ def generate_scores(questions, students):
         relevant_questions = [q for q in questions if q.exam.course_id == student.course_id]
         
         for question in relevant_questions:
-            # Generate score as before
-            mean_score_pct = Decimal('0.75')
-            std_dev_pct = Decimal('0.15')
-            
-            # Simplified approach - use random.gauss for the random component
-            # but convert to Decimal immediately
-            random_factor = Decimal(str(random.gauss(0, 1)))  # Standard normal distribution
-            
-            # Add student-specific performance modifier (±15%)
-            student_performance_modifier = Decimal(str(random.uniform(-0.15, 0.15)))
-            
-            # Calculate the student's score percentage (base + student factor + random factor)
-            student_score_pct = mean_score_pct + student_performance_modifier + (random_factor * std_dev_pct)
-            
-            # Ensure it's in valid range [0.05, 0.95]
-            student_score_pct = max(Decimal('0.05'), min(Decimal('0.95'), student_score_pct))
+            # 60% chance for scores 70 and above, 40% chance for scores below 70
+            if random.random() < 0.6:
+                # Generate a score of 70 or above (0.7 to 1.0)
+                student_score_pct = Decimal(str(random.uniform(0.7, 1.0)))
+            else:
+                # Generate a score below 70 (0.0 to 0.7)
+                student_score_pct = Decimal(str(random.uniform(0.0, 0.7)))
             
             # Calculate actual score based on question max score
             max_score = Decimal(str(question.max_score))
@@ -822,23 +841,14 @@ def main():
             # Skip if score already exists
             if (student.id, question.id) in existing_scores:
                 continue
-                
-            # Generate score as before
-            mean_score_pct = Decimal('0.75')
-            std_dev_pct = Decimal('0.15')
             
-            # Simplified approach - use random.gauss for the random component
-            # but convert to Decimal immediately
-            random_factor = Decimal(str(random.gauss(0, 1)))  # Standard normal distribution
-            
-            # Add student-specific performance modifier (±15%)
-            student_performance_modifier = Decimal(str(random.uniform(-0.15, 0.15)))
-            
-            # Calculate the student's score percentage (base + student factor + random factor)
-            student_score_pct = mean_score_pct + student_performance_modifier + (random_factor * std_dev_pct)
-            
-            # Ensure it's in valid range [0.05, 0.95]
-            student_score_pct = max(Decimal('0.05'), min(Decimal('0.95'), student_score_pct))
+            # 60% chance for scores 70 and above, 40% chance for scores below 70
+            if random.random() < 0.6:
+                # Generate a score of 70 or above (0.7 to 1.0)
+                student_score_pct = Decimal(str(random.uniform(0.7, 1.0)))
+            else:
+                # Generate a score below 70 (0.0 to 0.7)
+                student_score_pct = Decimal(str(random.uniform(0.0, 0.7)))
             
             # Calculate actual score based on question max score
             max_score = Decimal(str(question.max_score))

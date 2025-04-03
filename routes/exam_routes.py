@@ -6,6 +6,7 @@ import logging
 import io
 import csv
 from decimal import Decimal
+from sqlalchemy import text
 
 from routes.utility_routes import export_to_excel_csv
 
@@ -340,6 +341,64 @@ def export_exams(course_id):
     course = Course.query.get_or_404(course_id)
     exams = Exam.query.filter_by(course_id=course_id).order_by(Exam.name).all()
     
+    # Fix any missing makeup relationships before exporting
+    regular_exams = [e for e in exams if not e.is_makeup]
+    makeup_exams = [e for e in exams if e.is_makeup]
+    
+    # Counter for fixes
+    fixes_count = 0
+    
+    # Process makeup exams to find their original counterparts
+    for makeup_exam in makeup_exams:
+        # Skip if already properly set
+        if makeup_exam.makeup_for:
+            # Verify the relationship is valid
+            original = Exam.query.get(makeup_exam.makeup_for)
+            if original and original.course_id == course_id:
+                continue
+        
+        # Try to find the original exam by analyzing the name
+        makeup_name = makeup_exam.name.lower()
+        if 'makeup' in makeup_name:
+            base_name = makeup_name.replace('makeup', '', 1).strip()
+            
+            # First try exact name match
+            matched = False
+            for regular_exam in regular_exams:
+                if regular_exam.name.lower() == base_name:
+                    makeup_exam.makeup_for = regular_exam.id
+                    fixes_count += 1
+                    matched = True
+                    break
+            
+            # If no exact match, try partial name match
+            if not matched:
+                for regular_exam in regular_exams:
+                    # Check if base_name contains the regular exam name or vice versa
+                    if base_name in regular_exam.name.lower() or regular_exam.name.lower() in base_name:
+                        makeup_exam.makeup_for = regular_exam.id
+                        fixes_count += 1
+                        break
+    
+    # Commit any fixes that were made
+    if fixes_count > 0:
+        try:
+            db.session.commit()
+            log = Log(action="AUTO_FIX_MAKEUP_EXAMS", 
+                     description=f"Automatically fixed {fixes_count} makeup exam relationships for course: {course.code}")
+            db.session.add(log)
+            db.session.commit()
+            print(f"Fixed {fixes_count} makeup exam relationships before exporting")
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error fixing makeup exam relationships: {str(e)}")
+    
+    # Refresh exam list after possible changes
+    exams = Exam.query.filter_by(course_id=course_id).order_by(Exam.name).all()
+    
+    # Create a mapping of exam IDs to exam names
+    exam_id_to_name = {exam.id: exam.name for exam in exams}
+    
     # Prepare data for export
     data = []
     headers = ['Exam Name', 'Max Score', 'Date', 'Question Count', 'Is Makeup', 'Makeup For']
@@ -347,16 +406,29 @@ def export_exams(course_id):
     for exam in exams:
         question_count = Question.query.filter_by(exam_id=exam.id).count()
         
+        # Determine makeup_for value
+        makeup_for = 'N/A'
+        
+        # Simple approach now that relationships are fixed
+        if exam.is_makeup and exam.makeup_for and exam.makeup_for in exam_id_to_name:
+            makeup_for = exam_id_to_name[exam.makeup_for]
+        
         exam_data = {
             'Exam Name': exam.name,
-            'Max Score': exam.max_score,
-            'Date': exam.exam_date.strftime('%Y-%m-%d') if exam.exam_date else 'N/A',
+            'Max Score': float(exam.max_score),
+            'Date': exam.exam_date.strftime('%m/%d/%Y') if exam.exam_date else 'N/A',
             'Question Count': question_count,
             'Is Makeup': 'Yes' if exam.is_makeup else 'No',
-            'Makeup For': exam.original_exam.name if exam.is_makeup and exam.original_exam else 'N/A'
+            'Makeup For': makeup_for
         }
         
         data.append(exam_data)
+    
+    # Log export action
+    log = Log(action="EXPORT_EXAMS", 
+             description=f"Exported exam details for course: {course.code}")
+    db.session.add(log)
+    db.session.commit()
     
     # Export data using utility function
     return export_to_excel_csv(data, f"exams_{course.code}", headers)
@@ -435,4 +507,68 @@ def manage_exams(course_id):
                          regular_exams=regular_exams,
                          makeup_exams=makeup_exams,
                          weights=weights,
-                         active_page='courses') 
+                         active_page='courses')
+
+@exam_bp.route('/course/<int:course_id>/fix_makeup_relations')
+def fix_makeup_relations(course_id):
+    """Fix makeup exam relationships by analyzing exam names"""
+    course = Course.query.get_or_404(course_id)
+    
+    # Get all exams for the course
+    exams = Exam.query.filter_by(course_id=course_id).all()
+    
+    # Group exams by regular and makeup
+    regular_exams = [e for e in exams if not e.is_makeup]
+    makeup_exams = [e for e in exams if e.is_makeup]
+    
+    # Counter for fixes
+    fixes_count = 0
+    
+    # Process makeup exams to find their original counterparts
+    for makeup_exam in makeup_exams:
+        # Skip if already properly set
+        if makeup_exam.makeup_for:
+            # Verify the relationship is valid
+            original = Exam.query.get(makeup_exam.makeup_for)
+            if original and original.course_id == course_id:
+                continue
+        
+        # Try to find the original exam by analyzing the name
+        makeup_name = makeup_exam.name.lower()
+        if 'makeup' in makeup_name:
+            base_name = makeup_name.replace('makeup', '', 1).strip()
+            
+            # First try exact name match
+            matched = False
+            for regular_exam in regular_exams:
+                if regular_exam.name.lower() == base_name:
+                    makeup_exam.makeup_for = regular_exam.id
+                    fixes_count += 1
+                    matched = True
+                    break
+            
+            # If no exact match, try partial name match
+            if not matched:
+                for regular_exam in regular_exams:
+                    # Check if base_name contains the regular exam name or vice versa
+                    if base_name in regular_exam.name.lower() or regular_exam.name.lower() in base_name:
+                        makeup_exam.makeup_for = regular_exam.id
+                        fixes_count += 1
+                        break
+    
+    # Commit changes if any fixes were made
+    if fixes_count > 0:
+        try:
+            db.session.commit()
+            log = Log(action="FIX_MAKEUP_EXAMS", 
+                     description=f"Fixed {fixes_count} makeup exam relationships for course: {course.code}")
+            db.session.add(log)
+            db.session.commit()
+            flash(f'Fixed {fixes_count} makeup exam relationships.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error fixing makeup exam relationships: {str(e)}', 'error')
+    else:
+        flash('No makeup exam relationships needed fixing.', 'info')
+    
+    return redirect(url_for('exam.manage_exams', course_id=course_id)) 

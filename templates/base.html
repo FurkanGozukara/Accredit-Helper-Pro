@@ -37,8 +37,13 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if active_page == 'all_courses' %}active{% endif %}" href="#" onclick="navigateToAllCoursesCalculation(); return false;">
+                            <a class="nav-link {% if active_page == 'all_courses' %}active{% endif %}" href="{{ url_for('calculation.all_courses_calculations') }}">
                                 <i class="bi bi-graph-up"></i> All Courses Analysis
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if active_page == 'all_utilities' %}active{% endif %}" href="{{ url_for('calculation.all_utilities') }}">
+                                <i class="bi bi-tools"></i> All Utilities
                             </a>
                         </li>
                         <li class="nav-item dropdown">
@@ -112,7 +117,7 @@
 
     <footer class="footer mt-auto py-3 bg-light">
         <div class="container text-center">
-            <span class="text-muted">Accredit Helper Pro by SECourses V5 - Only Authorized Purchase from <a href="https://www.patreon.com/c/SECourses">www.patreon.com/c/SECourses</a> - Per License Needed for Per Department (e.g. Computer Engineering) - All Rights Reserved | <a href="{{ url_for('utility.help_page') }}">Help</a></span>
+            <span class="text-muted">Accredit Helper Pro by SECourses V6 - Only Authorized Purchase from <a href="https://www.patreon.com/c/SECourses">www.patreon.com/c/SECourses</a> - Per License Needed for Per Department (e.g. Computer Engineering) - All Rights Reserved | <a href="{{ url_for('utility.help_page') }}">Help</a></span>
         </div>
     </footer>
 

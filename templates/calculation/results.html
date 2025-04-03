@@ -10,6 +10,36 @@
 
 {% block content %}
 <div class="container-fluid mt-4">
+    <!-- Debug Information - Only visible when ?debug=1 is in URL -->
+    {% if request.args.get('debug') == '1' %}
+    <div class="alert alert-info mb-4">
+        <h4>Debug Information</h4>
+        <ul>
+            <li>Course: {{ course.code }} (ID: {{ course.id }})</li>
+            <li>Exams: {{ exams|length }}</li>
+            <li>Course Outcomes: {{ course_outcomes|length }}</li>
+            <li>Program Outcomes: {{ program_outcomes|length }}</li>
+            <li>Students: {{ students|length }}</li>
+            <li>Student Results: {{ student_results|length }}</li>
+            <li>Course Outcome Results: {{ course_outcome_results|length }}</li>
+            <li>Program Outcome Results: {{ program_outcome_results|length }}</li>
+            <li>has_course_outcomes: {{ has_course_outcomes }}</li>
+            <li>has_exam_questions: {{ has_exam_questions }}</li>
+            <li>has_student_scores: {{ has_student_scores }}</li>
+            <li>has_valid_weights: {{ has_valid_weights }}</li>
+        </ul>
+        <!-- Show actual values for a sample -->
+        {% if program_outcome_results %}
+        <h5>Sample Program Outcome Result</h5>
+        {% for code, data in program_outcome_results.items() %}
+            {% if loop.first %}
+            <pre>{{ code }}: {{ data }}</pre>
+            {% endif %}
+        {% endfor %}
+        {% endif %}
+    </div>
+    {% endif %}
+
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Program Outcome Scores for {{ course.code }}: {{ course.name }}</h1>
         <div>
@@ -110,6 +140,7 @@
                                             <td>{{ po_data.description|truncate(120) }}</td>
                                             <td>
                                                 <div class="progress" style="height: 25px;">
+                                                    {% if po_data.contributes %}
                                                     <div class="progress-bar bg-{{ 'success' if po_data.percentage >= 70 else 'warning' if po_data.percentage >= 50 else 'danger' }}" 
                                                          role="progressbar" 
                                                          style="width: {{ po_data.percentage }}%;" 
@@ -118,6 +149,9 @@
                                                          aria-valuemax="100">
                                                         {{ "%.1f"|format(po_data.percentage) }}%
                                                     </div>
+                                                    {% else %}
+                                                    <div class="text-center text-muted">NA</div>
+                                                    {% endif %}
                                                 </div>
                                             </td>
                                             <td>
@@ -307,125 +341,150 @@
 
 {% if program_outcome_results and course_outcome_results %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
+    function exportResults() {
+        window.location.href = "{{ url_for('calculation.export_results', course_id=course.id) }}";
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("DOM loaded, initializing charts directly");
+        
         // Program Outcomes Chart
-        const poCtx = document.getElementById('programOutcomesChart').getContext('2d');
-        const poChart = new Chart(poCtx, {
-            type: 'bar',
-            data: {
-                labels: [
-                    {% for po_code in program_outcome_results %}
-                        '{{ po_code }}',
-                    {% endfor %}
-                ],
-                datasets: [{
-                    label: 'Achievement Level (%)',
-                    data: [
-                        {% for po_code, po_data in program_outcome_results.items() %}
-                            {{ "%.1f"|format(po_data.percentage) }},
-                        {% endfor %}
-                    ],
-                    backgroundColor: [
-                        {% for po_code, po_data in program_outcome_results.items() %}
-                            '{{ 'rgba(40, 167, 69, 0.7)' if po_data.percentage >= 70 else 'rgba(255, 193, 7, 0.7)' if po_data.percentage >= 50 else 'rgba(220, 53, 69, 0.7)' }}',
-                        {% endfor %}
-                    ],
-                    borderColor: [
-                        {% for po_code, po_data in program_outcome_results.items() %}
-                            '{{ 'rgba(40, 167, 69, 1)' if po_data.percentage >= 70 else 'rgba(255, 193, 7, 1)' if po_data.percentage >= 50 else 'rgba(220, 53, 69, 1)' }}',
-                        {% endfor %}
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        title: {
-                            display: true,
-                            text: 'Achievement Level (%)'
-                        }
+        const poChart = document.getElementById('programOutcomesChart');
+        if (poChart && typeof Chart !== 'undefined') {
+            try {
+                const poCtx = poChart.getContext('2d');
+                new Chart(poCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: [{% for po_code in program_outcome_results %}'{{ po_code }}',{% endfor %}],
+                        datasets: [{
+                            label: 'Achievement Level (%)',
+                            data: [
+                                {% for po_code, po_data in program_outcome_results.items() %}
+                                {% set percentage = po_data.percentage|float if po_data.percentage is not none else 0 %}
+                                {{ percentage }},
+                                {% endfor %}
+                            ],
+                            backgroundColor: [
+                                {% for po_code, po_data in program_outcome_results.items() %}
+                                {% set percentage = po_data.percentage|float if po_data.percentage is not none else 0 %}
+                                '{{ 'rgba(40, 167, 69, 0.7)' if percentage >= 70 else 'rgba(255, 193, 7, 0.7)' if percentage >= 50 else 'rgba(220, 53, 69, 0.7)' }}',
+                                {% endfor %}
+                            ],
+                            borderColor: [
+                                {% for po_code, po_data in program_outcome_results.items() %}
+                                {% set percentage = po_data.percentage|float if po_data.percentage is not none else 0 %}
+                                '{{ 'rgba(40, 167, 69, 1)' if percentage >= 70 else 'rgba(255, 193, 7, 1)' if percentage >= 50 else 'rgba(220, 53, 69, 1)' }}',
+                                {% endfor %}
+                            ],
+                            borderWidth: 1
+                        }]
                     },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Program Outcomes'
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                title: {
+                                    display: true,
+                                    text: 'Achievement Level (%)'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Program Outcomes'
+                                }
+                            }
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Program Outcome Achievement Levels',
+                                font: { size: 16 }
+                            }
                         }
                     }
-                },
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Program Outcome Achievement Levels',
-                        font: {
-                            size: 16
-                        }
-                    }
-                }
+                });
+                console.log("Program outcomes chart created");
+            } catch (error) {
+                console.error("Error creating program outcomes chart:", error);
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'alert alert-danger';
+                errorMsg.innerHTML = '<strong>Error:</strong> Failed to create chart: ' + error.message;
+                poChart.parentNode.insertBefore(errorMsg, poChart);
             }
-        });
+        }
         
         // Course Outcomes Chart
-        const coCtx = document.getElementById('courseOutcomesChart').getContext('2d');
-        const coChart = new Chart(coCtx, {
-            type: 'bar',
-            data: {
-                labels: [
-                    {% for co_code in course_outcome_results %}
-                        '{{ co_code }}',
-                    {% endfor %}
-                ],
-                datasets: [{
-                    label: 'Achievement Level (%)',
-                    data: [
-                        {% for co_code, co_data in course_outcome_results.items() %}
-                            {{ "%.1f"|format(co_data.percentage) }},
-                        {% endfor %}
-                    ],
-                    backgroundColor: [
-                        {% for co_code, co_data in course_outcome_results.items() %}
-                            '{{ 'rgba(23, 162, 184, 0.7)' if co_data.percentage >= 70 else 'rgba(255, 193, 7, 0.7)' if co_data.percentage >= 50 else 'rgba(220, 53, 69, 0.7)' }}',
-                        {% endfor %}
-                    ],
-                    borderColor: [
-                        {% for co_code, co_data in course_outcome_results.items() %}
-                            '{{ 'rgba(23, 162, 184, 1)' if co_data.percentage >= 70 else 'rgba(255, 193, 7, 1)' if co_data.percentage >= 50 else 'rgba(220, 53, 69, 1)' }}',
-                        {% endfor %}
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        title: {
-                            display: true,
-                            text: 'Achievement Level (%)'
-                        }
+        const coChart = document.getElementById('courseOutcomesChart');
+        if (coChart && typeof Chart !== 'undefined') {
+            try {
+                const coCtx = coChart.getContext('2d');
+                new Chart(coCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: [{% for co_code in course_outcome_results %}'{{ co_code }}',{% endfor %}],
+                        datasets: [{
+                            label: 'Achievement Level (%)',
+                            data: [
+                                {% for co_code, co_data in course_outcome_results.items() %}
+                                {% set percentage = co_data.percentage|float if co_data.percentage is not none else 0 %}
+                                {{ percentage }},
+                                {% endfor %}
+                            ],
+                            backgroundColor: [
+                                {% for co_code, co_data in course_outcome_results.items() %}
+                                {% set percentage = co_data.percentage|float if co_data.percentage is not none else 0 %}
+                                '{{ 'rgba(23, 162, 184, 0.7)' if percentage >= 70 else 'rgba(255, 193, 7, 0.7)' if percentage >= 50 else 'rgba(220, 53, 69, 0.7)' }}',
+                                {% endfor %}
+                            ],
+                            borderColor: [
+                                {% for co_code, co_data in course_outcome_results.items() %}
+                                {% set percentage = co_data.percentage|float if co_data.percentage is not none else 0 %}
+                                '{{ 'rgba(23, 162, 184, 1)' if percentage >= 70 else 'rgba(255, 193, 7, 1)' if percentage >= 50 else 'rgba(220, 53, 69, 1)' }}',
+                                {% endfor %}
+                            ],
+                            borderWidth: 1
+                        }]
                     },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Course Outcomes'
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                title: {
+                                    display: true,
+                                    text: 'Achievement Level (%)'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Course Outcomes'
+                                }
+                            }
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Course Outcome Achievement Levels',
+                                font: { size: 16 }
+                            }
                         }
                     }
-                },
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Course Outcome Achievement Levels',
-                        font: {
-                            size: 16
-                        }
-                    }
-                }
+                });
+                console.log("Course outcomes chart created");
+            } catch (error) {
+                console.error("Error creating course outcomes chart:", error);
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'alert alert-danger';
+                errorMsg.innerHTML = '<strong>Error:</strong> Failed to create chart: ' + error.message;
+                coChart.parentNode.insertBefore(errorMsg, coChart);
             }
-        });
+        }
         
         // Student search functionality
         const searchInput = document.getElementById('studentSearch');
@@ -452,10 +511,6 @@
             });
         }
     });
-    
-    function exportResults() {
-        window.location.href = "{{ url_for('calculation.export_results', course_id=course.id) }}";
-    }
 </script>
 {% endif %}
 {% endblock %} 

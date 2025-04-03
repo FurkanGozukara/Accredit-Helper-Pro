@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, send_file
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, send_file, make_response
 from flask import current_app as app
 from app import db
 from models import Log, Course, Student, Exam, CourseOutcome, Question, Score
@@ -23,7 +23,8 @@ def export_to_excel_csv(data, filename, headers=None):
         data: List of dictionaries or list of lists containing the data to export
         filename: The filename for the exported file (without extension)
         headers: Optional list of column headers. If None and data is list of dicts, 
-                dict keys will be used as headers
+                dict keys will be used as headers. If data is list of lists, the first
+                row is assumed to be headers if headers=None.
     
     Returns:
         A Flask response object with the CSV file
@@ -32,32 +33,45 @@ def export_to_excel_csv(data, filename, headers=None):
         # Create a StringIO object to store the CSV
         output = io.StringIO()
         
-        # Add BOM (Byte Order Mark) for Excel UTF-8 compatibility
-        output.write('\ufeff')
+        # Add the sep=; directive as the first line - Excel special format directive
+        output.write('sep=;\n')
         
         # Determine delimiter based on data structure
         delimiter = ';'  # Semicolon is often better for Excel in many locales
         
-        # If data is a list of dictionaries and no headers provided, use dict keys
-        if data and isinstance(data[0], dict) and not headers:
-            headers = list(data[0].keys())
-        
         # Create CSV writer
         writer = csv.writer(output, delimiter=delimiter)
         
-        # Write headers if provided
-        if headers:
-            writer.writerow(headers)
+        # Determine if we're dealing with list of dicts or list of lists
+        is_list_of_dicts = data and isinstance(data[0], dict)
         
-        # Write data rows
-        if data and isinstance(data[0], dict):
+        # If data is a list of dictionaries and no headers provided, use dict keys
+        if is_list_of_dicts and not headers:
+            headers = list(data[0].keys())
+            # Write headers
+            writer.writerow(headers)
+            # Write data rows
             for row in data:
                 writer.writerow([row.get(key, '') for key in headers])
         else:
-            writer.writerows(data)
+            # For list of lists
+            if headers:
+                # If headers are explicitly provided, write them first
+                writer.writerow(headers)
+                # Then write all data rows
+                for row in data:
+                    writer.writerow([row.get(key, '') for key in headers])
+            else:
+                # If no headers and data is list of lists, assume first row is headers
+                writer.writerows(data)
         
         # Prepare response
         output.seek(0)
+        output_str = output.getvalue()
+        
+        # Convert to UTF-16 encoding with BOM
+        # UTF-16 has its own BOM marker built into the encoding
+        utf16_data = output_str.encode('utf-16')
         
         # Generate timestamp for filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -71,14 +85,15 @@ def export_to_excel_csv(data, filename, headers=None):
         db.session.add(log)
         db.session.commit()
         
-        return output.getvalue(), 200, {
-            'Content-Type': 'text/csv; charset=utf-8',
-            'Content-Disposition': f'attachment; filename="{full_filename}"'
-        }
+        response = make_response(utf16_data)
+        response.headers["Content-Disposition"] = f"attachment; filename={full_filename}"
+        # Use UTF-16 in the content type
+        response.headers["Content-type"] = "text/csv; charset=UTF-16"
+        return response
     except Exception as e:
         logging.error(f"Error exporting data: {str(e)}")
         flash(f'An error occurred while exporting data: {str(e)}', 'error')
-        return None
+        return redirect(url_for('index'))
 
 @utility_bp.route('/')
 def index():
@@ -1145,8 +1160,8 @@ def import_database():
                                 # Insert as a new exam with modified name
                                 cursor = current_db.execute(
                                     """
-                                    INSERT INTO exam (name, max_score, exam_date, course_id, is_makeup, is_mandatory, created_at, updated_at)
-                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                    INSERT INTO exam (name, max_score, exam_date, course_id, is_makeup, is_mandatory, is_final, created_at, updated_at)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                                     """,
                                     (
                                         modified_name,
@@ -1155,6 +1170,7 @@ def import_database():
                                         current_course_id,
                                         exam_data['is_makeup'],
                                         exam_data['is_mandatory'],
+                                        exam_data.get('is_final', False),  # Default to False if field doesn't exist
                                         datetime.now(),
                                         datetime.now()
                                     )
@@ -1167,8 +1183,8 @@ def import_database():
                                 # Insert new exam with original name
                                 cursor = current_db.execute(
                                     """
-                                    INSERT INTO exam (name, max_score, exam_date, course_id, is_makeup, is_mandatory, created_at, updated_at)
-                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                    INSERT INTO exam (name, max_score, exam_date, course_id, is_makeup, is_mandatory, is_final, created_at, updated_at)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                                     """,
                                     (
                                         exam_data['name'],
@@ -1177,6 +1193,7 @@ def import_database():
                                         current_course_id,
                                         exam_data['is_makeup'],
                                         exam_data['is_mandatory'],
+                                        exam_data.get('is_final', False),  # Default to False if field doesn't exist
                                         datetime.now(),
                                         datetime.now()
                                     )
@@ -1220,6 +1237,109 @@ def import_database():
                                     new_question_id = cursor.lastrowid
                                     question_id_map[import_question_id] = new_question_id
                                     current_questions[question_key] = new_question_id  # Update lookup
+                    
+                    # STEP 5B: Import exam weights
+                    if exam_id_map and course_id_map:
+                        # Get existing exam weights to avoid duplicates
+                        current_weights = {}
+                        for weight in current_db.execute("SELECT exam_id, course_id, weight FROM exam_weight").fetchall():
+                            current_weights[(weight['exam_id'], weight['course_id'])] = weight['weight']
+                        
+                        # Get all exam weights from import database
+                        import_weights_data = import_db.execute("SELECT * FROM exam_weight").fetchall()
+                        weights_imported = 0
+                        
+                        for weight_data in import_weights_data:
+                            import_exam_id = weight_data['exam_id']
+                            import_course_id = weight_data['course_id']
+                            
+                            # Skip if any mapping is missing
+                            if import_exam_id not in exam_id_map or import_course_id not in course_id_map:
+                                continue
+                            
+                            current_exam_id = exam_id_map[import_exam_id]
+                            current_course_id = course_id_map[import_course_id]
+                            weight_key = (current_exam_id, current_course_id)
+                            
+                            # Check if weight already exists
+                            if weight_key in current_weights:
+                                # Could update the existing weight if needed
+                                # For now, we'll skip to avoid overwriting
+                                continue
+                            
+                            # Insert the weight
+                            cursor = current_db.execute(
+                                """
+                                INSERT INTO exam_weight (exam_id, course_id, weight, created_at, updated_at)
+                                VALUES (?, ?, ?, ?, ?)
+                                """,
+                                (
+                                    current_exam_id,
+                                    current_course_id,
+                                    weight_data['weight'],
+                                    datetime.now(),
+                                    datetime.now()
+                                )
+                            )
+                            weights_imported += 1
+                        
+                        if weights_imported > 0:
+                            logging.info(f"Imported {weights_imported} exam weights")
+                    
+                    # STEP 5C: Import course settings
+                    if course_id_map:
+                        # Get existing course settings to avoid duplicates
+                        current_settings = {s['course_id']: s for s in current_db.execute(
+                            "SELECT course_id, success_rate_method, relative_success_threshold FROM course_settings"
+                        ).fetchall()}
+                        
+                        # Get all course settings from import database
+                        try:
+                            # Check if the table exists first
+                            settings_table_exists = import_db.execute(
+                                "SELECT name FROM sqlite_master WHERE type='table' AND name='course_settings'"
+                            ).fetchone()
+                            
+                            if settings_table_exists:
+                                import_settings_data = import_db.execute("SELECT * FROM course_settings").fetchall()
+                                settings_imported = 0
+                                
+                                for settings_data in import_settings_data:
+                                    import_course_id = settings_data['course_id']
+                                    
+                                    # Skip if mapping is missing
+                                    if import_course_id not in course_id_map:
+                                        continue
+                                    
+                                    current_course_id = course_id_map[import_course_id]
+                                    
+                                    # Check if settings already exist
+                                    if current_course_id in current_settings:
+                                        # Could update existing settings if needed
+                                        # For now, we'll skip to avoid overwriting user preferences
+                                        continue
+                                    
+                                    # Insert the settings
+                                    cursor = current_db.execute(
+                                        """
+                                        INSERT INTO course_settings (course_id, success_rate_method, relative_success_threshold, created_at, updated_at)
+                                        VALUES (?, ?, ?, ?, ?)
+                                        """,
+                                        (
+                                            current_course_id,
+                                            settings_data['success_rate_method'],
+                                            settings_data['relative_success_threshold'],
+                                            datetime.now(),
+                                            datetime.now()
+                                        )
+                                    )
+                                    settings_imported += 1
+                                
+                                if settings_imported > 0:
+                                    logging.info(f"Imported {settings_imported} course settings")
+                        except Exception as e:
+                            # Log but continue if there was an issue with settings import
+                            logging.warning(f"Could not import course settings: {str(e)}")
                     
                     # STEP 6: Import scores - we can import scores regardless of whether we imported students/exams/questions
                     # as long as we have the mappings for them
@@ -1313,7 +1433,7 @@ def import_database():
                             
                             # Now map exams with the course mapping
                             if course_id_map:
-                                import_exams_all = import_db.execute("SELECT id, name, course_id FROM exam").fetchall()
+                                import_exams_all = import_db.execute("SELECT * FROM exam").fetchall()
                                 current_exams_by_key = {(e['name'], e['course_id']): e['id'] for e in 
                                     current_db.execute("SELECT id, name, course_id FROM exam").fetchall()}
                                 
@@ -1564,6 +1684,16 @@ def import_database():
                     # Commit all changes
                     current_db.execute("COMMIT")
                     
+                    # Add detailed logging for debugging
+                    logging.info("Database import summary:")
+                    logging.info(f"  Courses: {courses_imported} imported")
+                    logging.info(f"  Students: {students_imported} imported")
+                    logging.info(f"  Outcomes: {outcomes_imported} imported")
+                    logging.info(f"  Exams: {exams_imported} imported")
+                    logging.info(f"  Exam Weights: {weights_imported if 'weights_imported' in locals() else 0} imported")
+                    logging.info(f"  Course Settings: {settings_imported if 'settings_imported' in locals() else 0} imported")
+                    logging.info(f"  Scores: {scores_imported} imported")
+                    
                     # Log action
                     log = Log(action="IMPORT_DATABASE", 
                              description=f"Imported and merged data from: {backup_file.filename}")
@@ -1582,6 +1712,10 @@ def import_database():
                         summary_parts.append(f"{exams_imported} exams")
                     if scores_imported > 0:
                         summary_parts.append(f"{scores_imported} scores")
+                    if 'weights_imported' in locals() and weights_imported > 0:
+                        summary_parts.append(f"{weights_imported} exam weights")
+                    if 'settings_imported' in locals() and settings_imported > 0:
+                        summary_parts.append(f"{settings_imported} course settings")
                     
                     if summary_parts:
                         summary = ", ".join(summary_parts)

@@ -101,8 +101,13 @@
                             </td>
                             {% for outcome in program_outcomes %}
                             {% set percentage = data.program_outcome_results.get(outcome.code, {}).get('percentage', 0) %}
-                            <td class="text-center {% if percentage >= 70 %}table-success{% elif percentage >= 50 %}table-warning{% else %}table-danger{% endif %}">
-                                {{ "%.1f"|format(percentage) }}%
+                            {% set contributes = data.program_outcome_results.get(outcome.code, {}).get('contributes', False) %}
+                            <td class="text-center {% if percentage >= 70 %}table-success{% elif percentage >= 50 %}table-warning{% elif not contributes %}table-secondary{% else %}table-danger{% endif %}">
+                                {% if not contributes %}
+                                    NA
+                                {% else %}
+                                    {{ "%.1f"|format(percentage) }}%
+                                {% endif %}
                             </td>
                             {% endfor %}
                         </tr>

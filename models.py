@@ -41,16 +41,16 @@ class Course(db.Model):
 class Exam(db.Model):
     """Exam model representing course assessments (midterm, final, homework, etc.)"""
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False, index=True)
+    name = db.Column(db.String(150), nullable=False, index=True)
     max_score = db.Column(db.Numeric(10, 2), nullable=False, default=100.0)
     exam_date = db.Column(db.Date, nullable=True)
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
-    is_makeup = db.Column(db.Boolean, default=False, index=True)
-    is_final = db.Column(db.Boolean, default=False, index=True)
+    is_makeup = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    is_final = db.Column(db.Boolean, default=False, nullable=False, index=True)
     makeup_for = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=True, index=True)
-    is_mandatory = db.Column(db.Boolean, default=False, index=True)
+    is_mandatory = db.Column(db.Boolean, default=False, nullable=False, index=True)
     
     # Relationships
     questions = db.relationship('Question', backref='exam', lazy=True, cascade="all, delete-orphan")

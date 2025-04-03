@@ -69,8 +69,98 @@ def create_app():
     # Home route
     @app.route('/')
     def index():
-        courses = Course.query.all()
-        return render_template('index.html', courses=courses)
+        # Get sort parameter from query string, default to 'semester_desc'
+        sort = request.args.get('sort', 'semester_desc')
+        search = request.args.get('search', '')
+
+        # Start with a base query
+        query = Course.query
+
+        # Apply search filter if provided
+        if search:
+            query = query.filter(
+                db.or_(
+                    Course.code.ilike(f'%{search}%'),
+                    Course.name.ilike(f'%{search}%')
+                )
+            )
+
+        # Apply sorting
+        if sort == 'code_asc':
+            query = query.order_by(Course.code.asc())
+        elif sort == 'code_desc':
+            query = query.order_by(Course.code.desc())
+        elif sort == 'name_asc':
+            query = query.order_by(Course.name.asc())
+        elif sort == 'name_desc':
+            query = query.order_by(Course.name.desc())
+        elif sort == 'created_asc':
+            query = query.order_by(Course.created_at.asc())
+        elif sort == 'created_desc':
+            query = query.order_by(Course.created_at.desc())
+        elif sort == 'updated_asc':
+            query = query.order_by(Course.updated_at.asc())
+        elif sort == 'updated_desc':
+            query = query.order_by(Course.updated_at.desc())
+        elif sort == 'semester_asc' or sort == 'semester_desc':
+            # Get all courses first to perform custom semester sorting
+            courses = query.all()
+            
+            # Define a function to extract year and term for sorting
+            def semester_sort_key(course):
+                semester = course.semester
+                # Extract year - look for 4 digit number
+                import re
+                year_match = re.search(r'\b(20\d{2})\b', semester)
+                year = int(year_match.group(1)) if year_match else 0
+                
+                # Determine term priority (Spring > Fall > Summer)
+                term_priority = 0
+                if 'spring' in semester.lower():
+                    term_priority = 3
+                elif 'fall' in semester.lower():
+                    term_priority = 2
+                elif 'summer' in semester.lower():
+                    term_priority = 1
+                
+                # Return tuple for sorting (year, term_priority)
+                return (year, term_priority)
+            
+            # Sort the courses
+            courses.sort(key=semester_sort_key, reverse=(sort == 'semester_desc'))
+            return render_template('index.html', courses=courses, current_sort=sort, search=search)
+        else:  # Default: semester_desc - duplicated here for safety
+            # Get all courses for custom sorting
+            courses = query.all()
+            
+            # Define a function to extract year and term for sorting
+            def semester_sort_key(course):
+                semester = course.semester
+                # Extract year - look for 4 digit number
+                import re
+                year_match = re.search(r'\b(20\d{2})\b', semester)
+                year = int(year_match.group(1)) if year_match else 0
+                
+                # Determine term priority (Spring > Fall > Summer)
+                term_priority = 0
+                if 'spring' in semester.lower():
+                    term_priority = 3
+                elif 'fall' in semester.lower():
+                    term_priority = 2
+                elif 'summer' in semester.lower():
+                    term_priority = 1
+                
+                # Return tuple for sorting (year, term_priority)
+                return (year, term_priority)
+            
+            # Sort the courses
+            courses.sort(key=semester_sort_key, reverse=True)
+            return render_template('index.html', courses=courses, current_sort=sort, search=search)
+            
+        # Execute query for non-semester sorts
+        courses = query.all()
+            
+        return render_template('index.html', courses=courses, current_sort=sort, search=search)
     
     # Error handlers
     @app.errorhandler(404)
@@ -119,7 +209,9 @@ def initialize_program_outcomes():
 
 def open_browser():
     """Open browser to the app URL"""
-    webbrowser.open('http://localhost:5000/')
+    # Only open browser in the main process, not in the reloader
+    if not os.environ.get('WERKZEUG_RUN_MAIN'):
+        webbrowser.open('http://localhost:5000/')
 
 if __name__ == '__main__':
     app = create_app()

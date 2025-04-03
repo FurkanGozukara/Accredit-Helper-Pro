@@ -521,6 +521,71 @@ def export_students(course_id):
     # Export data using utility function
     return export_to_excel_csv(data, f"students_{course.code}", headers)
 
+@student_bp.route('/exam/<int:exam_id>/export_scores')
+def export_exam_scores(exam_id):
+    """Export all scores for an exam to a CSV file"""
+    exam = Exam.query.get_or_404(exam_id)
+    course = Course.query.get_or_404(exam.course_id)
+    questions = Question.query.filter_by(exam_id=exam_id).order_by(Question.number).all()
+    students = Student.query.filter_by(course_id=course.id).order_by(Student.student_id).all()
+    
+    # Get all scores for this exam
+    scores = Score.query.filter_by(exam_id=exam_id).all()
+    scores_dict = {}
+    for score in scores:
+        key = (score.student_id, score.question_id)
+        scores_dict[key] = score.score
+    
+    # Prepare data for export
+    data = []
+    
+    # Create headers
+    headers = ['Student ID', 'Student Name']
+    for question in questions:
+        headers.append(f'Q{question.number} (max: {float(question.max_score)})')
+    headers.append('Total Score')
+    headers.append('Percentage (%)')
+    
+    # Add student data
+    for student in students:
+        student_row = {}
+        student_row['Student ID'] = student.student_id
+        student_row['Student Name'] = f"{student.first_name} {student.last_name}".strip()
+        
+        # Calculate total score
+        total_score = 0
+        max_score = 0
+        
+        for question in questions:
+            score = scores_dict.get((student.id, question.id))
+            max_score += float(question.max_score)
+            
+            if score is not None:
+                student_row[f'Q{question.number} (max: {float(question.max_score)})'] = float(score)
+                total_score += float(score)
+            else:
+                student_row[f'Q{question.number} (max: {float(question.max_score)})'] = ""
+        
+        student_row['Total Score'] = round(total_score, 1)
+        
+        # Calculate percentage
+        if max_score > 0:
+            percentage = (total_score / max_score) * 100
+            student_row['Percentage (%)'] = round(percentage, 1)
+        else:
+            student_row['Percentage (%)'] = ""
+        
+        data.append(student_row)
+    
+    # Log action
+    log = Log(action="EXPORT_EXAM_SCORES", 
+             description=f"Exported scores for exam: {exam.name} in course: {course.code}")
+    db.session.add(log)
+    db.session.commit()
+    
+    # Export data using utility function
+    return export_to_excel_csv(data, f"exam_scores_{exam.name}_{course.code}", headers)
+
 @student_bp.route('/edit/<int:student_id>', methods=['GET', 'POST'])
 def edit_student(student_id):
     """Edit an existing student"""

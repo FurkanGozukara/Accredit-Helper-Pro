@@ -15,7 +15,7 @@
         <p class="lead">Manage your courses, exams, and Accredit outcomes calculations.</p>
     </div>
     <div class="col-auto">
-        <a href="{{ url_for('calculation.all_courses_calculations') }}" class="btn btn-success me-2">
+        <a href="{{ url_for('calculation.all_courses_loading') }}" class="btn btn-success me-2">
             <i class="bi bi-graph-up"></i> View Program Outcome Scores for All Courses
         </a>
         <a href="{{ url_for('course.add_course') }}" class="btn btn-primary">
@@ -26,11 +26,41 @@
 
 <div class="row mb-4">
     <div class="col">
-        <div class="input-group">
-            <input type="text" id="courseSearch" class="form-control" placeholder="Search courses..." aria-label="Search">
-            <button class="btn btn-outline-secondary" type="button" id="searchButton">
-                <i class="bi bi-search"></i>
+        <form action="{{ url_for('index') }}" method="get" class="d-flex">
+            <div class="input-group">
+                <input type="text" id="courseSearch" name="search" class="form-control" placeholder="Search courses..." 
+                       aria-label="Search" value="{{ search }}">
+                <input type="hidden" name="sort" value="{{ current_sort }}">
+                <button class="btn btn-outline-secondary" type="submit" id="searchButton">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+    <div class="col-auto">
+        <div class="dropdown">
+            <button class="btn btn-outline-primary dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-sort-down"></i> Sort
             </button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="sortDropdown">
+                <li><h6 class="dropdown-header">Sort by Semester</h6></li>
+                <li><a class="dropdown-item {% if current_sort == 'semester_desc' %}active{% endif %}" href="{{ url_for('index', sort='semester_desc', search=search) }}">Latest First</a></li>
+                <li><a class="dropdown-item {% if current_sort == 'semester_asc' %}active{% endif %}" href="{{ url_for('index', sort='semester_asc', search=search) }}">Oldest First</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-header">Sort by Course Code</h6></li>
+                <li><a class="dropdown-item {% if current_sort == 'code_asc' %}active{% endif %}" href="{{ url_for('index', sort='code_asc', search=search) }}">A-Z</a></li>
+                <li><a class="dropdown-item {% if current_sort == 'code_desc' %}active{% endif %}" href="{{ url_for('index', sort='code_desc', search=search) }}">Z-A</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-header">Sort by Course Name</h6></li>
+                <li><a class="dropdown-item {% if current_sort == 'name_asc' %}active{% endif %}" href="{{ url_for('index', sort='name_asc', search=search) }}">A-Z</a></li>
+                <li><a class="dropdown-item {% if current_sort == 'name_desc' %}active{% endif %}" href="{{ url_for('index', sort='name_desc', search=search) }}">Z-A</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-header">Sort by Date</h6></li>
+                <li><a class="dropdown-item {% if current_sort == 'created_desc' %}active{% endif %}" href="{{ url_for('index', sort='created_desc', search=search) }}">Recently Added</a></li>
+                <li><a class="dropdown-item {% if current_sort == 'created_asc' %}active{% endif %}" href="{{ url_for('index', sort='created_asc', search=search) }}">Oldest Added</a></li>
+                <li><a class="dropdown-item {% if current_sort == 'updated_desc' %}active{% endif %}" href="{{ url_for('index', sort='updated_desc', search=search) }}">Recently Updated</a></li>
+                <li><a class="dropdown-item {% if current_sort == 'updated_asc' %}active{% endif %}" href="{{ url_for('index', sort='updated_asc', search=search) }}">Oldest Updated</a></li>
+            </ul>
         </div>
     </div>
 </div>
@@ -80,38 +110,39 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Update sort dropdown button text based on current sort
+        const sortDropdown = document.getElementById('sortDropdown');
+        const activeSort = document.querySelector('.dropdown-item.active');
+        
+        if (activeSort) {
+            // Extract just the text without child elements
+            const sortText = activeSort.textContent.trim();
+            sortDropdown.innerHTML = `<i class="bi bi-sort-down"></i> Sort: ${sortText}`;
+        }
+
+        // Add clear search functionality
         const searchInput = document.getElementById('courseSearch');
-        const searchButton = document.getElementById('searchButton');
-        const courseCards = document.querySelectorAll('.course-card');
-        
-        // Search function
-        const performSearch = () => {
-            const searchTerm = searchInput.value.trim().toLowerCase();
+        if (searchInput && searchInput.value) {
+            // Add a clear button to the header
+            const searchForm = searchInput.closest('form');
+            const clearButton = document.createElement('a');
+            clearButton.href = '{{ url_for("index", sort=current_sort) }}';
+            clearButton.className = 'btn btn-outline-secondary';
+            clearButton.innerHTML = '<i class="bi bi-x-lg"></i>';
+            clearButton.title = 'Clear search';
             
-            courseCards.forEach(card => {
-                const code = card.getAttribute('data-code');
-                const name = card.getAttribute('data-name');
-                
-                if (searchTerm === '' || code.includes(searchTerm) || name.includes(searchTerm)) {
-                    card.style.display = '';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-        };
-        
-        // Add event listeners
-        searchButton.addEventListener('click', performSearch);
-        searchInput.addEventListener('keyup', function(e) {
-            if (e.key === 'Enter') {
-                performSearch();
+            // Insert after the search button
+            const searchButton = document.getElementById('searchButton');
+            if (searchButton) {
+                searchButton.parentNode.insertBefore(clearButton, searchButton.nextSibling);
             }
-            
-            // If search field is empty, show all
-            if (this.value.trim() === '') {
-                performSearch();
-            }
-        });
+
+            // Also add a "Showing results for..." message
+            const searchResults = document.createElement('div');
+            searchResults.className = 'mt-2 text-muted small';
+            searchResults.innerHTML = `<i class="bi bi-info-circle"></i> Showing results for: "${searchInput.value}"`;
+            searchForm.parentNode.appendChild(searchResults);
+        }
     });
 </script>
 {% endblock %} 

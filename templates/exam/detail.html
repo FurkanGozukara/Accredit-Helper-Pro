@@ -242,7 +242,7 @@
     });
     
     function exportScores() {
-        window.location.href = "{{ url_for('calculation.export_results', course_id=exam.course_id) }}";
+        window.location.href = "{{ url_for('exam.export_exam_scores', exam_id=exam.id) }}";
     }
 </script>
 {% endblock %} 
