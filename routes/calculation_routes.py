@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, send_file
 from app import db
-from models import Course, Exam, Question, CourseOutcome, ProgramOutcome, Student, Score, ExamWeight, Log, CourseSettings
+from models import Course, Exam, Question, CourseOutcome, ProgramOutcome, Student, Score, ExamWeight, Log, CourseSettings, AchievementLevel
 from datetime import datetime
 import logging
 import csv
@@ -10,244 +10,282 @@ from sqlalchemy import func
 from routes.utility_routes import export_to_excel_csv
 from decimal import Decimal
 from flask import session
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import numpy as np
+import base64
+import json
+from flask import current_app
 
 calculation_bp = Blueprint('calculation', __name__, url_prefix='/calculation')
+
+# Helper function for achievement levels
+def get_achievement_level(score, achievement_levels):
+    """Get the achievement level for a given score"""
+    for level in achievement_levels:
+        if level.min_score <= score <= level.max_score:
+            return {
+                'name': level.name,
+                'color': level.color
+            }
+    return {
+        'name': 'Not Categorized',
+        'color': 'secondary'
+    }
 
 @calculation_bp.route('/course/<int:course_id>')
 def course_calculations(course_id):
     """Show calculation results for a course"""
     course = Course.query.get_or_404(course_id)
-    exams = Exam.query.filter_by(course_id=course_id, is_makeup=False).all()
-    makeup_exams = Exam.query.filter_by(course_id=course_id, is_makeup=True).all()
-    course_outcomes = CourseOutcome.query.filter_by(course_id=course_id).all()
-    program_outcomes = ProgramOutcome.query.all()
-    students = Student.query.filter_by(course_id=course_id).all()
-    
-    # Check if a final exam exists and flash warning if not
-    has_final = any(e.is_final for e in exams)
-    if not has_final:
-        flash('Warning: No exam marked as "Final" found for this course. Overall scores represent performance on available exams.', 'warning')
-
-    # Check if we have all necessary data
-    if not exams:
-        flash('No exams found for this course. Please add exams first.', 'warning')
-        return redirect(url_for('course.course_detail', course_id=course_id))
-    
-    if not course_outcomes:
-        flash('No course outcomes found for this course. Please add course outcomes first.', 'warning')
-        return redirect(url_for('outcome.add_course_outcome', course_id=course_id))
-    
-    if not students:
-        flash('No students found for this course. Please import students first.', 'warning')
-        return redirect(url_for('student.import_students', course_id=course_id))
-    
-    # Get exam weights
-    weights = {}
-    total_weight = Decimal('0')
-    for exam in exams:
-        weight = ExamWeight.query.filter_by(exam_id=exam.id).first()
-        if weight:
-            weights[exam.id] = weight.weight
-            total_weight += weight.weight
-        else:
-            weights[exam.id] = Decimal('0')
-    
-    # Check if weights are properly set
-    if abs(total_weight - Decimal('1.0')) > Decimal('0.01'):  # Allow small decimal error
-        flash(f'Exam weights do not add up to 100%. Current total: {total_weight*100:.1f}%. Please update weights.', 'warning')
-        return redirect(url_for('exam.manage_weights', course_id=course_id))
-    
-    # Create a map of exams to their questions
-    questions_by_exam = {}
-    for exam in exams + makeup_exams:
-        questions_by_exam[exam.id] = exam.questions
-    
-    # Create a map of course outcomes to their related questions
-    outcome_questions = {}
+    exams = Exam.query.filter_by(course_id=course_id).order_by(Exam.created_at).all()
+    course_outcomes = CourseOutcome.query.filter_by(course_id=course_id).order_by(CourseOutcome.code).all()
+    program_outcomes = set()
     for co in course_outcomes:
-        outcome_questions[co.id] = co.questions
+        for po in co.program_outcomes:
+            program_outcomes.add(po)
+    program_outcomes = sorted(list(program_outcomes), key=lambda po: po.code)
     
-    # Create a map of program outcomes to their related course outcomes
-    program_to_course_outcomes = {}
-    for po in program_outcomes:
-        related_cos = [co for co in course_outcomes if po in co.program_outcomes]
-        program_to_course_outcomes[po.id] = related_cos
+    # Get achievement levels for this course
+    achievement_levels = AchievementLevel.query.filter_by(course_id=course_id).order_by(AchievementLevel.min_score.desc()).all()
     
-    # Preload all scores for this course
-    student_ids = [s.id for s in students]
-    exam_ids = [e.id for e in exams + makeup_exams]
-    scores_dict = {}
-    
-    if student_ids and exam_ids:
-        scores = Score.query.filter(
-            Score.student_id.in_(student_ids),
-            Score.exam_id.in_(exam_ids)
-        ).all()
+    # Check if the course has achievement levels, if not, add default ones
+    if not achievement_levels:
+        # Add default achievement levels
+        default_levels = [
+            {"name": "Excellent", "min_score": 90.00, "max_score": 100.00, "color": "success"},
+            {"name": "Better", "min_score": 70.00, "max_score": 89.99, "color": "info"},
+            {"name": "Good", "min_score": 60.00, "max_score": 69.99, "color": "primary"},
+            {"name": "Need Improvements", "min_score": 50.00, "max_score": 59.99, "color": "warning"},
+            {"name": "Failure", "min_score": 0.01, "max_score": 49.99, "color": "danger"}
+        ]
         
-        for score in scores:
-            key = (score.student_id, score.question_id, score.exam_id)
-            scores_dict[key] = score.score
+        for level_data in default_levels:
+            level = AchievementLevel(
+                course_id=course_id,
+                name=level_data["name"],
+                min_score=level_data["min_score"],
+                max_score=level_data["max_score"],
+                color=level_data["color"]
+            )
+            db.session.add(level)
+        
+        # Log action
+        log = Log(action="ADD_DEFAULT_ACHIEVEMENT_LEVELS", 
+                 description=f"Added default achievement levels to course: {course.code}")
+        db.session.add(log)
+        db.session.commit()
+        
+        # Refresh achievement levels
+        achievement_levels = AchievementLevel.query.filter_by(course_id=course_id).order_by(AchievementLevel.min_score.desc()).all()
     
-    # Calculate student results
-    student_results = {}
-    for student in students:
-        # Initialize results for this student
-        student_results[student.id] = {
-            'student': student,
-            'exam_scores': {},  # Raw scores per exam
-            'weighted_score': Decimal('0'),  # Final weighted score
-            'course_outcome_scores': {},  # Scores per course outcome
-            'program_outcome_scores': {}  # Scores per program outcome
-        }
-        
-        # Calculate exam scores for student
-        for exam in exams:
-            # Check if student has a makeup exam for this exam
-            makeup_exam = next((m for m in makeup_exams if m.makeup_for == exam.id), None)
-            
-            # If student has a makeup, use that instead
-            if makeup_exam:
-                makeup_score = calculate_student_exam_score_optimized(student.id, makeup_exam.id, scores_dict, questions_by_exam[makeup_exam.id])
-                if makeup_score is not None:
-                    student_results[student.id]['exam_scores'][exam.id] = makeup_score
-                    continue
-            
-            # Otherwise use regular exam score
-            exam_score = calculate_student_exam_score_optimized(student.id, exam.id, scores_dict, questions_by_exam[exam.id])
-            if exam_score is not None:
-                student_results[student.id]['exam_scores'][exam.id] = exam_score
-        
-        # Calculate weighted score
-        weighted_score = Decimal('0')
-        for exam_id, score in student_results[student.id]['exam_scores'].items():
-            # Ensure weight exists before calculation
-            if exam_id in weights:
-                weighted_score += score * weights[exam_id]
-            else:
-                # Log or handle missing weight? For now, skip if weight is missing.
-                print(f"Warning: Missing weight for exam_id {exam_id} for student {student.id}")
+    # Get students from exam scores
+    students = {}
+    for exam in exams:
+        for score in exam.scores:
+            student_id = score.student_id
+            if student_id not in students:
+                students[student_id] = Student.query.get(student_id)
 
-        student_results[student.id]['weighted_score'] = weighted_score
-        
-        # Calculate course outcome scores
-        for outcome in course_outcomes:
-            score = calculate_course_outcome_score_optimized(student.id, outcome.id, scores_dict, outcome_questions)
-            student_results[student.id]['course_outcome_scores'][outcome.id] = score
-        
-        # Calculate program outcome scores
-        for outcome in program_outcomes:
-            score = calculate_program_outcome_score_optimized(student.id, outcome.id, course_id, scores_dict, program_to_course_outcomes, outcome_questions)
-            student_results[student.id]['program_outcome_scores'][outcome.id] = score
+    # Check for necessary data
+    has_course_outcomes = len(course_outcomes) > 0
+    has_exam_questions = False
+    for exam in exams:
+        if len(exam.questions) > 0:
+            has_exam_questions = True
+            break
+            
+    has_student_scores = False
+    for exam in exams:
+        if len(exam.scores) > 0:
+            has_student_scores = True
+            break
+            
+    # Get exam weights and validate
+    has_valid_weights = True
+    total_weight = Decimal('0')
+    exam_weights = {}
     
-    # Calculate average scores for the whole class
-    class_results = {
-        'course_outcome_scores': {},
-        'program_outcome_scores': {}
-    }
+    # Get all weights for this course
+    weights = ExamWeight.query.filter_by(course_id=course_id).all()
+    for weight in weights:
+        exam_weights[weight.exam_id] = weight.weight
     
-    # Calculate average course outcome scores
-    for outcome in course_outcomes:
-        scores = [r['course_outcome_scores'][outcome.id] for r in student_results.values() 
-                 if r['course_outcome_scores'][outcome.id] is not None]
-        if scores:
-            class_results['course_outcome_scores'][outcome.id] = sum(scores) / len(scores)
+    # Check all exams have weights
+    for exam in exams:
+        if exam.id not in exam_weights:
+            has_valid_weights = False
+            break
+        total_weight += exam_weights[exam.id]
+    
+    # Store the total weight percentage for display in template
+    total_weight_percent = total_weight * Decimal('100')
+    
+    # Normalize weights if they don't add up to 1.0 (within small margin of error)
+    normalized_weights = {}
+    for exam_id, weight in exam_weights.items():
+        if total_weight > Decimal('0') and abs(total_weight - Decimal('1.0')) > Decimal('0.001'):
+            normalized_weights[exam_id] = weight / total_weight
         else:
-            class_results['course_outcome_scores'][outcome.id] = None
+            normalized_weights[exam_id] = weight
     
-    # Calculate average program outcome scores
-    for outcome in program_outcomes:
-        scores = [r['program_outcome_scores'][outcome.id] for r in student_results.values() 
-                 if r['program_outcome_scores'][outcome.id] is not None]
-        if scores:
-            class_results['program_outcome_scores'][outcome.id] = sum(scores) / len(scores)
-        else:
-            class_results['program_outcome_scores'][outcome.id] = None
+    # We will still calculate results even if weights don't total exactly 100%
+    # but we'll display a warning with the actual total
     
-    # Create course_outcome_results and program_outcome_results for template
+    # Calculate results if we have all the necessary data
+    student_results = {}
     course_outcome_results = {}
     program_outcome_results = {}
     
-    # Format course outcome results
-    for outcome in course_outcomes:
-        avg_score = class_results['course_outcome_scores'].get(outcome.id)
-        course_outcome_results[outcome.code] = {
-            'description': outcome.description,
-            'percentage': float(avg_score) if avg_score is not None else 0,
-            'program_outcomes': [po.code for po in outcome.program_outcomes]
-        }
-    
-    # Format program outcome results
-    for outcome in program_outcomes:
-        avg_score = class_results['program_outcome_scores'].get(outcome.id)
+    if has_course_outcomes and has_exam_questions and has_student_scores:
+        # Create a map of exams to their questions
+        questions_by_exam = {}
+        for exam in exams:
+            questions_by_exam[exam.id] = exam.questions
         
-        # Check if this program outcome is linked to any course outcomes for this course
-        contributes = False
-        for co in course.course_outcomes:
-            if outcome in co.program_outcomes:
-                contributes = True
-                break
+        # Create a map of course outcomes to their related questions
+        outcome_questions = {}
+        for co in course_outcomes:
+            outcome_questions[co.id] = co.questions
+        
+        # Preload all scores for all exams and students
+        scores_dict = {}
+        student_ids = [s_id for s_id in students.keys()]
+        exam_ids = [e.id for e in exams]
+        
+        # Query all scores for these students and exams
+        if student_ids and exam_ids:
+            all_scores = Score.query.filter(
+                Score.student_id.in_(student_ids),
+                Score.exam_id.in_(exam_ids)
+            ).all()
+            
+            # Build a dictionary for O(1) lookups
+            for score in all_scores:
+                scores_dict[(score.student_id, score.question_id, score.exam_id)] = score.score
+        
+        # Calculate student achievement
+        for student_id, student in students.items():
+            # Initialize student data
+            student_data = {
+                'student_id': student.student_id,
+                'name': f"{student.first_name} {student.last_name}".strip(),
+                'course_outcomes': {},
+                'exam_scores': {},
+                'overall_percentage': 0,
+            }
+            
+            # Calculate overall score as weighted average of exam scores
+            total_weighted_score = Decimal('0')
+            total_exams_weight = Decimal('0')
+            
+            for exam in exams:
+                # Calculate score for this exam using the Score model
+                exam_score = calculate_student_exam_score_optimized(student_id, exam.id, scores_dict, questions_by_exam[exam.id])
+                if exam_score is not None:
+                    weight = normalized_weights.get(exam.id, Decimal('0'))
+                    student_data['exam_scores'][exam.name] = exam_score
+                    total_weighted_score += exam_score * weight
+                    total_exams_weight += weight
+            
+            if total_exams_weight > Decimal('0'):
+                student_data['overall_percentage'] = total_weighted_score / total_exams_weight
+            
+            # Calculate course outcome achievement
+            for co in course_outcomes:
+                co_score = Decimal('0')
+                co_total_weight = Decimal('0')
                 
-        program_outcome_results[outcome.code] = {
-            'description': outcome.description,
-            'percentage': avg_score if avg_score is not None else 0,
-            'contributes': contributes
-        }
+                # For each exam, find questions related to this outcome
+                for exam in exams:
+                    exam_co_score = Decimal('0')
+                    exam_co_total = Decimal('0')
+                    
+                    for question in exam.questions:
+                        # Check if this question is related to the course outcome
+                        if co in question.course_outcomes:
+                            # Get the student's score for this question
+                            score_value = scores_dict.get((student_id, question.id, exam.id))
+                            if score_value is not None:
+                                exam_co_score += Decimal(str(score_value))
+                            exam_co_total += question.max_score
+                    
+                    if exam_co_total > Decimal('0'):
+                        weight = normalized_weights.get(exam.id, Decimal('0'))
+                        exam_co_percentage = (exam_co_score / exam_co_total) * Decimal('100')
+                        co_score += exam_co_percentage * weight
+                        co_total_weight += weight
+                
+                if co_total_weight > Decimal('0'):
+                    co_percentage = co_score / co_total_weight
+                    student_data['course_outcomes'][co.code] = co_percentage
+            
+            student_results[student_id] = student_data
+        
+        # Calculate course outcome achievement levels
+        for co in course_outcomes:
+            co_total = Decimal('0')
+            co_count = 0
+            
+            for student_id, student_data in student_results.items():
+                if co.code in student_data['course_outcomes']:
+                    co_total += student_data['course_outcomes'][co.code]
+                    co_count += 1
+            
+            co_percentage = co_total / co_count if co_count > 0 else Decimal('0')
+            achievement_level = get_achievement_level(float(co_percentage), achievement_levels)
+            
+            course_outcome_results[co.code] = {
+                'description': co.description,
+                'percentage': co_percentage,
+                'achievement_level': achievement_level,
+                'program_outcomes': [po.code for po in co.program_outcomes]
+            }
+        
+        # Calculate program outcome achievement levels
+        for po in program_outcomes:
+            po_total = Decimal('0')
+            po_count = 0
+            contributing_cos = []
+            
+            for co in course_outcomes:
+                if po in co.program_outcomes and co.code in course_outcome_results:
+                    po_total += course_outcome_results[co.code]['percentage']
+                    po_count += 1
+                    contributing_cos.append(co.code)
+            
+            po_percentage = po_total / po_count if po_count > 0 else Decimal('0')
+            achievement_level = get_achievement_level(float(po_percentage), achievement_levels)
+            
+            program_outcome_results[po.code] = {
+                'description': po.description,
+                'percentage': po_percentage,
+                'achievement_level': achievement_level,
+                'contributes': po_count > 0,
+                'course_outcomes': contributing_cos
+            }
     
-    # Format student results for template - convert Decimal to float
+    # Format student results for display
     formatted_student_results = {}
     for student_id, data in student_results.items():
-        student = data['student']
-        
-        # Format course outcome scores - ensure percentages are numbers not dictionaries
-        course_outcome_scores = {}
-        for outcome in course_outcomes:
-            percentage = data['course_outcome_scores'].get(outcome.id)
-            course_outcome_scores[outcome.code] = float(percentage) if percentage is not None else 0
-        
-        # Format exam scores to include names
-        exam_scores = {}
-        for exam_id, score in data['exam_scores'].items():
-            exam = next((e for e in exams if e.id == exam_id), None)
-            if exam:
-                exam_scores[exam.name] = float(score) if score is not None else 0
-        
-        formatted_student_results[student_id] = {
-            'student_id': student.student_id,
-            'name': f"{student.first_name} {student.last_name}".strip(),
-            'overall_percentage': float(data['weighted_score']) if data['weighted_score'] is not None else 0,
-            'course_outcomes': course_outcome_scores,
-            'exam_scores': exam_scores
-        }
+        formatted_student_results[student_id] = data
     
-    # Check if we have questions with course outcomes
-    has_exam_questions = False
-    for exam in exams:
-        questions = Question.query.filter_by(exam_id=exam.id).all()
-        for question in questions:
-            if question.course_outcomes:
-                has_exam_questions = True
-                break
-        if has_exam_questions:
-            break
+    # Is this an AJAX request?
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
-    # Check if we have student scores
-    has_student_scores = Score.query.join(Question).join(Exam).filter(Exam.course_id == course_id).first() is not None
-    
-    # Check if weights are valid (already calculated above)
-    has_valid_weights = abs(total_weight - Decimal('1.0')) <= Decimal('0.01')
-    
-    # Convert weights to float for template
-    float_weights = {k: float(v) for k, v in weights.items()}
-    
-    # Log calculation action
-    log = Log(action="CALCULATE_RESULTS", 
-             description=f"Calculated Accredit results for course: {course.code}")
-    db.session.add(log)
-    db.session.commit()
-    
-    # Debug information
-    print(f"Rendering calculation results for course {course.code} with {len(exams)} exams, {len(students)} students, {len(course_outcomes)} course outcomes, and {len(program_outcomes)} program outcomes")
-    print(f"Data: {len(formatted_student_results)} students, {len(course_outcome_results)} course outcomes, {len(program_outcome_results)} program outcomes")
+    # Check if this is an AJAX request
+    if is_ajax:
+        # Return JSON data for AJAX requests
+        return jsonify({
+            'student_results': formatted_student_results,
+            'course_outcome_results': course_outcome_results,
+            'program_outcome_results': program_outcome_results,
+            'exams': [{'id': e.id, 'name': e.name} for e in exams],
+            'achievement_levels': [{'name': level.name, 'min_score': float(level.min_score), 
+                                   'max_score': float(level.max_score), 'color': level.color} 
+                                  for level in achievement_levels],
+            'total_weight_percent': float(total_weight_percent)
+        })
     
     return render_template('calculation/results.html', 
                          course=course,
@@ -258,12 +296,13 @@ def course_calculations(course_id):
                          student_results=formatted_student_results,
                          course_outcome_results=course_outcome_results,
                          program_outcome_results=program_outcome_results,
-                         class_results=class_results,
-                         weights=float_weights,
-                         has_course_outcomes=bool(course_outcomes),
+                         has_course_outcomes=has_course_outcomes,
                          has_exam_questions=has_exam_questions,
                          has_student_scores=has_student_scores,
                          has_valid_weights=has_valid_weights,
+                         achievement_levels=achievement_levels,
+                         total_weight_percent=total_weight_percent,
+                         get_achievement_level=get_achievement_level,
                          active_page='courses')
 
 @calculation_bp.route('/course/<int:course_id>/export')
@@ -318,7 +357,7 @@ def export_results(course_id):
     # Preload all scores for this course
     student_ids = [s.id for s in students]
     question_ids = []
-    for exam in exams + makeup_exams:
+    for exam in exams:
         for q in questions_by_exam[exam.id]:
             question_ids.append(q.id)
     
@@ -341,11 +380,11 @@ def export_results(course_id):
     exam_weights = ExamWeight.query.filter_by(course_id=course_id).all()
     total_weight = Decimal('0')
     for weight in exam_weights:
-        weights[weight.exam_id] = Decimal(str(weight.weight / 100))  # Convert percentage to decimal
+        weights[weight.exam_id] = weight.weight  # Already stored as decimal (0-1)
         total_weight += weights[weight.exam_id]
     
     # Normalize weights if they don't add up to 1.0 (within small margin of error)
-    if total_weight > 0 and abs(total_weight - Decimal('1.0')) > Decimal('0.01'):
+    if total_weight > Decimal('0') and abs(total_weight - Decimal('1.0')) > Decimal('0.01'):
         for exam_id in weights:
             weights[exam_id] = weights[exam_id] / total_weight
     
@@ -407,7 +446,7 @@ def export_results(course_id):
                     total_weight_used += weights[exam.id]
         
         # Calculate final score
-        if total_weight_used > 0:
+        if total_weight_used > Decimal('0'):
             # Normalize and calculate final score 
             final_score = weighted_score / total_weight_used
             student_row[2] = round(float(final_score), 2)
@@ -619,7 +658,7 @@ def all_courses_calculations():
                     exam_score = calculate_student_exam_score_optimized(
                         student.id, exam.id, scores_dict, questions_by_exam[exam.id]
                     )
-                    if exam_score is not None and exam_score > 0:
+                    if exam_score is not None and exam_score > Decimal('0'):
                         skip_student = False
                         break
                         
@@ -629,7 +668,7 @@ def all_courses_calculations():
                         makeup_score = calculate_student_exam_score_optimized(
                             student.id, makeup_exam.id, scores_dict, questions_by_exam[makeup_exam.id]
                         )
-                        if makeup_score is not None and makeup_score > 0:
+                        if makeup_score is not None and makeup_score > Decimal('0'):
                             skip_student = False
                             break
                 
@@ -1063,7 +1102,8 @@ def debug_calculations(course_id):
         course_outcome_results[outcome.code] = {
             'description': outcome.description,
             'percentage': avg_score if avg_score is not None else 0,
-            'program_outcomes': [po.code for po in outcome.program_outcomes]
+            'program_outcomes': [po.code for po in outcome.program_outcomes],
+            'achievement_level': get_achievement_level(float(avg_score) if avg_score is not None else 0, achievement_levels)
         }
     
     # Format program outcome results
@@ -1080,7 +1120,8 @@ def debug_calculations(course_id):
         program_outcome_results[outcome.code] = {
             'description': outcome.description,
             'percentage': avg_score if avg_score is not None else 0,
-            'contributes': contributes
+            'contributes': contributes,
+            'achievement_level': get_achievement_level(float(avg_score) if avg_score is not None else 0, achievement_levels)
         }
     
     # Format student results for template
@@ -1336,4 +1377,159 @@ def export_course_exams(course_id):
 @calculation_bp.route('/all_utilities')
 def all_utilities():
     """Redirect to the utilities page"""
-    return redirect(url_for('utility.index')) 
+    return redirect(url_for('utility.index'))
+
+@calculation_bp.route('/course/<int:course_id>/achievement-levels', methods=['GET', 'POST'])
+def manage_achievement_levels(course_id):
+    """Manage achievement levels for a course"""
+    course = Course.query.get_or_404(course_id)
+    achievement_levels = AchievementLevel.query.filter_by(course_id=course_id).order_by(AchievementLevel.min_score.desc()).all()
+    
+    if request.method == 'POST':
+        # Process form submission
+        action = request.form.get('action')
+        level_id = request.form.get('level_id')
+        
+        if action == 'save':
+            # Validate form input
+            name = request.form.get('name', '').strip()
+            min_score = request.form.get('min_score', '')
+            max_score = request.form.get('max_score', '')
+            color = request.form.get('color', '')
+            
+            # Validate inputs
+            if not name:
+                flash("Level name is required", "error")
+                return redirect(url_for('calculation.manage_achievement_levels', course_id=course_id))
+            
+            try:
+                min_score = float(min_score)
+                max_score = float(max_score)
+                
+                if min_score < 0 or min_score > 100:
+                    flash("Minimum score must be between 0 and 100", "error")
+                    return redirect(url_for('calculation.manage_achievement_levels', course_id=course_id))
+                
+                if max_score < 0 or max_score > 100:
+                    flash("Maximum score must be between 0 and 100", "error")
+                    return redirect(url_for('calculation.manage_achievement_levels', course_id=course_id))
+                
+                if min_score >= max_score:
+                    flash("Minimum score must be less than maximum score", "error")
+                    return redirect(url_for('calculation.manage_achievement_levels', course_id=course_id))
+                
+            except ValueError:
+                flash("Score values must be valid numbers", "error")
+                return redirect(url_for('calculation.manage_achievement_levels', course_id=course_id))
+            
+            # Validate color
+            valid_colors = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'dark']
+            if color not in valid_colors:
+                flash("Invalid color selected", "error")
+                return redirect(url_for('calculation.manage_achievement_levels', course_id=course_id))
+            
+            # Check for overlapping ranges with other levels
+            query = AchievementLevel.query.filter_by(course_id=course_id)
+            if level_id:
+                query = query.filter(AchievementLevel.id != level_id)
+            
+            for existing_level in query.all():
+                # Check if ranges overlap
+                if (min_score <= existing_level.max_score and max_score >= existing_level.min_score):
+                    flash(f"Score range overlaps with existing level '{existing_level.name}' ({existing_level.min_score}% - {existing_level.max_score}%)", "error")
+                    return redirect(url_for('calculation.manage_achievement_levels', course_id=course_id))
+            
+            # Save new or update existing
+            try:
+                if level_id:
+                    level = AchievementLevel.query.get_or_404(level_id)
+                    level.name = name
+                    level.min_score = min_score
+                    level.max_score = max_score
+                    level.color = color
+                    level.updated_at = datetime.now()
+                    
+                    # Log action
+                    log_action = "EDIT_ACHIEVEMENT_LEVEL"
+                    log_description = f"Edited achievement level '{name}' for course: {course.code}"
+                else:
+                    level = AchievementLevel(
+                        course_id=course_id,
+                        name=name,
+                        min_score=min_score,
+                        max_score=max_score,
+                        color=color
+                    )
+                    db.session.add(level)
+                    
+                    # Log action
+                    log_action = "ADD_ACHIEVEMENT_LEVEL"
+                    log_description = f"Added achievement level '{name}' to course: {course.code}"
+                
+                # Log action
+                log = Log(action=log_action, description=log_description)
+                db.session.add(log)
+                
+                db.session.commit()
+                flash(f"Achievement level '{name}' saved successfully", 'success')
+            except Exception as e:
+                db.session.rollback()
+                logging.error(f"Error saving achievement level: {str(e)}")
+                flash(f"Error saving achievement level: {str(e)}", 'error')
+            
+            return redirect(url_for('calculation.manage_achievement_levels', course_id=course_id))
+            
+        elif action == 'delete':
+            try:
+                level = AchievementLevel.query.get_or_404(level_id)
+                level_name = level.name
+                
+                # Log action before deletion
+                log = Log(action="DELETE_ACHIEVEMENT_LEVEL", 
+                         description=f"Deleted achievement level '{level_name}' from course: {course.code}")
+                db.session.add(log)
+                
+                db.session.delete(level)
+                db.session.commit()
+                flash(f"Achievement level '{level_name}' deleted successfully", 'success')
+            except Exception as e:
+                db.session.rollback()
+                logging.error(f"Error deleting achievement level: {str(e)}")
+                flash(f"Error deleting achievement level: {str(e)}", 'error')
+            
+            return redirect(url_for('calculation.manage_achievement_levels', course_id=course_id))
+    
+    # For GET request, check if we need to set up default levels
+    if not achievement_levels:
+        # Add default achievement levels
+        default_levels = [
+            {"name": "Excellent", "min_score": 90.00, "max_score": 100.00, "color": "success"},
+            {"name": "Better", "min_score": 70.00, "max_score": 89.99, "color": "info"},
+            {"name": "Good", "min_score": 60.00, "max_score": 69.99, "color": "primary"},
+            {"name": "Need Improvements", "min_score": 50.00, "max_score": 59.99, "color": "warning"},
+            {"name": "Failure", "min_score": 0.01, "max_score": 49.99, "color": "danger"}
+        ]
+        
+        for level_data in default_levels:
+            level = AchievementLevel(
+                course_id=course_id,
+                name=level_data["name"],
+                min_score=level_data["min_score"],
+                max_score=level_data["max_score"],
+                color=level_data["color"]
+            )
+            db.session.add(level)
+        
+        # Log action
+        log = Log(action="ADD_DEFAULT_ACHIEVEMENT_LEVELS", 
+                 description=f"Added default achievement levels to course: {course.code}")
+        db.session.add(log)
+        db.session.commit()
+        
+        # Refresh achievement levels
+        achievement_levels = AchievementLevel.query.filter_by(course_id=course_id).order_by(AchievementLevel.min_score.desc()).all()
+    
+    return render_template('calculation/achievement_levels.html', 
+                         course=course, 
+                         achievement_levels=achievement_levels, 
+                         active_page='courses') 

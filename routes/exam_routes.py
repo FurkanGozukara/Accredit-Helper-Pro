@@ -5,7 +5,7 @@ from datetime import datetime
 import logging
 import io
 import csv
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from sqlalchemy import text
 
 from routes.utility_routes import export_to_excel_csv
@@ -273,21 +273,22 @@ def manage_weights(course_id):
                 weight_value = request.form.get(weight_key, '0')
                 
                 try:
-                    weight_value = Decimal(weight_value) / 100  # Convert percentage to decimal
-                    if weight_value < 0:
+                    # Convert from percentage (0-100) to decimal (0-1)
+                    weight_value = Decimal(str(weight_value)) / Decimal('100')
+                    if weight_value < Decimal('0'):
                         weight_value = Decimal('0')
-                    if weight_value > 1:
+                    if weight_value > Decimal('1'):
                         weight_value = Decimal('1')
                     
                     exam_weights[exam.id] = weight_value
                     total_weight += weight_value
-                except ValueError:
-                    flash(f'Invalid weight value for {exam.name}', 'error')
+                except (ValueError, InvalidOperation) as e:
+                    flash(f'Invalid weight value for {exam.name}: {str(e)}', 'error')
                     return redirect(url_for('exam.manage_weights', course_id=course_id))
             
             # Ensure weights sum to 1 (100%)
             if abs(total_weight - Decimal('1.0')) > Decimal('0.01'):  # Allow small decimal error
-                flash('The sum of weights must equal 100%', 'error')
+                flash(f'The sum of weights must equal 100%. Current total: {(total_weight * Decimal("100")).quantize(Decimal("0.1"))}%', 'error')
                 return redirect(url_for('exam.manage_weights', course_id=course_id))
             
             # Log action
@@ -307,6 +308,16 @@ def manage_weights(course_id):
                     # Create a new weight
                     new_weight = ExamWeight(exam_id=exam_id, course_id=course_id, weight=weight)
                     db.session.add(new_weight)
+                
+                # Also update weights for any makeup exams
+                makeup_exams = Exam.query.filter_by(makeup_for=exam_id).all()
+                for makeup_exam in makeup_exams:
+                    makeup_weight = ExamWeight.query.filter_by(exam_id=makeup_exam.id, course_id=course_id).first()
+                    if makeup_weight:
+                        makeup_weight.weight = weight
+                    else:
+                        new_makeup_weight = ExamWeight(exam_id=makeup_exam.id, course_id=course_id, weight=weight)
+                        db.session.add(new_makeup_weight)
             
             db.session.commit()
             flash('Exam weights updated successfully', 'success')
@@ -315,18 +326,22 @@ def manage_weights(course_id):
         except Exception as e:
             db.session.rollback()
             logging.error(f"Error updating exam weights: {str(e)}")
-            flash('An error occurred while updating exam weights', 'error')
+            flash(f'An error occurred while updating exam weights: {str(e)}', 'error')
     
     # Prepare weights for the template
     weights_for_template = []
     for exam in exams:
         # Check if there's an existing weight
         if exam.id in exam_weight_map:
-            weights_for_template.append(exam_weight_map[exam.id])
+            weight = exam_weight_map[exam.id]
+            # Convert weight from decimal (0-1) to percentage (0-100) for display
+            weight.display_value = weight.weight * Decimal('100')
+            weights_for_template.append(weight)
         else:
             # Create a temporary weight object (not in DB)
             temp_weight = ExamWeight(exam_id=exam.id, course_id=course_id, weight=Decimal('0'))
             temp_weight.exam = exam
+            temp_weight.display_value = Decimal('0')  # For display as percentage
             weights_for_template.append(temp_weight)
     
     return render_template('exam/weights.html', 

@@ -41,7 +41,7 @@
                                             <td>
                                                 <input type="number" class="form-control weight-input" 
                                                        name="weight_{{ exam.id }}" 
-                                                       value="{{ (weight.weight * 100)|round(1) }}"
+                                                       value="{{ weight.display_value|round(1) }}"
                                                        min="0" max="100" step="0.1" required
                                                        {% if exam.is_makeup %}readonly{% endif %}>
                                             </td>

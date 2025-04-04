@@ -47,7 +47,7 @@
                                     <a href="{{ url_for('exam.exam_detail', exam_id=exam.id) }}">{{ exam.name }}</a>
                                 </td>
                                 <td>{{ exam.exam_date.strftime('%Y-%m-%d') if exam.exam_date else 'Not set' }}</td>
-                                <td>{{ weights.get(exam.id, 0) }}%</td>
+                                <td>{{ (weights.get(exam.id, 0) * 100)|round(1) }}%</td>
                                 <td>
                                     {% if exam.is_mandatory %}
                                         <span class="badge bg-success">Mandatory</span>
@@ -78,7 +78,7 @@
                                             <a href="{{ url_for('exam.exam_detail', exam_id=makeup.id) }}">{{ makeup.name }}</a>
                                         </td>
                                         <td>{{ makeup.exam_date.strftime('%Y-%m-%d') if makeup.exam_date else 'Not set' }}</td>
-                                        <td>{{ weights.get(makeup.id, 0) }}%</td>
+                                        <td>{{ (weights.get(makeup.id, 0) * 100)|round(1) }}%</td>
                                         <td colspan="2">
                                             <small class="text-muted">Used as makeup for {{ exam.name }}</small>
                                         </td>

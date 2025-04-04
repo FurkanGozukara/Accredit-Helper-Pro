@@ -21,6 +21,9 @@
             <a href="{{ url_for('calculation.course_calculations', course_id=course.id) }}" class="btn btn-success me-2">
                 <i class="bi bi-calculator"></i> View Program Outcome Scores
             </a>
+            <a href="{{ url_for('calculation.manage_achievement_levels', course_id=course.id) }}" class="btn btn-info me-2">
+                <i class="bi bi-bar-chart-fill"></i> Achievement Levels
+            </a>
             <button class="btn btn-danger" 
                     data-delete-url="{{ url_for('course.delete_course', course_id=course.id) }}"
                     data-delete-name="course '{{ course.code }}'">
@@ -109,7 +112,7 @@
                                 <td>
                                     {% for weight in exam_weights %}
                                         {% if weight.exam_id == exam.id %}
-                                            {{ weight.weight }}%
+                                            {{ (weight.weight * 100)|round(1) }}%
                                         {% endif %}
                                     {% endfor %}
                                 </td>

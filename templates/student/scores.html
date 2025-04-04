@@ -250,7 +250,7 @@
         document.querySelectorAll('.abet-scores-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const studentId = this.dataset.studentId;
-                calculateAbetScores(studentId);
+                fetchAbetScores(studentId, "{{ exam.course_id }}", this.nextElementSibling);
             });
         });
         
@@ -364,20 +364,25 @@
             });
         }
         
-        function calculateAbetScores(studentId) {
-            const container = document.getElementById(`abet-scores-${studentId}`);
-            container.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading ABET scores...</div>';
-            
-            // Fix the URL path to match the API endpoint
-            fetch(`/api/student/${studentId}/abet-scores/{{ exam.id }}`)
+        function fetchAbetScores(student_id, courseId, container) {
+            fetch(`/api/student/${student_id}/abet-scores?course_id=${courseId}`)
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Network response was not ok');
+                        throw new Error(`HTTP error ${response.status}`);
                     }
                     return response.json();
                 })
                 .then(data => {
-                    displayAbetScores(container, data);
+                    // Also fetch achievement levels
+                    fetch(`/api/course/${courseId}/achievement-levels`)
+                        .then(response => response.json())
+                        .then(levelData => {
+                            displayAbetScores(container, data, levelData.achievement_levels);
+                        })
+                        .catch(error => {
+                            console.error('Error fetching achievement levels:', error);
+                            displayAbetScores(container, data, null);
+                        });
                 })
                 .catch(error => {
                     container.innerHTML = `<div class="alert alert-danger">Error loading ABET scores: ${error.message}</div>`;
@@ -385,7 +390,7 @@
                 });
         }
         
-        function displayAbetScores(container, outcomes) {
+        function displayAbetScores(container, outcomes, achievementLevels) {
             if (!outcomes || outcomes.length === 0) {
                 container.innerHTML = '<div class="alert alert-info">No outcome data available for this student.</div>';
                 return;
@@ -395,13 +400,26 @@
             html += '<thead><tr><th>Outcome</th><th>Score</th></tr></thead><tbody>';
             
             for (const outcome of outcomes) {
-                let colorClass = 'text-danger';
+                let colorClass = 'text-secondary';
                 let percentage = parseFloat(outcome.percentage);
                 
-                if (percentage >= 70) {
-                    colorClass = 'text-success';
-                } else if (percentage >= 50) {
-                    colorClass = 'text-warning';
+                if (achievementLevels && achievementLevels.length > 0) {
+                    // Find the right achievement level
+                    for (const level of achievementLevels) {
+                        if (percentage >= level.min_score && percentage <= level.max_score) {
+                            colorClass = `text-${level.color}`;
+                            break;
+                        }
+                    }
+                } else {
+                    // Fallback to hardcoded colors if no achievement levels
+                    if (percentage >= 70) {
+                        colorClass = 'text-success';
+                    } else if (percentage >= 50) {
+                        colorClass = 'text-warning';
+                    } else {
+                        colorClass = 'text-danger';
+                    }
                 }
                 
                 html += `<tr>

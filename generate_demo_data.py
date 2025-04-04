@@ -14,7 +14,7 @@ from decimal import Decimal
 sys.path.append('.')
 
 # Import the models
-from models import db, Course, Exam, CourseOutcome, ProgramOutcome, Question
+from models import db, Course, Exam, CourseOutcome, ProgramOutcome, Question, AchievementLevel
 from models import Student, Score, ExamWeight, course_outcome_program_outcome, question_course_outcome
 
 # Initialize Faker for generating realistic data
@@ -509,7 +509,7 @@ def generate_exams(courses):
     
     # Now create the exam weights with valid exam IDs
     for course in courses:
-        course_exams = [e for e in all_exams if e.course_id == course.id]
+        course_exams = [e for e in all_exams if e.course_id == course.id and not e.is_makeup]
         # Get the course's weight distribution or use default
         weight_dist = weight_distributions.get(course.code, weight_distributions["DEFAULT"])
         
@@ -534,17 +534,29 @@ def generate_exams(courses):
             else:
                 total_weight += weight
             
+            # Create weight record for this exam
             exam_weight = ExamWeight(
                 exam_id=exam.id,
                 course_id=course.id,
-                weight=weight,
+                weight=weight,  # Store as decimal (0-1)
                 created_at=datetime.now(),
                 updated_at=datetime.now()
             )
             session.add(exam_weight)
+            
+            # For makeup exams, use the same weight as the original exam
+            for makeup_exam in [e for e in all_exams if e.makeup_for == exam.id]:
+                makeup_weight = ExamWeight(
+                    exam_id=makeup_exam.id,
+                    course_id=course.id,
+                    weight=weight,  # Same weight as original exam
+                    created_at=datetime.now(),
+                    updated_at=datetime.now()
+                )
+                session.add(makeup_weight)
     
     session.commit()
-    print(f"Created {len(all_exams)} exam weights (total 100% for each course)")
+    print(f"Created exam weights for all exams (total 100% for each course)")
     
     return all_exams
 
@@ -701,6 +713,49 @@ def generate_scores(questions, students):
     print(f"Created {len(all_scores)} scores")
     return all_scores
 
+def generate_achievement_levels(courses):
+    """Generate achievement levels for each course"""
+    # Define default achievement levels
+    default_levels = [
+        {"name": "Excellent", "min_score": 90.00, "max_score": 100.00, "color": "success"},
+        {"name": "Better", "min_score": 70.00, "max_score": 89.99, "color": "info"},
+        {"name": "Good", "min_score": 60.00, "max_score": 69.99, "color": "primary"},
+        {"name": "Need Improvements", "min_score": 50.00, "max_score": 59.99, "color": "warning"},
+        {"name": "Failure", "min_score": 0.01, "max_score": 49.99, "color": "danger"}
+    ]
+    
+    # Check which courses already have achievement levels
+    courses_with_levels = set()
+    for level in session.query(AchievementLevel).all():
+        courses_with_levels.add(level.course_id)
+    
+    # Filter courses that need achievement levels
+    courses_needing_levels = [c for c in courses if c.id not in courses_with_levels]
+    
+    if not courses_needing_levels:
+        print("All courses already have achievement levels.")
+        return []
+    
+    all_levels = []
+    
+    for course in courses_needing_levels:
+        for level_data in default_levels:
+            level = AchievementLevel(
+                course_id=course.id,
+                name=level_data["name"],
+                min_score=level_data["min_score"],
+                max_score=level_data["max_score"],
+                color=level_data["color"],
+                created_at=datetime.now(),
+                updated_at=datetime.now()
+            )
+            session.add(level)
+            all_levels.append(level)
+    
+    session.commit()
+    print(f"Created {len(all_levels)} achievement levels for {len(courses_needing_levels)} courses")
+    return all_levels
+
 def main():
     print("Generating demo data for Accredit Helper Pro...")
     
@@ -821,6 +876,10 @@ def main():
     # Get all students after generation
     all_students = session.query(Student).all()
     
+    # Generate achievement levels for courses
+    print("Generating achievement levels for courses...")
+    achievement_levels = generate_achievement_levels(all_courses)
+    
     # Finally, generate scores for all students on all questions
     # First, let's get all existing scores to avoid duplicates
     existing_scores = set()
@@ -883,6 +942,7 @@ def main():
     question_count = session.query(Question).count()
     student_count = session.query(Student).count()
     score_count = session.query(Score).count()
+    achievement_level_count = session.query(AchievementLevel).count()
     
     print(f"Database now contains:")
     print(f"  - {course_count} courses")
@@ -891,6 +951,7 @@ def main():
     print(f"  - {question_count} questions")
     print(f"  - {student_count} students")
     print(f"  - {score_count} scores")
+    print(f"  - {achievement_level_count} achievement levels")
     print("\nYou can now use the application to explore and analyze this data.")
 
 if __name__ == "__main__":

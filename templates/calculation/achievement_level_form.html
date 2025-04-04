@@ -1,0 +1,127 @@
+{% if not is_ajax %}
+    {% extends 'base.html' %}
+    
+    {% block title %}{% if level %}Edit{% else %}Add{% endif %} Achievement Level - {{ course.code }} - ABET Calculator{% endblock %}
+    
+    {% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('course.course_detail', course_id=course.id) }}">{{ course.code }}</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('calculation.manage_achievement_levels', course_id=course.id) }}">Achievement Levels</a></li>
+    <li class="breadcrumb-item active">{% if level %}Edit{% else %}Add{% endif %} Level</li>
+    {% endblock %}
+    
+    {% block content %}
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-8 offset-md-2">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">{% if level %}Edit{% else %}Add New{% endif %} Achievement Level</h5>
+                    </div>
+                    <div class="card-body">
+{% endif %}
+
+<form method="POST" action="{{ url_for('calculation.manage_achievement_levels', course_id=course.id) }}">
+    <input type="hidden" name="action" value="save">
+    {% if level %}
+    <input type="hidden" name="level_id" value="{{ level.id }}">
+    {% endif %}
+    
+    <div class="mb-3">
+        <label for="name" class="form-label">Level Name <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" id="name" name="name" 
+               value="{{ level.name if level else '' }}" required
+               placeholder="e.g., Excellent, Satisfactory, Needs Improvement">
+        <div class="form-text">A descriptive name for this achievement level.</div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="min_score" class="form-label">Minimum Score (%) <span class="text-danger">*</span></label>
+                <input type="number" class="form-control" id="min_score" name="min_score" 
+                       value="{{ level.min_score if level else '' }}" required min="0" max="100" step="0.1">
+                <div class="form-text">The minimum score percentage for this level.</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="max_score" class="form-label">Maximum Score (%) <span class="text-danger">*</span></label>
+                <input type="number" class="form-control" id="max_score" name="max_score" 
+                       value="{{ level.max_score if level else '' }}" required min="0" max="100" step="0.1">
+                <div class="form-text">The maximum score percentage for this level.</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mb-3">
+        <label for="color" class="form-label">Color <span class="text-danger">*</span></label>
+        <select class="form-select" id="color" name="color" required>
+            <option value="primary" {% if level and level.color == 'primary' %}selected{% endif %}>Primary (Blue)</option>
+            <option value="secondary" {% if level and level.color == 'secondary' %}selected{% endif %}>Secondary (Gray)</option>
+            <option value="success" {% if level and level.color == 'success' %}selected{% endif %}>Success (Green)</option>
+            <option value="danger" {% if level and level.color == 'danger' %}selected{% endif %}>Danger (Red)</option>
+            <option value="warning" {% if level and level.color == 'warning' %}selected{% endif %}>Warning (Yellow)</option>
+            <option value="info" {% if level and level.color == 'info' %}selected{% endif %}>Info (Teal)</option>
+            <option value="dark" {% if level and level.color == 'dark' %}selected{% endif %}>Dark (Black)</option>
+        </select>
+        <div class="form-text">The color used to represent this level in charts and tables.</div>
+    </div>
+    
+    <div class="mb-3">
+        <label class="form-label">Color Preview</label>
+        <div class="progress" style="height: 30px;">
+            <div class="progress-bar bg-primary" id="colorPreview" 
+                 role="progressbar" 
+                 style="width: 100%;" 
+                 aria-valuenow="100" 
+                 aria-valuemin="0" 
+                 aria-valuemax="100">
+                Preview
+            </div>
+        </div>
+    </div>
+    
+    <div class="d-flex justify-content-between mt-4">
+        {% if not is_ajax %}
+        <a href="{{ url_for('calculation.manage_achievement_levels', course_id=course.id) }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Cancel
+        </a>
+        {% else %}
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        {% endif %}
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Save Level
+        </button>
+    </div>
+</form>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const colorSelect = document.getElementById('color');
+        const colorPreview = document.getElementById('colorPreview');
+        
+        function updateColorPreview() {
+            // Remove existing color classes
+            colorPreview.classList.remove('bg-primary', 'bg-secondary', 'bg-success', 
+                                        'bg-danger', 'bg-warning', 'bg-info', 'bg-dark');
+            // Add selected color class
+            colorPreview.classList.add('bg-' + colorSelect.value);
+        }
+        
+        // Update on load
+        updateColorPreview();
+        
+        // Update on change
+        colorSelect.addEventListener('change', updateColorPreview);
+    });
+</script>
+
+{% if not is_ajax %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+{% endif %} 

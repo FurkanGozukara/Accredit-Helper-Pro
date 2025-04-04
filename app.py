@@ -39,7 +39,7 @@ def create_app():
     )
     
     # Import models
-    from models import Course, Exam, CourseOutcome, ProgramOutcome, Question, Student, Score, ExamWeight
+    from models import Course, Exam, CourseOutcome, ProgramOutcome, Question, Student, Score, ExamWeight, AchievementLevel
     
     # Register blueprints
     from routes.course_routes import course_bp

@@ -207,4 +207,21 @@ class CourseSettings(db.Model):
     course = db.relationship('Course', backref=db.backref('settings', uselist=False), lazy=True)
     
     def __repr__(self):
-        return f"<CourseSettings for Course {self.course_id}>" 
+        return f"<CourseSettings for Course {self.course_id}>"
+
+class AchievementLevel(db.Model):
+    """AchievementLevel model for storing custom success metrics for courses"""
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False, index=True)
+    name = db.Column(db.String(50), nullable=False)
+    min_score = db.Column(db.Numeric(10, 2), nullable=False)
+    max_score = db.Column(db.Numeric(10, 2), nullable=False)
+    color = db.Column(db.String(20), nullable=False, default='primary')  # Bootstrap color class
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    # Relationship
+    course = db.relationship('Course', backref=db.backref('achievement_levels', lazy=True, cascade="all, delete-orphan"))
+    
+    def __repr__(self):
+        return f"<AchievementLevel {self.name} ({self.min_score}-{self.max_score}%) for Course {self.course_id}>" 

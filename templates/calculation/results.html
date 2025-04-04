@@ -67,12 +67,13 @@
             <i class="fas fa-exclamation-triangle"></i> No student scores have been entered for the exams.
             <a href="{{ url_for('student.manage_scores', exam_id=exams[0].id) }}" class="alert-link">Enter student scores</a> to calculate outcomes.
         </div>
-    {% elif not has_valid_weights %}
-        <div class="alert alert-warning">
-            <i class="fas fa-exclamation-triangle"></i> Exam weights have not been set or do not total 100%.
-            <a href="{{ url_for('exam.manage_weights', course_id=course.id) }}" class="alert-link">Set exam weights</a> to calculate accurate results.
-        </div>
     {% else %}
+        {% if total_weight_percent != 100 %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i> Your current exam weights total {{ total_weight_percent|round(1) }}% instead of 100%. 
+            <a href="{{ url_for('exam.manage_weights', course_id=course.id) }}" class="alert-link">Adjust exam weights</a> for best accuracy.
+        </div>
+        {% endif %}
         <!-- Results Tabs -->
         <ul class="nav nav-tabs mb-4" id="resultsTabs" role="tablist">
             <li class="nav-item" role="presentation">
@@ -103,7 +104,12 @@
             <div class="tab-pane fade show active" id="program-outcomes" role="tabpanel" aria-labelledby="program-outcomes-tab">
                 <div class="card">
                     <div class="card-header bg-light">
-                        <h5 class="mb-0">Program Outcome Achievement</h5>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Program Outcome Achievement</h5>
+                            <a href="{{ url_for('calculation.manage_achievement_levels', course_id=course.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-cog"></i> Configure Achievement Levels
+                            </a>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div class="row mb-4">
@@ -112,13 +118,15 @@
                             </div>
                             <div class="col-md-4">
                                 <div class="alert alert-info">
-                                    <h6><i class="fas fa-info-circle"></i> How to Interpret</h6>
-                                    <p class="mb-1">This chart shows the average achievement level for each program outcome based on all student performances across exams.</p>
-                                    <ul class="mb-0">
-                                        <li>70% or above: Good achievement level</li>
-                                        <li>50-69%: Moderate achievement level</li>
-                                        <li>Below 50%: Needs improvement</li>
-                                    </ul>
+                                    <h6><i class="fas fa-info-circle"></i> Achievement Levels</h6>
+                                    <div class="mt-2">
+                                        {% for level in achievement_levels %}
+                                            <div class="d-flex align-items-center mb-1">
+                                                <div class="badge bg-{{ level.color }} me-2" style="width: 20px; height: 20px;"></div>
+                                                <span>{{ level.name }} ({{ level.min_score }}% - {{ level.max_score }}%)</span>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -141,13 +149,17 @@
                                             <td>
                                                 <div class="progress" style="height: 25px;">
                                                     {% if po_data.contributes %}
-                                                    <div class="progress-bar bg-{{ 'success' if po_data.percentage >= 70 else 'warning' if po_data.percentage >= 50 else 'danger' }}" 
+                                                    <div class="progress-bar bg-{{ 
+                                                        (get_achievement_level(po_data.percentage, achievement_levels))['color'] 
+                                                    }}" 
                                                          role="progressbar" 
                                                          style="width: {{ po_data.percentage }}%;" 
                                                          aria-valuenow="{{ po_data.percentage }}" 
                                                          aria-valuemin="0" 
                                                          aria-valuemax="100">
-                                                        {{ "%.1f"|format(po_data.percentage) }}%
+                                                        {{ "%.1f"|format(po_data.percentage) }}% ({{ 
+                                                            (get_achievement_level(po_data.percentage, achievement_levels))['name'] 
+                                                        }})
                                                     </div>
                                                     {% else %}
                                                     <div class="text-center text-muted">NA</div>
@@ -174,7 +186,12 @@
             <div class="tab-pane fade" id="course-outcomes" role="tabpanel" aria-labelledby="course-outcomes-tab">
                 <div class="card">
                     <div class="card-header bg-light">
-                        <h5 class="mb-0">Course Outcome Achievement</h5>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Course Outcome Achievement</h5>
+                            <a href="{{ url_for('calculation.manage_achievement_levels', course_id=course.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-cog"></i> Configure Achievement Levels
+                            </a>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div class="row mb-4">
@@ -206,13 +223,17 @@
                                             <td>{{ co_data.description|truncate(120) }}</td>
                                             <td>
                                                 <div class="progress" style="height: 25px;">
-                                                    <div class="progress-bar bg-{{ 'success' if co_data.percentage >= 70 else 'warning' if co_data.percentage >= 50 else 'danger' }}" 
+                                                    <div class="progress-bar bg-{{ 
+                                                        (get_achievement_level(co_data.percentage, achievement_levels))['color'] 
+                                                    }}" 
                                                          role="progressbar" 
                                                          style="width: {{ co_data.percentage }}%;" 
                                                          aria-valuenow="{{ co_data.percentage }}" 
                                                          aria-valuemin="0" 
                                                          aria-valuemax="100">
-                                                        {{ "%.1f"|format(co_data.percentage) }}%
+                                                        {{ "%.1f"|format(co_data.percentage) }}% ({{ 
+                                                            (get_achievement_level(co_data.percentage, achievement_levels))['name'] 
+                                                        }})
                                                     </div>
                                                 </div>
                                             </td>
@@ -265,13 +286,17 @@
                                             <td>{{ student_data.name }}</td>
                                             <td>
                                                 <div class="progress" style="height: 25px;">
-                                                    <div class="progress-bar bg-{{ 'success' if student_data.overall_percentage >= 70 else 'warning' if student_data.overall_percentage >= 50 else 'danger' }}" 
+                                                    <div class="progress-bar bg-{{ 
+                                                        (get_achievement_level(student_data.overall_percentage, achievement_levels))['color'] 
+                                                    }}" 
                                                          role="progressbar" 
                                                          style="width: {{ student_data.overall_percentage }}%;" 
                                                          aria-valuenow="{{ student_data.overall_percentage }}" 
                                                          aria-valuemin="0" 
                                                          aria-valuemax="100">
-                                                        {{ "%.1f"|format(student_data.overall_percentage) }}%
+                                                        {{ "%.1f"|format(student_data.overall_percentage) }}% ({{ 
+                                                            (get_achievement_level(student_data.overall_percentage, achievement_levels))['name'] 
+                                                        }})
                                                     </div>
                                                 </div>
                                             </td>
@@ -294,7 +319,9 @@
                                                             <div class="col-md-6 mb-2">
                                                                 <small><strong>{{ co_code }}:</strong></small>
                                                                 <div class="progress" style="height: 15px;">
-                                                                    <div class="progress-bar bg-{{ 'success' if percentage >= 70 else 'warning' if percentage >= 50 else 'danger' }}" 
+                                                                    <div class="progress-bar bg-{{ 
+                                                                        (get_achievement_level(percentage, achievement_levels))['color'] 
+                                                                    }}" 
                                                                          role="progressbar" 
                                                                          style="width: {{ percentage }}%;" 
                                                                          aria-valuenow="{{ percentage }}" 
@@ -313,7 +340,9 @@
                                                             <div class="col-md-6 mb-2">
                                                                 <small><strong>{{ exam_name }}:</strong></small>
                                                                 <div class="progress" style="height: 15px;">
-                                                                    <div class="progress-bar bg-{{ 'success' if percentage >= 70 else 'warning' if percentage >= 50 else 'danger' }}" 
+                                                                    <div class="progress-bar bg-{{ 
+                                                                        (get_achievement_level(percentage, achievement_levels))['color'] 
+                                                                    }}" 
                                                                          role="progressbar" 
                                                                          style="width: {{ percentage }}%;" 
                                                                          aria-valuenow="{{ percentage }}" 
@@ -370,13 +399,13 @@
                             backgroundColor: [
                                 {% for po_code, po_data in program_outcome_results.items() %}
                                 {% set percentage = po_data.percentage|float if po_data.percentage is not none else 0 %}
-                                '{{ 'rgba(40, 167, 69, 0.7)' if percentage >= 70 else 'rgba(255, 193, 7, 0.7)' if percentage >= 50 else 'rgba(220, 53, 69, 0.7)' }}',
+                                '{% if po_data.achievement_level %}rgba({% if po_data.achievement_level.color == "primary" %}13, 110, 253{% elif po_data.achievement_level.color == "secondary" %}108, 117, 125{% elif po_data.achievement_level.color == "success" %}25, 135, 84{% elif po_data.achievement_level.color == "danger" %}220, 53, 69{% elif po_data.achievement_level.color == "warning" %}255, 193, 7{% elif po_data.achievement_level.color == "info" %}13, 202, 240{% elif po_data.achievement_level.color == "dark" %}33, 37, 41{% else %}108, 117, 125{% endif %}, 0.7){% else %}rgba(108, 117, 125, 0.7){% endif %}',
                                 {% endfor %}
                             ],
                             borderColor: [
                                 {% for po_code, po_data in program_outcome_results.items() %}
                                 {% set percentage = po_data.percentage|float if po_data.percentage is not none else 0 %}
-                                '{{ 'rgba(40, 167, 69, 1)' if percentage >= 70 else 'rgba(255, 193, 7, 1)' if percentage >= 50 else 'rgba(220, 53, 69, 1)' }}',
+                                '{% if po_data.achievement_level %}rgba({% if po_data.achievement_level.color == "primary" %}13, 110, 253{% elif po_data.achievement_level.color == "secondary" %}108, 117, 125{% elif po_data.achievement_level.color == "success" %}25, 135, 84{% elif po_data.achievement_level.color == "danger" %}220, 53, 69{% elif po_data.achievement_level.color == "warning" %}255, 193, 7{% elif po_data.achievement_level.color == "info" %}13, 202, 240{% elif po_data.achievement_level.color == "dark" %}33, 37, 41{% else %}108, 117, 125{% endif %}, 1){% else %}rgba(108, 117, 125, 1){% endif %}',
                                 {% endfor %}
                             ],
                             borderWidth: 1
@@ -438,13 +467,13 @@
                             backgroundColor: [
                                 {% for co_code, co_data in course_outcome_results.items() %}
                                 {% set percentage = co_data.percentage|float if co_data.percentage is not none else 0 %}
-                                '{{ 'rgba(23, 162, 184, 0.7)' if percentage >= 70 else 'rgba(255, 193, 7, 0.7)' if percentage >= 50 else 'rgba(220, 53, 69, 0.7)' }}',
+                                '{% if co_data.achievement_level %}rgba({% if co_data.achievement_level.color == "primary" %}13, 110, 253{% elif co_data.achievement_level.color == "secondary" %}108, 117, 125{% elif co_data.achievement_level.color == "success" %}25, 135, 84{% elif co_data.achievement_level.color == "danger" %}220, 53, 69{% elif co_data.achievement_level.color == "warning" %}255, 193, 7{% elif co_data.achievement_level.color == "info" %}13, 202, 240{% elif co_data.achievement_level.color == "dark" %}33, 37, 41{% else %}108, 117, 125{% endif %}, 0.7){% else %}rgba(108, 117, 125, 0.7){% endif %}',
                                 {% endfor %}
                             ],
                             borderColor: [
                                 {% for co_code, co_data in course_outcome_results.items() %}
                                 {% set percentage = co_data.percentage|float if co_data.percentage is not none else 0 %}
-                                '{{ 'rgba(23, 162, 184, 1)' if percentage >= 70 else 'rgba(255, 193, 7, 1)' if percentage >= 50 else 'rgba(220, 53, 69, 1)' }}',
+                                '{% if co_data.achievement_level %}rgba({% if co_data.achievement_level.color == "primary" %}13, 110, 253{% elif co_data.achievement_level.color == "secondary" %}108, 117, 125{% elif co_data.achievement_level.color == "success" %}25, 135, 84{% elif co_data.achievement_level.color == "danger" %}220, 53, 69{% elif co_data.achievement_level.color == "warning" %}255, 193, 7{% elif co_data.achievement_level.color == "info" %}13, 202, 240{% elif co_data.achievement_level.color == "dark" %}33, 37, 41{% else %}108, 117, 125{% endif %}, 1){% else %}rgba(108, 117, 125, 1){% endif %}',
                                 {% endfor %}
                             ],
                             borderWidth: 1

@@ -112,6 +112,34 @@
                             {% endfor %}
                         </tr>
                         {% endfor %}
+                        
+                        <!-- Average row for all courses -->
+                        <tr class="table-dark fw-bold">
+                            <td colspan="2">Program Outcome Averages</td>
+                            <td></td>
+                            {% for outcome in program_outcomes %}
+                                {% set total_percentage = namespace(value=0) %}
+                                {% set contributing_courses = namespace(count=0) %}
+                                
+                                {% for course_code, data in all_results.items() %}
+                                    {% set percentage = data.program_outcome_results.get(outcome.code, {}).get('percentage', 0)|float %}
+                                    {% set contributes = data.program_outcome_results.get(outcome.code, {}).get('contributes', False) %}
+                                    {% if contributes and percentage > 0 %}
+                                        {% set total_percentage.value = total_percentage.value + percentage %}
+                                        {% set contributing_courses.count = contributing_courses.count + 1 %}
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if contributing_courses.count > 0 %}
+                                    {% set average = total_percentage.value / contributing_courses.count %}
+                                    <td class="text-center {% if average >= 70 %}table-success{% elif average >= 50 %}table-warning{% else %}table-danger{% endif %}">
+                                        {{ "%.1f"|format(average) }}%
+                                    </td>
+                                {% else %}
+                                    <td class="text-center table-secondary">NA</td>
+                                {% endif %}
+                            {% endfor %}
+                        </tr>
                     </tbody>
                 </table>
             </div>
