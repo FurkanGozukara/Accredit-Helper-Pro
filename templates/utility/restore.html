@@ -115,17 +115,13 @@
                     </label>
                 </div>
                 
-                <div class="form-check mb-3">
-                    <input class="form-check-input" type="checkbox" id="backup_current" name="backup_current" checked>
-                    <label class="form-check-label" for="backup_current">
-                        Create a backup of the current database before restoring
-                    </label>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> A backup of your current database will be created automatically before restoring.
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <form id="restoreForm" method="POST" action="">
-                    <input type="hidden" name="backup_current" id="backup_current_input" value="1">
                     <button type="submit" class="btn btn-warning" id="restoreButton" disabled>
                         <i class="fas fa-undo"></i> Restore
                     </button>
@@ -156,18 +152,10 @@
         // Handle checkbox for enabling restore button
         const confirmCheckbox = document.getElementById('confirm_restore');
         const restoreButton = document.getElementById('restoreButton');
-        const backupCurrentCheckbox = document.getElementById('backup_current');
-        const backupCurrentInput = document.getElementById('backup_current_input');
         
         if (confirmCheckbox && restoreButton) {
             confirmCheckbox.addEventListener('change', function() {
                 restoreButton.disabled = !this.checked;
-            });
-        }
-        
-        if (backupCurrentCheckbox && backupCurrentInput) {
-            backupCurrentCheckbox.addEventListener('change', function() {
-                backupCurrentInput.value = this.checked ? '1' : '0';
             });
         }
     });

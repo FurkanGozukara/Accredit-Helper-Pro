@@ -52,7 +52,7 @@
                     <p><i class="fas fa-info-circle text-info"></i> <strong>Last backup:</strong><br>
                         {% if last_backup %}
                             {{ last_backup.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
-                            {% if last_backup.description %}
+                            {% if last_backup.description and last_backup.description != last_backup.type %}
                                 <br><em>"{{ last_backup.description }}"</em>
                             {% endif %}
                         {% else %}
@@ -70,37 +70,6 @@
                             <i class="fas fa-undo"></i> Restore from Backup
                         </a>
                     </div>
-                </div>
-            </div>
-            
-            <div class="card mt-3">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">Auto-Backup Settings</h5>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('utility.update_auto_backup') }}">
-                        <div class="mb-3">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="autoBackupEnabled" 
-                                       name="auto_backup_enabled" {% if auto_backup_enabled %}checked{% endif %}>
-                                <label class="form-check-label" for="autoBackupEnabled">Enable Auto-Backup</label>
-                            </div>
-                            <div class="form-text">Automatically create backups on a schedule</div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="autoBackupFrequency" class="form-label">Frequency</label>
-                            <select class="form-select" id="autoBackupFrequency" name="auto_backup_frequency">
-                                <option value="daily" {% if auto_backup_frequency == 'daily' %}selected{% endif %}>Daily</option>
-                                <option value="weekly" {% if auto_backup_frequency == 'weekly' %}selected{% endif %}>Weekly</option>
-                                <option value="monthly" {% if auto_backup_frequency == 'monthly' %}selected{% endif %}>Monthly</option>
-                            </select>
-                        </div>
-                        
-                        <button type="submit" class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-save"></i> Save Settings
-                        </button>
-                    </form>
                 </div>
             </div>
         </div>

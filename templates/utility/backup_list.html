@@ -44,6 +44,7 @@
                             <tr>
                                 <th>Filename</th>
                                 <th>Type</th>
+                                <th>Description</th>
                                 <th>Date Created</th>
                                 <th>Size</th>
                                 <th class="text-center">Actions</th>
@@ -61,6 +62,13 @@
                                             {% else %}bg-secondary{% endif %}">
                                             {{ backup.type }}
                                         </span>
+                                    </td>
+                                    <td>
+                                        {% if backup.description != backup.type %}
+                                            {{ backup.description }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
                                     </td>
                                     <td>{{ backup.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                                     <td>{{ backup.size_formatted }}</td>

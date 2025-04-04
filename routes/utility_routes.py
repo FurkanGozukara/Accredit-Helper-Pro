@@ -12,6 +12,7 @@ import glob
 import csv
 import tempfile
 import io
+import json
 
 utility_bp = Blueprint('utility', __name__, url_prefix='/utility')
 
@@ -125,9 +126,31 @@ def backup_database():
                 # Copy database file
                 shutil.copy2(db_path, backup_path)
                 
+                # Get and save the custom description
+                description = request.form.get('description', '').strip()
+                
+                # Load existing backup descriptions or create new if not exists
+                descriptions_file = os.path.join(backup_dir, 'backup_descriptions.json')
+                descriptions = {}
+                if os.path.exists(descriptions_file):
+                    try:
+                        with open(descriptions_file, 'r') as f:
+                            descriptions = json.load(f)
+                    except json.JSONDecodeError:
+                        # Handle case where file exists but is invalid JSON
+                        descriptions = {}
+                
+                # Save the description for this backup
+                descriptions[backup_filename] = description
+                
+                # Write back to the file
+                with open(descriptions_file, 'w') as f:
+                    json.dump(descriptions, f)
+                
                 # Log action
                 log = Log(action="BACKUP_DATABASE", 
-                        description=f"Created database backup: {backup_filename}")
+                        description=f"Created database backup: {backup_filename}" + 
+                        (f" with description: {description}" if description else ""))
                 db.session.add(log)
                 db.session.commit()
                 
@@ -140,36 +163,57 @@ def backup_database():
         backup_dir = app.config['BACKUP_FOLDER']
         backups = []
         
+        # Load backup descriptions
+        descriptions_file = os.path.join(backup_dir, 'backup_descriptions.json')
+        descriptions = {}
+        if os.path.exists(descriptions_file):
+            try:
+                with open(descriptions_file, 'r') as f:
+                    descriptions = json.load(f)
+            except json.JSONDecodeError:
+                # Handle corrupt JSON file
+                descriptions = {}
+        
         if os.path.exists(backup_dir):
-            backup_files = glob.glob(os.path.join(backup_dir, "accredit_data_backup_*.db"))
+            backup_files = glob.glob(os.path.join(backup_dir, "*.db"))
             for backup_file in backup_files:
                 filename = os.path.basename(backup_file)
                 created_at = os.path.getmtime(backup_file)
                 size = os.path.getsize(backup_file) / (1024 * 1024)  # Size in MB
+                
+                # Add backup type information
+                backup_type = "Regular"
+                if "pre_import_backup" in filename:
+                    backup_type = "Pre-Import"
+                elif "pre_restore_backup" in filename:
+                    backup_type = "Pre-Restore"
+                elif "pre_merge_backup" in filename:
+                    backup_type = "Pre-Merge"
+                
+                # Get custom description if available, otherwise use backup type
+                custom_description = descriptions.get(filename, '')
+                display_description = custom_description if custom_description else backup_type
                 
                 backups.append({
                     'filename': filename,
                     'created_at': datetime.fromtimestamp(created_at),
                     'size': round(size, 2),
                     'size_formatted': f"{round(size, 2)} MB",
-                    'description': ''  # Add empty description to match template
+                    'type': backup_type,  # Keep type for color coding
+                    'description': display_description  # Use custom description if available
                 })
         
         # Sort backups by creation time (newest first)
         backups.sort(key=lambda x: x['created_at'], reverse=True)
         
-        # Set the total backups and auto backup defaults for the template
+        # Set the total backups and last backup for the template
         total_backups = len(backups)
         last_backup = backups[0] if backups else None
-        auto_backup_enabled = False
-        auto_backup_frequency = 'weekly'
         
         return render_template('utility/backup.html', 
                             backups=backups,
                             total_backups=total_backups,
                             last_backup=last_backup,
-                            auto_backup_enabled=auto_backup_enabled,
-                            auto_backup_frequency=auto_backup_frequency,
                             active_page='utilities')
     except Exception as e:
         logging.error(f"Error in backup page: {str(e)}")
@@ -213,7 +257,26 @@ def delete_backup(filename):
         return redirect(url_for('utility.backup_database'))
     
     try:
+        # Delete the backup file
         os.remove(backup_path)
+        
+        # Also remove the description from the JSON file if it exists
+        descriptions_file = os.path.join(backup_dir, 'backup_descriptions.json')
+        if os.path.exists(descriptions_file):
+            try:
+                with open(descriptions_file, 'r') as f:
+                    descriptions = json.load(f)
+                
+                # Remove this backup's description if it exists
+                if filename in descriptions:
+                    del descriptions[filename]
+                    
+                    # Write the updated descriptions back to the file
+                    with open(descriptions_file, 'w') as f:
+                        json.dump(descriptions, f)
+            except Exception as e:
+                logging.error(f"Error updating backup descriptions file: {str(e)}")
+                # Continue even if this fails - main goal is to delete the backup file
         
         # Log action
         log = Log(action="DELETE_BACKUP", 
@@ -403,15 +466,12 @@ def restore_from_backup(filename):
         # Get current database path
         db_path = os.path.join('instance', 'accredit_data.db')
         
-        # Check if user wants to backup current database before restore
-        backup_current = request.form.get('backup_current', '0') == '1'
-        
-        if backup_current and os.path.exists(db_path):
-            # Create a backup of current database before restore
+        # Always create a backup of current database before restore
+        if os.path.exists(db_path):
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             pre_restore_backup = os.path.join(app.config['BACKUP_FOLDER'], f"pre_restore_backup_{timestamp}.db")
             shutil.copy2(db_path, pre_restore_backup)
-            flash(f'Created backup of current database before restore: pre_restore_backup_{timestamp}.db', 'info')
+            flash(f'Created automatic backup of current database before restore: pre_restore_backup_{timestamp}.db', 'info')
         
         # Close the current database connection
         db.session.close()
@@ -848,6 +908,17 @@ def list_backups():
     backup_dir = app.config['BACKUP_FOLDER']
     backups = []
     
+    # Load backup descriptions
+    descriptions_file = os.path.join(backup_dir, 'backup_descriptions.json')
+    descriptions = {}
+    if os.path.exists(descriptions_file):
+        try:
+            with open(descriptions_file, 'r') as f:
+                descriptions = json.load(f)
+        except json.JSONDecodeError:
+            # Handle corrupt JSON file
+            descriptions = {}
+    
     if os.path.exists(backup_dir):
         # Get all backup files (including pre-restore and pre-merge backups)
         backup_files = glob.glob(os.path.join(backup_dir, "*.db"))
@@ -856,19 +927,26 @@ def list_backups():
             created_at = os.path.getmtime(backup_file)
             size = os.path.getsize(backup_file) / (1024 * 1024)  # Size in MB
             
-            # Determine backup type
+            # Add backup type information
             backup_type = "Regular"
-            if "pre_restore_backup" in filename:
+            if "pre_import_backup" in filename:
+                backup_type = "Pre-Import"
+            elif "pre_restore_backup" in filename:
                 backup_type = "Pre-Restore"
             elif "pre_merge_backup" in filename:
                 backup_type = "Pre-Merge"
+            
+            # Get custom description if available, otherwise use backup type
+            custom_description = descriptions.get(filename, '')
+            display_description = custom_description if custom_description else backup_type
             
             backups.append({
                 'filename': filename,
                 'created_at': datetime.fromtimestamp(created_at),
                 'size': round(size, 2),
                 'size_formatted': f"{round(size, 2)} MB",
-                'type': backup_type
+                'type': backup_type,  # Use type for display in the badge
+                'description': display_description  # Use custom description if available
             })
     
     # Sort backups by creation time (newest first)
@@ -877,31 +955,6 @@ def list_backups():
     return render_template('utility/backup_list.html', 
                          backups=backups, 
                          active_page='utilities')
-
-@utility_bp.route('/update_auto_backup', methods=['POST'])
-def update_auto_backup():
-    """Update automatic backup settings"""
-    try:
-        auto_backup_enabled = request.form.get('auto_backup_enabled') == 'on'
-        auto_backup_frequency = request.form.get('auto_backup_frequency', 'daily')
-        
-        # TODO: Save these settings to database or config file
-        # For now, we'll just show a message
-        
-        # Log the action
-        log = Log(
-            action="UPDATE_AUTO_BACKUP_SETTINGS",
-            description=f"Updated auto-backup settings: enabled={auto_backup_enabled}, frequency={auto_backup_frequency}"
-        )
-        db.session.add(log)
-        db.session.commit()
-        
-        flash('Auto-backup settings updated successfully', 'success')
-    except Exception as e:
-        logging.error(f"Error updating auto-backup settings: {str(e)}")
-        flash(f'An error occurred while updating auto-backup settings: {str(e)}', 'error')
-    
-    return redirect(url_for('utility.backup_database'))
 
 @utility_bp.route('/import', methods=['GET', 'POST'])
 def import_database():
@@ -1001,6 +1054,9 @@ def import_database():
                     
                     # STEP 2: Import courses if selected
                     if import_courses:
+                        # Create a set to track courses that already exist and should be skipped
+                        existing_course_ids = set()
+                        
                         for course_data in import_courses_data:
                             course_key = (course_data['code'], course_data['semester'])
                             import_course_id = course_data['id']
@@ -1010,6 +1066,8 @@ def import_database():
                                 # Course already exists, just map the ID
                                 existing_id = current_courses[course_key]
                                 course_id_map[import_course_id] = existing_id
+                                # Add to set of existing course IDs to skip related data import
+                                existing_course_ids.add(import_course_id)
                                 logging.info(f"Mapped existing course: {course_data['code']} {course_data['semester']} " +
                                             f"(import ID: {import_course_id}, current ID: {existing_id})")
                             else:
@@ -1035,11 +1093,16 @@ def import_database():
                                            f"(import ID: {import_course_id}, new ID: {new_course_id})")
                     else:
                         # Even if not importing courses, create ID mapping for existing courses
+                        # Create a set to track courses that already exist and should be skipped
+                        existing_course_ids = set()
+                        
                         for course_data in import_courses_data:
                             course_key = (course_data['code'], course_data['semester'])
                             if course_key in current_courses:
                                 existing_id = current_courses[course_key]
                                 course_id_map[course_data['id']] = existing_id
+                                # Add to set of existing course IDs to skip related data import
+                                existing_course_ids.add(course_data['id'])
                                 logging.info(f"Mapped existing course (no import): {course_data['code']} {course_data['semester']} " +
                                            f"(import ID: {course_data['id']}, current ID: {existing_id})")
                     
@@ -1054,6 +1117,10 @@ def import_database():
                             # Get mapped course ID in current database
                             if import_course_id not in course_id_map:
                                 continue  # Skip if no mapping for this course
+                            
+                            # Skip importing outcomes for existing courses
+                            if import_course_id in existing_course_ids:
+                                continue
                                 
                             current_course_id = course_id_map[import_course_id]
                             outcome_key = (outcome_data['code'], current_course_id)
@@ -1094,6 +1161,10 @@ def import_database():
                             if import_course_id not in course_id_map:
                                 continue  # Skip if no mapping for this course
                                 
+                            # Skip importing students for existing courses
+                            if import_course_id in existing_course_ids:
+                                continue
+                            
                             current_course_id = course_id_map[import_course_id]
                             student_key = (student_data['student_id'], current_course_id)
                             
@@ -1133,7 +1204,11 @@ def import_database():
                             # Get mapped course ID in current database
                             if import_course_id not in course_id_map:
                                 continue  # Skip if no mapping for this course
-                                
+                            
+                            # Skip importing exams for existing courses
+                            if import_course_id in existing_course_ids:
+                                continue
+                            
                             current_course_id = course_id_map[import_course_id]
                             
                             # For exams, we need a more robust way to detect duplicates
@@ -1170,7 +1245,7 @@ def import_database():
                                         current_course_id,
                                         exam_data['is_makeup'],
                                         exam_data['is_mandatory'],
-                                        exam_data.get('is_final', False),  # Default to False if field doesn't exist
+                                        'is_final' in exam_data and exam_data['is_final'] or False,  # Safe check for is_final field
                                         datetime.now(),
                                         datetime.now()
                                     )
@@ -1193,7 +1268,7 @@ def import_database():
                                         current_course_id,
                                         exam_data['is_makeup'],
                                         exam_data['is_mandatory'],
-                                        exam_data.get('is_final', False),  # Default to False if field doesn't exist
+                                        'is_final' in exam_data and exam_data['is_final'] or False,  # Safe check for is_final field
                                         datetime.now(),
                                         datetime.now()
                                     )
@@ -1257,6 +1332,10 @@ def import_database():
                             if import_exam_id not in exam_id_map or import_course_id not in course_id_map:
                                 continue
                             
+                            # Skip importing weights for existing courses
+                            if import_course_id in existing_course_ids:
+                                continue
+                            
                             current_exam_id = exam_id_map[import_exam_id]
                             current_course_id = course_id_map[import_course_id]
                             weight_key = (current_exam_id, current_course_id)
@@ -1311,6 +1390,10 @@ def import_database():
                                     if import_course_id not in course_id_map:
                                         continue
                                     
+                                    # Skip importing settings for existing courses
+                                    if import_course_id in existing_course_ids:
+                                        continue
+                                    
                                     current_course_id = course_id_map[import_course_id]
                                     
                                     # Check if settings already exist
@@ -1342,7 +1425,7 @@ def import_database():
                             logging.warning(f"Could not import course settings: {str(e)}")
                     
                     # STEP 6: Import scores - we can import scores regardless of whether we imported students/exams/questions
-                    # as long as we have the mappings for them
+                    # as long as we have the mappings for them. For existing courses, skip score import.
                     if student_id_map and question_id_map and exam_id_map:
                         import_scores_data = import_db.execute("SELECT * FROM score").fetchall()
                         
@@ -1365,6 +1448,14 @@ def import_database():
                                 logging.debug(f"Skipping score - Missing mapping: student={import_student_id in student_id_map}, " +
                                              f"question={import_question_id in question_id_map}, exam={import_exam_id in exam_id_map}")
                                 continue
+                                
+                            # Get the course ID for this exam to check if it's from an existing course
+                            try:
+                                exam_data = import_db.execute("SELECT course_id FROM exam WHERE id = ?", (import_exam_id,)).fetchone()
+                                if exam_data and exam_data['course_id'] in existing_course_ids:
+                                    continue  # Skip scores for existing courses
+                            except Exception as e:
+                                logging.debug(f"Error checking exam course: {str(e)}")
                             
                             current_student_id = student_id_map[import_student_id]
                             current_question_id = question_id_map[import_question_id]
@@ -1478,6 +1569,14 @@ def import_database():
                                     import_exam_id not in exam_id_map):
                                     continue
                                 
+                                # Get the course ID for this exam to check if it's from an existing course
+                                try:
+                                    exam_data = import_db.execute("SELECT course_id FROM exam WHERE id = ?", (import_exam_id,)).fetchone()
+                                    if exam_data and exam_data['course_id'] in existing_course_ids:
+                                        continue  # Skip scores for existing courses
+                                except Exception as e:
+                                    logging.debug(f"Error checking exam course in second pass: {str(e)}")
+                                
                                 current_student_id = student_id_map[import_student_id]
                                 current_question_id = question_id_map[import_question_id]
                                 current_exam_id = exam_id_map[import_exam_id]
@@ -1524,6 +1623,21 @@ def import_database():
                                 import_original_exam_id not in exam_id_map):
                                 continue
                             
+                            # Skip relationships for exams from existing courses
+                            try:
+                                # Check if either exam is from an existing course
+                                exam_data = import_db.execute("SELECT course_id FROM exam WHERE id = ?", 
+                                                           (import_exam_id,)).fetchone()
+                                if exam_data and exam_data['course_id'] in existing_course_ids:
+                                    continue
+                                
+                                original_exam_data = import_db.execute("SELECT course_id FROM exam WHERE id = ?", 
+                                                                     (import_original_exam_id,)).fetchone()
+                                if original_exam_data and original_exam_data['course_id'] in existing_course_ids:
+                                    continue
+                            except Exception as e:
+                                logging.debug(f"Error checking makeup exam source course: {str(e)}")
+                            
                             current_exam_id = exam_id_map[import_exam_id]
                             current_original_exam_id = exam_id_map[import_original_exam_id]
                             
@@ -1568,6 +1682,27 @@ def import_database():
                                                 f"outcome={import_outcome_id in outcome_id_map}")
                                     relationships_skipped += 1
                                     continue
+                                
+                                # Skip relationships for questions and outcomes from existing courses
+                                try:
+                                    # Check if the outcome is from an existing course
+                                    outcome_data = import_db.execute("SELECT course_id FROM course_outcome WHERE id = ?", 
+                                                                   (import_outcome_id,)).fetchone()
+                                    if outcome_data and outcome_data['course_id'] in existing_course_ids:
+                                        relationships_skipped += 1
+                                        continue
+                                    
+                                    # Check if the question is from an exam from an existing course
+                                    question_data = import_db.execute("SELECT exam_id FROM question WHERE id = ?", 
+                                                                    (import_question_id,)).fetchone()
+                                    if question_data:
+                                        exam_data = import_db.execute("SELECT course_id FROM exam WHERE id = ?", 
+                                                                    (question_data['exam_id'],)).fetchone()
+                                        if exam_data and exam_data['course_id'] in existing_course_ids:
+                                            relationships_skipped += 1
+                                            continue
+                                except Exception as e:
+                                    logging.debug(f"Error checking relationship source course: {str(e)}")
                                 
                                 current_question_id = question_id_map[import_question_id]
                                 current_outcome_id = outcome_id_map[import_outcome_id]
@@ -1638,6 +1773,17 @@ def import_database():
                                 if import_course_outcome_id not in outcome_id_map:
                                     program_relationships_skipped += 1
                                     continue
+                                
+                                # Skip relationships for outcomes from existing courses
+                                try:
+                                    # Check if the outcome is from an existing course
+                                    outcome_data = import_db.execute("SELECT course_id FROM course_outcome WHERE id = ?", 
+                                                                   (import_course_outcome_id,)).fetchone()
+                                    if outcome_data and outcome_data['course_id'] in existing_course_ids:
+                                        program_relationships_skipped += 1
+                                        continue
+                                except Exception as e:
+                                    logging.debug(f"Error checking outcome source course: {str(e)}")
                                 
                                 # Get the imported program outcome code to map to the current database
                                 try:
@@ -1745,18 +1891,28 @@ def import_database():
         backups = []
         
         if os.path.exists(backup_dir):
-            backup_files = glob.glob(os.path.join(backup_dir, "accredit_data_backup_*.db"))
+            # Change this line to include all .db files, not just accredit_data_backup_*.db
+            backup_files = glob.glob(os.path.join(backup_dir, "*.db"))
             for backup_file in backup_files:
                 filename = os.path.basename(backup_file)
                 created_at = os.path.getmtime(backup_file)
                 size = os.path.getsize(backup_file) / (1024 * 1024)  # Size in MB
+                
+                # Add backup type information
+                backup_type = "Regular"
+                if "pre_import_backup" in filename:
+                    backup_type = "Pre-Import"
+                elif "pre_restore_backup" in filename:
+                    backup_type = "Pre-Restore"
+                elif "pre_merge_backup" in filename:
+                    backup_type = "Pre-Merge"
                 
                 backups.append({
                     'filename': filename,
                     'created_at': datetime.fromtimestamp(created_at),
                     'size': round(size, 2),
                     'size_formatted': f"{round(size, 2)} MB",
-                    'description': ''  # Add empty description to match template
+                    'description': backup_type  # Use description field to show backup type
                 })
         
         # Sort backups by creation time (newest first)
