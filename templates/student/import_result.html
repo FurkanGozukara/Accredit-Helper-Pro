@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Import Results - ABET Calculator{% endblock %}
+{% block title %}Import Results - Accredit Calculator{% endblock %}
 
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
@@ -22,21 +22,21 @@
                         <h5><i class="fas fa-check-circle"></i> Import Complete</h5>
                         <p>Successfully imported {{ students_added }} student{{ 's' if students_added != 1 else '' }}.</p>
                     </div>
-                    
+
                     {% if errors %}
-                        <div class="mt-4">
-                            <h5>Import Errors</h5>
-                            <div class="alert alert-warning">
-                                <p>The following errors occurred during import:</p>
-                                <ul class="mb-0">
-                                    {% for error in errors %}
-                                        <li>{{ error }}</li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
+                    <div class="mt-4">
+                        <h5>Import Errors</h5>
+                        <div class="alert alert-warning">
+                            <p>The following errors occurred during import:</p>
+                            <ul class="mb-0">
+                                {% for error in errors %}
+                                <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
                         </div>
+                    </div>
                     {% endif %}
-                    
+
                     <div class="d-flex justify-content-between mt-4">
                         <a href="{{ url_for('student.import_students', course_id=course.id) }}" class="btn btn-secondary">
                             <i class="fas fa-file-import"></i> Import More Students

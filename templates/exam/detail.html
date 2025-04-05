@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ exam.name }} - ABET Calculator{% endblock %}
+{% block title %}{{ exam.name }} - Accredit Calculator{% endblock %}
 
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
@@ -19,8 +19,8 @@
             <a href="{{ url_for('student.manage_scores', exam_id=exam.id) }}" class="btn btn-outline-primary me-2">
                 <i class="fas fa-clipboard-list"></i> Manage Scores
             </a>
-            <button type="button" class="btn btn-outline-danger" 
-                    data-bs-toggle="modal" 
+            <button type="button" class="btn btn-outline-danger"
+                    data-bs-toggle="modal"
                     data-bs-target="#confirmDeleteModal">
                 <i class="fas fa-trash"></i> Delete Exam
             </button>
@@ -32,7 +32,7 @@
             </a>
         </div>
     </div>
-    
+
     <div class="row">
         <div class="col-md-4 mb-4">
             <div class="card h-100">
@@ -43,33 +43,33 @@
                     <p><strong>Course:</strong> {{ exam.course.code }}: {{ exam.course.name }}</p>
                     <p><strong>Maximum Score:</strong> {{ exam.max_score }}</p>
                     {% if exam.exam_date %}
-                        <p><strong>Date:</strong> {{ exam.exam_date.strftime('%d %B %Y') }}</p>
+                    <p><strong>Date:</strong> {{ exam.exam_date.strftime('%d %B %Y') }}</p>
                     {% endif %}
                     <p>
                         <strong>Type:</strong>
                         {% if exam.is_makeup %}
-                            <span class="badge bg-warning">Make-up Exam</span>
-                            {% if exam.original_exam %}
-                                <br><small class="text-muted">For: {{ exam.original_exam.name }}</small>
-                            {% endif %}
+                        <span class="badge bg-warning">Make-up Exam</span>
+                        {% if exam.original_exam %}
+                        <br><small class="text-muted">For: {{ exam.original_exam.name }}</small>
+                        {% endif %}
                         {% elif exam.is_final %}
-                            <span class="badge bg-danger">Final Exam</span>
+                        <span class="badge bg-danger">Final Exam</span>
                         {% else %}
-                            <span class="badge bg-primary">Regular Exam</span>
-                            {% if exam.makeup_exam %}
-                                <br><small class="text-muted">Has makeup: {{ exam.makeup_exam.name }}</small>
-                            {% endif %}
+                        <span class="badge bg-primary">Regular Exam</span>
+                        {% if exam.makeup_exam %}
+                        <br><small class="text-muted">Has makeup: {{ exam.makeup_exam.name }}</small>
+                        {% endif %}
                         {% endif %}
                     </p>
-                    
+
                     {% set weight = exam.course.exam_weights|selectattr('exam_id', 'equalto', exam.id)|first %}
                     {% if weight %}
-                        <p><strong>Weight in Course:</strong> {{ (weight.weight * 100)|round(1) }}%</p>
+                    <p><strong>Weight in Course:</strong> {{ (weight.weight * 100)|round(1) }}%</p>
                     {% endif %}
                 </div>
             </div>
         </div>
-        
+
         <div class="col-md-8 mb-4">
             <div class="card h-100">
                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
@@ -85,112 +85,117 @@
                 </div>
                 <div class="card-body">
                     {% if exam.questions %}
-                        <div class="mb-3">
-                            <p class="mb-0">
-                                <strong>Exam maximum: {{ exam.max_score }}</strong> | 
-                                <strong>Total question points: {{ total_question_score|round(1) }}</strong>
-                                {% if total_question_score != exam.max_score|float %}
-                                    <span class="text-danger">
-                                        <i class="fas fa-exclamation-triangle"></i> 
-                                        Mismatch (difference: {{ (total_question_score - exam.max_score|float)|round(1) }})
-                                    </span>
-                                {% else %}
-                                    <span class="text-success">
-                                        <i class="fas fa-check-circle"></i> Matched
-                                    </span>
-                                {% endif %}
-                            </p>
-                        </div>
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover">
-                                <thead class="thead-light">
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Description</th>
-                                        <th>Max Score</th>
-                                        <th>Course Outcomes</th>
-                                        <th class="text-center">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for question in exam.questions|sort(attribute='number') %}
-                                        <tr>
-                                            <td>{{ question.number }}</td>
-                                            <td>{{ question.text|truncate(50) if question.text else 'Question ' ~ question.number }}</td>
-                                            <td>{{ question.max_score }}</td>
-                                            <td>
-                                                {% for co in question.course_outcomes %}
-                                                    <span class="badge bg-info">{{ co.code }}</span>
-                                                {% else %}
-                                                    <span class="text-muted">None</span>
-                                                {% endfor %}
-                                            </td>
-                                            <td class="text-center">
-                                                <a href="{{ url_for('question.edit_question', question_id=question.id) }}" 
-                                                   class="btn btn-sm btn-outline-primary me-1" title="Edit">
-                                                    <i class="fas fa-edit"></i>
-                                                </a>
-                                                <button type="button" class="btn btn-sm btn-outline-danger" 
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#confirmDeleteQuestionModal" 
-                                                        data-question-id="{{ question.id }}"
-                                                        data-question-number="{{ question.number }}"
-                                                        title="Delete">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
+                    <div class="mb-3">
+                        <p class="mb-0">
+                            <strong>Exam maximum: {{ exam.max_score }}</strong> |
+                            <strong>Total question points: {{ total_question_score|round(1) }}</strong>
+                            {% if total_question_score != exam.max_score|float %}
+                            <span class="text-danger">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                Mismatch (difference: {{ (total_question_score - exam.max_score|float)|round(1) }})
+                            </span>
+                            {% else %}
+                            <span class="text-success">
+                                <i class="fas fa-check-circle"></i> Matched
+                            </span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Description</th>
+                                    <th>Max Score</th>
+                                    <th>Course Outcomes</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for question in exam.questions|sort(attribute='number') %}
+                                <tr>
+                                    <td>{{ question.number }}</td>
+                                    <td>{{ question.text|truncate(50) if question.text else 'Question ' ~ question.number }}</td>
+                                    <td>{{ question.max_score }}</td>
+                                    <td>
+                                        {% for co in question.course_outcomes %}
+                                        <span class="badge bg-info">{{ co.code }}</span>
+                                        {% else %}
+                                        <span class="text-muted">None</span>
+                                        {% endfor %}
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{{ url_for('question.edit_question', question_id=question.id) }}"
+                                           class="btn btn-sm btn-outline-primary me-1" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#confirmDeleteQuestionModal"
+                                                data-question-id="{{ question.id }}"
+                                                data-question-number="{{ question.number }}"
+                                                title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                     {% else %}
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i> No questions have been added to this exam yet.
-                            <a href="{{ url_for('question.add_question', exam_id=exam.id) }}" class="alert-link">Add your first question</a>.
-                        </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> No questions have been added to this exam yet.
+                        <a href="{{ url_for('question.add_question', exam_id=exam.id) }}" class="alert-link">Add your first question</a>.
+                    </div>
                     {% endif %}
                 </div>
             </div>
         </div>
     </div>
-    
+
     <div class="row mt-2">
         <div class="col-12">
             <div class="card">
                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Student Scores</h5>
                     <div>
+                        {% if exam.course.students %}
+                        <a href="{{ url_for('student.manage_attendance', exam_id=exam.id) }}" class="btn btn-sm btn-outline-primary me-2">
+                            <i class="fas fa-clipboard-check"></i> Manage Attendance
+                        </a>
+                        {% endif %}
                         {% if exam.questions and exam.course.students %}
-                            <a href="{{ url_for('student.manage_scores', exam_id=exam.id) }}" class="btn btn-sm btn-primary me-2">
-                                <i class="fas fa-table"></i> Enter Scores
-                            </a>
+                        <a href="{{ url_for('student.manage_scores', exam_id=exam.id) }}" class="btn btn-sm btn-primary me-2">
+                            <i class="fas fa-table"></i> Enter Scores
+                        </a>
                         {% endif %}
                         {% if exam.scores %}
-                            <button type="button" class="btn btn-sm btn-outline-success" onclick="exportScores()">
-                                <i class="fas fa-file-export"></i> Export Scores
-                            </button>
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="exportScores()">
+                            <i class="fas fa-file-export"></i> Export Scores
+                        </button>
                         {% endif %}
                     </div>
                 </div>
                 <div class="card-body">
                     {% if not exam.course.students %}
-                        <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle"></i> No students are enrolled in this course. 
-                            <a href="{{ url_for('student.import_students', course_id=exam.course_id) }}" class="alert-link">Import students</a> first.
-                        </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> No students are enrolled in this course.
+                        <a href="{{ url_for('student.import_students', course_id=exam.course_id) }}" class="alert-link">Import students</a> first.
+                    </div>
                     {% elif not exam.questions %}
-                        <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle"></i> No questions have been added to this exam. 
-                            <a href="{{ url_for('question.add_question', exam_id=exam.id) }}" class="alert-link">Add questions</a> first.
-                        </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> No questions have been added to this exam.
+                        <a href="{{ url_for('question.add_question', exam_id=exam.id) }}" class="alert-link">Add questions</a> first.
+                    </div>
                     {% elif not exam.scores %}
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i> No scores have been entered for this exam yet.
-                            <a href="{{ url_for('student.manage_scores', exam_id=exam.id) }}" class="alert-link">Start entering scores</a>.
-                        </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> No scores have been entered for this exam yet.
+                        <a href="{{ url_for('student.manage_scores', exam_id=exam.id) }}" class="alert-link">Start entering scores</a>.
+                    </div>
                     {% else %}
-                        <p>Scores have been entered. <a href="{{ url_for('student.manage_scores', exam_id=exam.id) }}">View or edit scores</a>.</p>
+                    <p>Scores have been entered. <a href="{{ url_for('student.manage_scores', exam_id=exam.id) }}">View or edit scores</a>.</p>
                     {% endif %}
                 </div>
             </div>
@@ -250,13 +255,13 @@
                 const button = event.relatedTarget;
                 const questionId = button.getAttribute('data-question-id');
                 const questionNumber = button.getAttribute('data-question-number');
-                
+
                 document.getElementById('questionNumberToDelete').textContent = questionNumber;
                 document.getElementById('deleteQuestionForm').action = `/question/delete/${questionId}`;
             });
         }
     });
-    
+
     function exportScores() {
         window.location.href = "{{ url_for('exam.export_exam_scores', exam_id=exam.id) }}";
     }

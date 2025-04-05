@@ -57,6 +57,7 @@ class Exam(db.Model):
     scores = db.relationship('Score', backref='exam', lazy=True, cascade="all, delete-orphan")
     makeup_exam = db.relationship('Exam', backref=db.backref('original_exam', uselist=False), 
                                   remote_side=[id], uselist=False)
+    attendances = db.relationship('StudentExamAttendance', backref='exam', lazy=True, cascade="all, delete-orphan")
     
     # Add additional composite indexes
     __table_args__ = (
@@ -153,6 +154,7 @@ class Student(db.Model):
     
     # Relationships
     scores = db.relationship('Score', backref='student', lazy=True, cascade="all, delete-orphan")
+    attendances = db.relationship('StudentExamAttendance', backref='student', lazy=True, cascade="all, delete-orphan")
     
     # Add a unique constraint to ensure student_id is unique per course
     __table_args__ = (
@@ -225,4 +227,23 @@ class AchievementLevel(db.Model):
     course = db.relationship('Course', backref=db.backref('achievement_levels', lazy=True, cascade="all, delete-orphan"))
     
     def __repr__(self):
-        return f"<AchievementLevel {self.name} ({self.min_score}-{self.max_score}%) for Course {self.course_id}>" 
+        return f"<AchievementLevel {self.name} ({self.min_score}-{self.max_score}%) for Course {self.course_id}>"
+
+class StudentExamAttendance(db.Model):
+    """Model to track whether a student attended an exam"""
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False, index=True)
+    exam_id = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=False, index=True)
+    attended = db.Column(db.Boolean, default=True, nullable=False)  # Default is that student attended
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    # Add unique constraint to ensure one attendance record per student per exam
+    __table_args__ = (
+        db.UniqueConstraint('student_id', 'exam_id', name='_student_exam_attendance_uc'),
+        db.Index('idx_attendance_student_exam', 'student_id', 'exam_id'),
+    )
+    
+    def __repr__(self):
+        attendance_status = "attended" if self.attended else "did not attend"
+        return f"<StudentExamAttendance: Student {self.student_id} {attendance_status} Exam {self.exam_id}>" 

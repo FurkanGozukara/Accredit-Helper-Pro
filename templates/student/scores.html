@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Enter Scores - {{ exam.name }} - ABET Calculator{% endblock %}
+{% block title %}Enter Scores - {{ exam.name }} - Accredit Calculator{% endblock %}
 
 {% block styles %}
 {{ super() }}
@@ -65,6 +65,27 @@
     .student-separator {
         height: 1.5rem;
     }
+    
+    /* Style for students who didn't attend */
+    .student-not-attended .student-cell {
+        background-color: #f8d7da;
+        border-left: 4px solid #dc3545;
+    }
+    
+    .student-not-attended .score-input {
+        background-color: #f8d7da;
+        cursor: not-allowed;
+    }
+    
+    .not-attended-badge {
+        display: inline-block;
+        background-color: #dc3545;
+        color: white;
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+        border-radius: 0.25rem;
+        margin-top: 0.25rem;
+    }
 </style>
 {% endblock %}
 
@@ -98,6 +119,12 @@
                 <span id="saveStatus"></span>
             </div>
             
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i> <strong>Attendance Notice:</strong> 
+                Students highlighted in red are marked as "Not Attended" and their scores will be ignored in all calculations.
+                To manage attendance, use the <a href="{{ url_for('student.manage_attendance', exam_id=exam.id) }}">Manage Attendance</a> page.
+            </div>
+            
             <div class="table-responsive">
                 <form id="scoresForm" method="POST" action="{{ url_for('student.manage_scores', exam_id=exam.id) }}">
                     {% set questions_sorted = questions|sort(attribute='number') %}
@@ -106,7 +133,8 @@
                     {% set num_rows = ((total_questions + questions_per_row - 1) // questions_per_row) %}
                     
                     {% for student in students %}
-                        <table class="table table-bordered scores-table">
+                        {% set attended = attendance_dict.get(student.id, True) %}
+                        <table class="table table-bordered scores-table {{ 'student-not-attended' if not attended }}">
                             <tbody>
                                 {% for row_index in range(num_rows) %}
                                     <tr>
@@ -114,6 +142,25 @@
                                             <td class="student-cell" rowspan="{{ num_rows }}">
                                                 {{ student.student_id }}<br>
                                                 <small>{{ student.first_name }} {{ student.last_name }}</small>
+                                                
+                                                <div class="mt-2 joined-exam-container">
+                                                    <div class="form-check form-switch">
+                                                        <input class="form-check-input attendance-toggle" type="checkbox" role="switch" 
+                                                            id="attended_{{ student.id }}" 
+                                                            data-student-id="{{ student.id }}"
+                                                            data-exam-id="{{ exam.id }}"
+                                                            {{ 'checked' if attended else '' }}>
+                                                        <label class="form-check-label" for="attended_{{ student.id }}">
+                                                            {{ 'Joined Exam' if attended else 'Did Not Join' }}
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                
+                                                {% if not attended %}
+                                                <div class="not-attended-badge">
+                                                    <i class="fas fa-times-circle"></i> Not Attended
+                                                </div>
+                                                {% endif %}
                                             </td>
                                         {% endif %}
                                         
@@ -137,7 +184,8 @@
                                                         min="0" max="{{ question.max_score|float|round(1) }}" step="0.1"
                                                         data-student-id="{{ student.id }}"
                                                         data-question-id="{{ question.id }}"
-                                                        data-max-score="{{ question.max_score|float|round(1) }}">
+                                                        data-max-score="{{ question.max_score|float|round(1) }}"
+                                                        {% if not attended %}disabled{% endif %}>
                                                 </div>
                                             </td>
                                         {% endfor %}
@@ -145,11 +193,15 @@
                                         {% if row_index == 0 %}
                                             <td class="summary-cell" rowspan="{{ num_rows }}">
                                                 <div class="summary-label">Total Score</div>
-                                                <div class="summary-value" id="total_value_{{ student.id }}">0.0</div>
+                                                <div class="summary-value" id="total_value_{{ student.id }}">
+                                                    {% if not attended %}N/A{% else %}0.0{% endif %}
+                                                </div>
                                             </td>
                                             <td class="summary-cell" rowspan="{{ num_rows }}">
                                                 <div class="summary-label">Percentage</div>
-                                                <div class="summary-value" id="percentage_value_{{ student.id }}">0%</div>
+                                                <div class="summary-value" id="percentage_value_{{ student.id }}">
+                                                    {% if not attended %}N/A{% else %}0%{% endif %}
+                                                </div>
                                             </td>
                                             <td class="summary-cell" rowspan="{{ num_rows }}">
                                                 <div class="summary-label">Accredited Scores</div>
@@ -246,7 +298,7 @@
             });
         });
         
-        // Add event listeners to ABET score buttons
+        // Add event listeners to Accredit score buttons
         document.querySelectorAll('.abet-scores-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const studentId = this.dataset.studentId;
@@ -259,6 +311,86 @@
         // Save all button
         saveAllButton.addEventListener('click', function() {
             form.submit();
+        });
+        
+        // Handle attendance toggle
+        document.querySelectorAll('.attendance-toggle').forEach(function(toggle) {
+            toggle.addEventListener('change', function() {
+                const studentId = this.dataset.studentId;
+                const examId = this.dataset.examId;
+                const attended = this.checked;
+                const label = this.nextElementSibling;
+                
+                // Update label text
+                label.textContent = attended ? 'Joined Exam' : 'Did Not Join';
+                
+                // Get all inputs for this student
+                const studentInputs = document.querySelectorAll('.score-input.student-' + studentId);
+                
+                // Update UI based on attendance
+                if (attended) {
+                    // Remove not-attended-badge if it exists
+                    const badge = this.closest('.student-cell').querySelector('.not-attended-badge');
+                    if (badge) badge.remove();
+                    
+                    // Enable all inputs for this student
+                    studentInputs.forEach(input => {
+                        input.disabled = false;
+                    });
+                    
+                    // Remove student-not-attended class from table
+                    this.closest('table').classList.remove('student-not-attended');
+                    
+                    // Update summary values
+                    document.getElementById('total_value_' + studentId).textContent = '0.0';
+                    document.getElementById('percentage_value_' + studentId).textContent = '0%';
+                } else {
+                    // Add not-attended-badge if it doesn't exist
+                    let badge = this.closest('.student-cell').querySelector('.not-attended-badge');
+                    if (!badge) {
+                        badge = document.createElement('div');
+                        badge.className = 'not-attended-badge';
+                        badge.innerHTML = '<i class="fas fa-times-circle"></i> Not Attended';
+                        this.closest('.student-cell').appendChild(badge);
+                    }
+                    
+                    // Disable all inputs for this student
+                    studentInputs.forEach(input => {
+                        input.disabled = true;
+                    });
+                    
+                    // Add student-not-attended class to table
+                    this.closest('table').classList.add('student-not-attended');
+                    
+                    // Update summary values
+                    document.getElementById('total_value_' + studentId).textContent = 'N/A';
+                    document.getElementById('percentage_value_' + studentId).textContent = 'N/A';
+                }
+                
+                // Send AJAX request to update attendance
+                fetch('/student/exam/' + examId + '/update-attendance', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        student_id: studentId,
+                        attended: attended
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showSaveStatus('Attendance updated', 'success');
+                    } else {
+                        showSaveStatus('Error: ' + data.error, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showSaveStatus('Error updating attendance', 'error');
+                });
+            });
         });
         
         function validateScore(input) {
@@ -284,6 +416,20 @@
         
         function updateStudentTotal(studentId) {
             const inputs = document.querySelectorAll(`.student-${studentId}`);
+            
+            // Check if student is marked as not attended
+            const isDisabled = inputs.length > 0 && inputs[0].disabled;
+            
+            // If student didn't attend, show N/A in the totals
+            if (isDisabled) {
+                const totalElement = document.getElementById(`total_value_${studentId}`);
+                const percentageElement = document.getElementById(`percentage_value_${studentId}`);
+                
+                if (totalElement) totalElement.textContent = 'N/A';
+                if (percentageElement) percentageElement.textContent = 'N/A';
+                return;
+            }
+            
             let total = 0;
             let examTotal = 0;
             
@@ -297,21 +443,13 @@
             const totalElement = document.getElementById(`total_value_${studentId}`);
             const percentageElement = document.getElementById(`percentage_value_${studentId}`);
             
-            total = parseFloat(total.toFixed(1));
-            totalElement.textContent = `${total.toFixed(1)} / ${examTotal.toFixed(1)}`;
+            if (totalElement) {
+                totalElement.textContent = total.toFixed(1);
+            }
             
-            const percentage = examTotal > 0 ? (total / examTotal) * 100 : 0;
-            percentageElement.textContent = percentage.toFixed(1) + '%';
-            
-            if (percentage >= 70) {
-                percentageElement.classList.add('text-success');
-                percentageElement.classList.remove('text-warning', 'text-danger');
-            } else if (percentage >= 50) {
-                percentageElement.classList.add('text-warning');
-                percentageElement.classList.remove('text-success', 'text-danger');
-            } else {
-                percentageElement.classList.add('text-danger');
-                percentageElement.classList.remove('text-success', 'text-warning');
+            if (percentageElement) {
+                const percentage = examTotal > 0 ? (total / examTotal) * 100 : 0;
+                percentageElement.textContent = percentage.toFixed(1) + '%';
             }
         }
         
@@ -367,6 +505,16 @@
         }
         
         function fetchAbetScores(student_id, courseId, container) {
+            // Check if the student didn't attend
+            const inputs = document.querySelectorAll(`.student-${student_id}`);
+            const isDisabled = inputs.length > 0 && inputs[0].disabled;
+            
+            // If student didn't attend, show a message
+            if (isDisabled) {
+                container.innerHTML = '<div class="alert alert-warning">Student did not attend this exam. No Accredite scores are calculated.</div>';
+                return;
+            }
+            
             fetch(`/api/student/${student_id}/abet-scores?course_id=${courseId}`)
                 .then(response => {
                     if (!response.ok) {

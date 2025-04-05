@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, current_app as app
 from app import db
-from models import Student, Course, Exam, Question, Score, Log
+from models import Student, Course, Exam, Question, Score, Log, StudentExamAttendance
 from datetime import datetime
 import logging
 import csv
@@ -8,6 +8,7 @@ import io
 import re
 from routes.utility_routes import export_to_excel_csv
 from decimal import Decimal
+from sqlalchemy.exc import IntegrityError
 
 student_bp = Blueprint('student', __name__, url_prefix='/student')
 
@@ -213,6 +214,10 @@ def manage_scores(exam_id):
         flash('No students found for this course. Please import students first.', 'warning')
         return redirect(url_for('student.import_students', course_id=course.id))
     
+    # Get attendance records
+    attendances = StudentExamAttendance.query.filter_by(exam_id=exam_id).all()
+    attendance_dict = {a.student_id: a.attended for a in attendances}
+    
     if request.method == 'POST':
         try:
             # Optional: update existing scores instead of removing them all
@@ -223,6 +228,10 @@ def manage_scores(exam_id):
             
             # Process scores for each student and question
             for student in students:
+                # Skip saving scores for students who didn't attend
+                if student.id in attendance_dict and not attendance_dict[student.id]:
+                    continue
+                    
                 for question in questions:
                     score_value = request.form.get(f'score_{student.id}_{question.id}', '')
                     
@@ -258,26 +267,30 @@ def manage_scores(exam_id):
                         continue
             
             # Log action
-            log = Log(action="SAVE_SCORES", 
-                     description=f"Updated scores for exam: {exam.name} in course: {course.code}")
+            log = Log(
+                action="UPDATE_SCORES",
+                description=f"Updated scores for exam: {exam.name} in course: {course.code}"
+            )
             db.session.add(log)
-            
             db.session.commit()
-            flash('Scores saved successfully', 'success')
+            
+            flash('Scores updated successfully.', 'success')
             return redirect(url_for('exam.exam_detail', exam_id=exam_id))
             
         except Exception as e:
             db.session.rollback()
-            logging.error(f"Error updating scores: {str(e)}")
-            flash('An error occurred while updating scores', 'error')
+            flash(f'Error saving scores: {str(e)}', 'error')
     
-    # For GET request
-    return render_template('student/scores.html', 
+    # Get existing scores
+    scores = Score.query.filter_by(exam_id=exam_id).all()
+    
+    return render_template('student/scores.html',
                          exam=exam,
                          course=course,
-                         students=students,
                          questions=questions,
-                         scores=Score.query.filter_by(exam_id=exam_id).all(),
+                         students=students,
+                         scores=scores,
+                         attendance_dict=attendance_dict,
                          active_page='courses')
 
 @student_bp.route('/exam/<int:exam_id>/scores/auto-save', methods=['POST'])
@@ -294,6 +307,16 @@ def auto_save_score(exam_id):
         student_id = int(data['student_id'])
         question_id = int(data['question_id'])
         score_value = data.get('score', '')
+        
+        # Check if the student attended the exam
+        attendance = StudentExamAttendance.query.filter_by(
+            student_id=student_id,
+            exam_id=exam_id
+        ).first()
+        
+        # If there's an attendance record and the student didn't attend, don't save the score
+        if attendance and not attendance.attended:
+            return jsonify({'success': False, 'error': 'Student did not attend the exam'})
         
         # Get the question to check max score
         question = Question.query.get_or_404(question_id)
@@ -801,4 +824,172 @@ def mass_delete_students():
     if error_count > 0:
         flash(f'Failed to delete {error_count} students due to existing scores or other errors', 'warning')
     
-    return redirect(url_for('course.course_detail', course_id=course_id)) 
+    return redirect(url_for('course.course_detail', course_id=course_id))
+
+@student_bp.route('/exam/<int:exam_id>/attendance', methods=['GET', 'POST'])
+def manage_attendance(exam_id):
+    """Manage student attendance for an exam"""
+    exam = Exam.query.get_or_404(exam_id)
+    course = Course.query.get_or_404(exam.course_id)
+    students = Student.query.filter_by(course_id=course.id).order_by(Student.student_id).all()
+    
+    # Get existing attendance records
+    attendances = StudentExamAttendance.query.filter_by(exam_id=exam_id).all()
+    attendance_dict = {a.student_id: a for a in attendances}
+    
+    if request.method == 'POST':
+        try:
+            # Process attendance data
+            for student in students:
+                attended = request.form.get(f'attended_{student.id}', 'off') == 'on'
+                
+                # Check if record already exists
+                if student.id in attendance_dict:
+                    # Update existing record
+                    record = attendance_dict[student.id]
+                    record.attended = attended
+                else:
+                    # Create new record
+                    record = StudentExamAttendance(
+                        student_id=student.id,
+                        exam_id=exam_id,
+                        attended=attended
+                    )
+                    db.session.add(record)
+            
+            # Log the action
+            log = Log(
+                action="UPDATE_EXAM_ATTENDANCE",
+                description=f"Updated attendance for {exam.name} in course {course.code}"
+            )
+            db.session.add(log)
+            db.session.commit()
+            
+            flash('Attendance updated successfully.', 'success')
+            return redirect(url_for('exam.exam_detail', exam_id=exam_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating attendance: {str(e)}', 'error')
+            
+    return render_template('student/attendance.html',
+                         exam=exam,
+                         course=course,
+                         students=students,
+                         attendance_dict=attendance_dict,
+                         active_page='courses')
+
+@student_bp.route('/exam/<int:exam_id>/attendance/import', methods=['POST'])
+def import_attendance(exam_id):
+    """Import student attendance data for an exam"""
+    exam = Exam.query.get_or_404(exam_id)
+    course = Course.query.get_or_404(exam.course_id)
+    
+    try:
+        # Get student mapping
+        students = Student.query.filter_by(course_id=course.id).all()
+        student_map = {s.student_id: s.id for s in students}
+        
+        # Process data from form
+        attendance_data = request.form.get('attendance_data', '')
+        
+        if attendance_data:
+            lines = attendance_data.strip().split('\n')
+            imported_count = 0
+            
+            for line in lines:
+                parts = line.strip().split(';')
+                if len(parts) < 2:
+                    continue
+                
+                student_id = parts[0].strip()
+                attended_str = parts[1].strip().lower()
+                
+                # Skip if student not found
+                if student_id not in student_map:
+                    continue
+                    
+                internal_id = student_map[student_id]
+                
+                # Determine if attended (y, yes, 1, true = attended)
+                attended = attended_str in ['y', 'yes', '1', 'true', 'attended']
+                
+                # Update or create attendance record
+                record = StudentExamAttendance.query.filter_by(
+                    student_id=internal_id,
+                    exam_id=exam_id
+                ).first()
+                
+                if record:
+                    # Update existing record
+                    record.attended = attended
+                else:
+                    # Create new record
+                    record = StudentExamAttendance(
+                        student_id=internal_id,
+                        exam_id=exam_id,
+                        attended=attended
+                    )
+                    db.session.add(record)
+                
+                imported_count += 1
+            
+            # Log the action
+            log = Log(
+                action="IMPORT_EXAM_ATTENDANCE",
+                description=f"Imported attendance for {imported_count} students in {exam.name}"
+            )
+            db.session.add(log)
+            db.session.commit()
+            
+            flash(f'Successfully imported attendance for {imported_count} students.', 'success')
+        else:
+            flash('No attendance data provided.', 'warning')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error importing attendance data: {str(e)}', 'error')
+    
+    return redirect(url_for('student.manage_attendance', exam_id=exam_id))
+
+@student_bp.route('/exam/<int:exam_id>/update-attendance', methods=['POST'])
+def update_attendance(exam_id):
+    """Update a student's attendance for an exam via AJAX"""
+    exam = Exam.query.get_or_404(exam_id)
+    
+    try:
+        data = request.get_json()
+        
+        if not data or 'student_id' not in data or 'attended' not in data:
+            return jsonify({'success': False, 'error': 'Missing required data'})
+        
+        student_id = int(data['student_id'])
+        attended = data['attended']
+        
+        # Find the student to ensure they exist
+        student = Student.query.get_or_404(student_id)
+        
+        # Get or create attendance record
+        attendance = StudentExamAttendance.query.filter_by(
+            student_id=student_id,
+            exam_id=exam_id
+        ).first()
+        
+        if attendance:
+            attendance.attended = attended
+            attendance.updated_at = datetime.now()
+        else:
+            attendance = StudentExamAttendance(
+                student_id=student_id,
+                exam_id=exam_id,
+                attended=attended
+            )
+            db.session.add(attendance)
+        
+        db.session.commit()
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error updating attendance: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}) 

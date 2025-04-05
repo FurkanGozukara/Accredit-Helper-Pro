@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Utilities - ABET Calculator{% endblock %}
+{% block title %}Utilities - Accredit Calculator{% endblock %}
 
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
@@ -10,14 +10,14 @@
 {% block content %}
 <div class="container mt-4">
     <h1 class="mb-4">Utilities</h1>
-    
+
     <div class="row row-cols-1 row-cols-md-3 g-4">
         <!-- Backup Database -->
         <div class="col">
             <div class="card h-100">
                 <div class="card-body">
                     <h5 class="card-title"><i class="fas fa-download text-primary"></i> Backup Database</h5>
-                    <p class="card-text">Create backups of your ABET Calculator database to prevent data loss.</p>
+                    <p class="card-text">Create backups of your Accredit Calculator database to prevent data loss.</p>
                 </div>
                 <div class="card-footer bg-transparent border-top-0">
                     <a href="{{ url_for('utility.backup_database') }}" class="btn btn-primary">
@@ -26,7 +26,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Restore Database -->
         <div class="col">
             <div class="card h-100">
@@ -41,7 +41,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Import Database -->
         <div class="col">
             <div class="card h-100">
@@ -56,7 +56,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Merge Courses -->
         <div class="col">
             <div class="card h-100">
@@ -71,7 +71,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- System Logs -->
         <div class="col">
             <div class="card h-100">
@@ -86,13 +86,13 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Help & Documentation -->
         <div class="col">
             <div class="card h-100">
                 <div class="card-body">
                     <h5 class="card-title"><i class="fas fa-question-circle text-secondary"></i> Help & Documentation</h5>
-                    <p class="card-text">Access comprehensive documentation and usage guides for ABET Calculator.</p>
+                    <p class="card-text">Access comprehensive documentation and usage guides for Accredit Calculator.</p>
                 </div>
                 <div class="card-footer bg-transparent border-top-0">
                     <a href="{{ url_for('utility.help_page') }}" class="btn btn-secondary">
@@ -101,13 +101,13 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Support & Feedback -->
         <div class="col">
             <div class="card h-100">
                 <div class="card-body">
                     <h5 class="card-title"><i class="fas fa-life-ring text-danger"></i> Support & Feedback</h5>
-                    <p class="card-text">Report issues, submit feature requests, and get assistance with ABET Calculator.</p>
+                    <p class="card-text">Report issues, submit feature requests, and get assistance with Accredit Calculator.</p>
                 </div>
                 <div class="card-footer bg-transparent border-top-0">
                     <a href="{{ url_for('utility.help_page') }}#contact" class="btn btn-danger">

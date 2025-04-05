@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Batch Add Questions - {{ exam.name }} - ABET Calculator{% endblock %}
+{% block title %}Batch Add Questions - {{ exam.name }} - Accredit Calculator{% endblock %}
 
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
@@ -20,26 +20,26 @@
         </div>
         <div class="card-body">
             <div class="alert alert-info mb-4">
-                <i class="fas fa-info-circle"></i> 
+                <i class="fas fa-info-circle"></i>
                 Add multiple questions at once. Set the maximum score for each question and select relevant course outcomes.
             </div>
-            
+
             <div id="save-status" class="alert alert-success" style="display: none;">
                 <i class="fas fa-check-circle"></i> Changes saved successfully
             </div>
-            
+
             <form method="POST" id="questionForm">
                 <div class="mb-3">
                     <label for="num_questions" class="form-label">Number of Questions:</label>
                     <div class="input-group">
-                        <input type="number" id="num_questions" name="num_questions" class="form-control" 
+                        <input type="number" id="num_questions" name="num_questions" class="form-control"
                                value="{{ form_data.num_questions if form_data else num_questions }}" min="1" max="100">
                         <button type="button" id="update_num" class="btn btn-outline-primary">
                             <i class="fas fa-sync-alt"></i> Update
                         </button>
                         <button type="button" id="distribute_points" class="btn btn-outline-success ms-2"
-                               data-exam-max-score="{{ exam.max_score }}"
-                               data-existing-total="{{ exam.questions|rejectattr('id', 'in', request.args.getlist('exclude_questions'))|sum(attribute='max_score')|default(0) }}">
+                                data-exam-max-score="{{ exam.max_score }}"
+                                data-existing-total="{{ exam.questions|rejectattr('id', 'in', request.args.getlist('exclude_questions'))|sum(attribute='max_score')|default(0) }}">
                             <i class="fas fa-balance-scale"></i> Distribute Points Equally
                         </button>
                     </div>
@@ -47,7 +47,7 @@
                         Exam max score: {{ exam.max_score }}. Clicking "Distribute Points Equally" will divide this among all questions.
                     </div>
                 </div>
-                
+
                 <div class="table-responsive">
                     <div class="d-flex justify-content-end mb-2">
                         <button type="button" id="mark_all_global" class="btn btn-outline-primary me-2">
@@ -68,48 +68,48 @@
                         </thead>
                         <tbody>
                             {% for i in range(num_questions) %}
-                                <tr>
-                                    <td>{{ i + 1 }}</td>
-                                    <td>
-                                        <input type="text" name="text_{{ i }}" class="form-control question-field" 
-                                               data-index="{{ i }}" placeholder="Question text (optional)"
-                                               value="{{ form_data.questions[i].text if form_data and i < form_data.questions|length else '' }}">
-                                    </td>
-                                    <td>
-                                        <input type="number" name="max_score_{{ i }}" class="form-control question-field" 
-                                               data-index="{{ i }}" 
-                                               value="{{ form_data.questions[i].max_score if form_data and i < form_data.questions|length else 1 }}" 
-                                               min="0.5" step="0.5" required>
-                                    </td>
-                                    <td>
-                                        <div class="outcome-checkboxes">
-                                            <div class="d-flex justify-content-end mb-2">
-                                                <button type="button" class="btn btn-sm btn-outline-primary mark-all" data-index="{{ i }}">
-                                                    <i class="fas fa-check-square"></i> Mark All
-                                                </button>
-                                                <button type="button" class="btn btn-sm btn-outline-secondary ms-1 unmark-all" data-index="{{ i }}">
-                                                    <i class="fas fa-square"></i> Unmark All
-                                                </button>
-                                            </div>
-                                            {% for outcome in course_outcomes %}
-                                                <div class="form-check">
-                                                    <input class="form-check-input outcome-checkbox" type="checkbox" 
-                                                           name="course_outcomes_{{ i }}" value="{{ outcome.id }}" 
-                                                           id="outcome_{{ i }}_{{ outcome.id }}" data-index="{{ i }}"
-                                                           {% if form_data and i < form_data.questions|length and outcome.id|string in form_data.questions[i].selected_outcomes %}checked{% endif %}>
-                                                    <label class="form-check-label" for="outcome_{{ i }}_{{ outcome.id }}">
-                                                        <strong>{{ outcome.code }}</strong>: {{ outcome.description|truncate(50) }}
-                                                    </label>
-                                                </div>
-                                            {% endfor %}
+                            <tr>
+                                <td>{{ i + 1 }}</td>
+                                <td>
+                                    <input type="text" name="text_{{ i }}" class="form-control question-field"
+                                           data-index="{{ i }}" placeholder="Question text (optional)"
+                                           value="{{ form_data.questions[i].text if form_data and i < form_data.questions|length else '' }}">
+                                </td>
+                                <td>
+                                    <input type="number" name="max_score_{{ i }}" class="form-control question-field"
+                                           data-index="{{ i }}"
+                                           value="{{ form_data.questions[i].max_score if form_data and i < form_data.questions|length else 1 }}"
+                                           min="0.5" step="0.5" required>
+                                </td>
+                                <td>
+                                    <div class="outcome-checkboxes">
+                                        <div class="d-flex justify-content-end mb-2">
+                                            <button type="button" class="btn btn-sm btn-outline-primary mark-all" data-index="{{ i }}">
+                                                <i class="fas fa-check-square"></i> Mark All
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary ms-1 unmark-all" data-index="{{ i }}">
+                                                <i class="fas fa-square"></i> Unmark All
+                                            </button>
                                         </div>
-                                    </td>
-                                </tr>
+                                        {% for outcome in course_outcomes %}
+                                        <div class="form-check">
+                                            <input class="form-check-input outcome-checkbox" type="checkbox"
+                                                   name="course_outcomes_{{ i }}" value="{{ outcome.id }}"
+                                                   id="outcome_{{ i }}_{{ outcome.id }}" data-index="{{ i }}"
+                                                   {% if form_data and i < form_data.questions|length and outcome.id|string in form_data.questions[i].selected_outcomes %}checked{% endif %}>
+                                            <label class="form-check-label" for="outcome_{{ i }}_{{ outcome.id }}">
+                                                <strong>{{ outcome.code }}</strong>: {{ outcome.description|truncate(50) }}
+                                            </label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                            </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
-                
+
                 <div class="d-flex justify-content-between mt-4">
                     <a href="{{ url_for('exam.exam_detail', exam_id=exam.id) }}" class="btn btn-secondary">
                         <i class="fas fa-times"></i> Cancel
@@ -118,7 +118,7 @@
                         <i class="fas fa-save"></i> Save All Questions
                     </button>
                 </div>
-                
+
                 <!-- Mass Relationship Import -->
                 <div class="card mt-4">
                     <div class="card-header bg-light">
@@ -126,7 +126,7 @@
                     </div>
                     <div class="card-body">
                         <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i> 
+                            <i class="fas fa-info-circle"></i>
                             Import relationships in format: <code>q1:oc1:oc3:oc5;q2:oc2;q3:oc3:oc4</code><br>
                             Where <code>q1</code> is question 1, <code>oc1</code> is outcome 1, etc.
                         </div>
@@ -155,72 +155,72 @@
                 alert('Please enter a valid number between 1 and 100');
             }
         });
-        
+
         // Equal points distribution functionality
         document.getElementById('distribute_points').addEventListener('click', function() {
             const numQuestions = parseInt(document.getElementById('num_questions').value) || 1;
             const examMaxScore = parseFloat(this.getAttribute('data-exam-max-score'));
             const existingQuestionsTotal = parseFloat(this.getAttribute('data-existing-total'));
             const remainingScore = examMaxScore - existingQuestionsTotal;
-            
+
             if (remainingScore <= 0) {
                 alert('Warning: The exam has already reached or exceeded its maximum score with existing questions.');
                 return;
             }
-            
+
             // Calculate equal points per question, rounded to 0.5
             let pointsPerQuestion = parseFloat((remainingScore / numQuestions).toFixed(1));
             // Ensure it's a multiple of 0.5
             pointsPerQuestion = Math.round(pointsPerQuestion * 2) / 2;
-            
+
             // Apply to all question score inputs
             const scoreInputs = document.querySelectorAll('input[name^="max_score_"]');
             let lastIndex = -1;
-            
+
             scoreInputs.forEach((input, index) => {
                 input.value = pointsPerQuestion;
                 lastIndex = index;
-                
+
                 // Store in session storage
                 const questionIndex = input.dataset.index;
                 const textInput = document.querySelector(`input[name="text_${questionIndex}"]`);
-                
+
                 const questionData = {
                     index: questionIndex,
                     text: textInput ? textInput.value : '',
                     max_score: pointsPerQuestion
                 };
-                
+
                 sessionStorage.setItem(`question_${questionIndex}`, JSON.stringify(questionData));
             });
-            
+
             // Check if we need to adjust the last question to match exact total
             if (lastIndex >= 0) {
                 const calculatedTotal = pointsPerQuestion * numQuestions;
                 const roundingError = remainingScore - calculatedTotal;
-                
+
                 if (Math.abs(roundingError) > 0.01) {
                     const lastInput = scoreInputs[lastIndex];
                     const adjustedValue = parseFloat(lastInput.value) + parseFloat(roundingError.toFixed(1));
                     lastInput.value = Math.max(0.5, adjustedValue.toFixed(1));
-                    
+
                     // Update session storage for the last question
                     const questionIndex = lastInput.dataset.index;
                     const textInput = document.querySelector(`input[name="text_${questionIndex}"]`);
-                    
+
                     const questionData = {
                         index: questionIndex,
                         text: textInput ? textInput.value : '',
                         max_score: lastInput.value
                     };
-                    
+
                     sessionStorage.setItem(`question_${questionIndex}`, JSON.stringify(questionData));
                 }
             }
-            
+
             showSaveStatus();
         });
-        
+
         // Styles for outcome checkboxes
         const style = document.createElement('style');
         style.textContent = `
@@ -271,13 +271,13 @@
             }
         `;
         document.head.appendChild(style);
-        
+
         // Update checkbox styles dynamically
         document.querySelectorAll('.outcome-checkbox').forEach(checkbox => {
             checkbox.addEventListener('change', function() {
                 const label = this.nextElementSibling;
                 const checkboxContainer = this.closest('.form-check');
-                
+
                 if (this.checked) {
                     checkboxContainer.style.backgroundColor = '#e8f0fe';
                     checkboxContainer.style.borderLeftColor = '#0d6efd';
@@ -287,19 +287,19 @@
                 }
             });
         });
-        
+
         // Add tooltips for long descriptions
         document.querySelectorAll('.form-check-label').forEach(label => {
             const fullText = label.innerText;
             label.setAttribute('title', fullText);
         });
-        
+
         // Auto-save functionality
         const questionFields = document.querySelectorAll('.question-field');
         const outcomeCheckboxes = document.querySelectorAll('.outcome-checkbox');
         const saveStatusElement = document.getElementById('save-status');
         const totalQuestions = {{ num_questions }};
-        
+
         // Helper function to show save status
         function showSaveStatus() {
             saveStatusElement.style.display = 'block';
@@ -307,7 +307,7 @@
                 saveStatusElement.style.display = 'none';
             }, 3000);
         }
-        
+
         // Auto-save when question fields change
         questionFields.forEach(field => {
             field.addEventListener('change', function() {
@@ -317,41 +317,41 @@
                     text: document.querySelector(`input[name="text_${index}"]`).value,
                     max_score: document.querySelector(`input[name="max_score_${index}"]`).value,
                 };
-                
+
                 // Store in session storage
                 sessionStorage.setItem(`question_${index}`, JSON.stringify(questionData));
                 showSaveStatus();
             });
         });
-        
+
         // Auto-save when outcome checkboxes change
         outcomeCheckboxes.forEach(checkbox => {
             checkbox.addEventListener('change', function() {
                 const index = this.dataset.index;
                 const outcomes = [];
-                
+
                 // Get all selected outcomes for this question
                 document.querySelectorAll(`input[name="course_outcomes_${index}"]:checked`).forEach(cb => {
                     outcomes.push(cb.value);
                 });
-                
+
                 // Store in session storage
                 sessionStorage.setItem(`outcomes_${index}`, JSON.stringify(outcomes));
                 showSaveStatus();
             });
         });
-        
+
         // Load saved data on page load
         for (let i = 0; i < totalQuestions; i++) {
             const questionData = sessionStorage.getItem(`question_${i}`);
             const outcomesData = sessionStorage.getItem(`outcomes_${i}`);
-            
+
             if (questionData) {
                 const data = JSON.parse(questionData);
                 document.querySelector(`input[name="text_${i}"]`).value = data.text || '';
                 document.querySelector(`input[name="max_score_${i}"]`).value = data.max_score || 1;
             }
-            
+
             if (outcomesData) {
                 const outcomes = JSON.parse(outcomesData);
                 outcomes.forEach(outcomeId => {
@@ -368,7 +368,7 @@
                 });
             }
         }
-        
+
         // Mass Relationship Import functionality
         document.getElementById('apply_mass_import').addEventListener('click', function() {
             const importText = document.getElementById('mass_import').value.trim();
@@ -376,7 +376,7 @@
                 alert('Please enter relationship data to import');
                 return;
             }
-            
+
             try {
                 // Reset all checkboxes first
                 document.querySelectorAll('.outcome-checkbox').forEach(cb => {
@@ -387,27 +387,27 @@
                         container.style.borderLeftColor = 'transparent';
                     }
                 });
-                
+
                 // Parse the relationships
                 const relationships = importText.split(';');
                 let maxQuestionNum = 0;
-                
+
                 relationships.forEach(rel => {
                     const parts = rel.split(':');
                     if (parts.length >= 2) {
                         // Extract question number (q1 -> 1)
                         const qMatch = parts[0].match(/q(\d+)/i);
                         if (!qMatch) return;
-                        
+
                         const questionNum = parseInt(qMatch[1]);
                         if (isNaN(questionNum) || questionNum < 1) return;
-                        
+
                         // Track the highest question number
                         maxQuestionNum = Math.max(maxQuestionNum, questionNum);
-                        
+
                         // Question index is 0-based (UI is 1-based)
                         const questionIndex = questionNum - 1;
-                        
+
                         // Extract outcomes (oc1 -> 1)
                         const outcomes = [];
                         for (let i = 1; i < parts.length; i++) {
@@ -419,7 +419,7 @@
                                 }
                             }
                         }
-                        
+
                         // Find the course outcome IDs that match these numbers
                         const courseOutcomes = [
                             {% for outcome in course_outcomes %}
@@ -438,21 +438,21 @@
                                 outcomeMap[parseInt(codeMatch[1])] = outcome.id;
                             }
                         });
-                        
+
                         // Set the checkboxes
                         outcomes.forEach(ocNum => {
                             if (outcomeMap[ocNum]) {
                                 const checkbox = document.getElementById(`outcome_${questionIndex}_${outcomeMap[ocNum]}`);
                                 if (checkbox) {
                                     checkbox.checked = true;
-                                    
+
                                     // Apply styles
                                     const container = checkbox.closest('.form-check');
                                     if (container) {
                                         container.style.backgroundColor = '#e8f0fe';
                                         container.style.borderLeftColor = '#0d6efd';
                                     }
-                                    
+
                                     // Save to session storage
                                     const storedOutcomes = JSON.parse(sessionStorage.getItem(`outcomes_${questionIndex}`) || '[]');
                                     if (!storedOutcomes.includes(outcomeMap[ocNum].toString())) {
@@ -464,7 +464,7 @@
                         });
                     }
                 });
-                
+
                 // Check if we need to add more questions
                 const currentQuestions = parseInt(document.getElementById('num_questions').value);
                 if (maxQuestionNum > currentQuestions) {
@@ -477,15 +477,15 @@
                         return;
                     }
                 }
-                
+
                 showSaveStatus();
-                
+
             } catch (error) {
                 console.error('Error applying mass import:', error);
                 alert('Error processing the import data. Please check the format and try again.');
             }
         });
-        
+
         // Check for pending import after page refresh
         const pendingImport = localStorage.getItem('pending_import');
         if (pendingImport) {
@@ -496,20 +496,20 @@
                 document.getElementById('apply_mass_import').click();
             }, 500);
         }
-        
+
         // Global Mark/Unmark All functionality
         document.getElementById('mark_all_global').addEventListener('click', function(e) {
             e.preventDefault();
             const totalQuestions = parseInt(document.getElementById('num_questions').value) || 1;
-            
+
             for (let i = 0; i < totalQuestions; i++) {
                 const checkboxes = document.querySelectorAll(`input[name="course_outcomes_${i}"]`);
                 const outcomes = [];
-                
+
                 checkboxes.forEach(checkbox => {
                     checkbox.checked = true;
                     outcomes.push(checkbox.value);
-                    
+
                     // Apply styles
                     const container = checkbox.closest('.form-check');
                     if (container) {
@@ -517,24 +517,24 @@
                         container.style.borderLeftColor = '#0d6efd';
                     }
                 });
-                
+
                 // Store in session storage
                 sessionStorage.setItem(`outcomes_${i}`, JSON.stringify(outcomes));
             }
-            
+
             showSaveStatus();
         });
-        
+
         document.getElementById('unmark_all_global').addEventListener('click', function(e) {
             e.preventDefault();
             const totalQuestions = parseInt(document.getElementById('num_questions').value) || 1;
-            
+
             for (let i = 0; i < totalQuestions; i++) {
                 const checkboxes = document.querySelectorAll(`input[name="course_outcomes_${i}"]`);
-                
+
                 checkboxes.forEach(checkbox => {
                     checkbox.checked = false;
-                    
+
                     // Reset styles
                     const container = checkbox.closest('.form-check');
                     if (container) {
@@ -542,14 +542,14 @@
                         container.style.borderLeftColor = 'transparent';
                     }
                 });
-                
+
                 // Clear stored outcomes
                 sessionStorage.setItem(`outcomes_${i}`, JSON.stringify([]));
             }
-            
+
             showSaveStatus();
         });
-        
+
         // Mark/Unmark All functionality
         document.querySelectorAll('.mark-all').forEach(button => {
             button.addEventListener('click', function(e) {
@@ -557,11 +557,11 @@
                 const index = this.getAttribute('data-index');
                 const checkboxes = document.querySelectorAll(`input[name="course_outcomes_${index}"]`);
                 const outcomes = [];
-                
+
                 checkboxes.forEach(checkbox => {
                     checkbox.checked = true;
                     outcomes.push(checkbox.value);
-                    
+
                     // Apply styles
                     const container = checkbox.closest('.form-check');
                     if (container) {
@@ -569,22 +569,22 @@
                         container.style.borderLeftColor = '#0d6efd';
                     }
                 });
-                
+
                 // Store in session storage
                 sessionStorage.setItem(`outcomes_${index}`, JSON.stringify(outcomes));
                 showSaveStatus();
             });
         });
-        
+
         document.querySelectorAll('.unmark-all').forEach(button => {
             button.addEventListener('click', function(e) {
                 e.preventDefault();
                 const index = this.getAttribute('data-index');
                 const checkboxes = document.querySelectorAll(`input[name="course_outcomes_${index}"]`);
-                
+
                 checkboxes.forEach(checkbox => {
                     checkbox.checked = false;
-                    
+
                     // Reset styles
                     const container = checkbox.closest('.form-check');
                     if (container) {
@@ -592,7 +592,7 @@
                         container.style.borderLeftColor = 'transparent';
                     }
                 });
-                
+
                 // Clear stored outcomes
                 sessionStorage.setItem(`outcomes_${index}`, JSON.stringify([]));
                 showSaveStatus();

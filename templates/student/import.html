@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Import Students - ABET Calculator{% endblock %}
+{% block title %}Import Students - Accredit Calculator{% endblock %}
 
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
@@ -27,20 +27,20 @@
                                 <li>With semicolons: <code>24220030102;ÖZGÜR;AÇAR</code></li>
                             </ul>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label for="student_file" class="form-label">Upload Student List File</label>
                             <input class="form-control" type="file" id="student_file" name="student_file">
                             <div class="form-text">Upload a text or CSV file containing student information.</div>
                         </div>
-                        
+
                         <div class="mb-4">
                             <label for="student_data" class="form-label">Or Paste Student Data</label>
-                            <textarea class="form-control" id="student_data" name="student_data" rows="10" 
-                                     placeholder="Paste your student data here, one student per line..."></textarea>
+                            <textarea class="form-control" id="student_data" name="student_data" rows="10"
+                                      placeholder="Paste your student data here, one student per line..."></textarea>
                             <div class="form-text">Paste student data directly. Each line should contain one student's information.</div>
                         </div>
-                        
+
                         <div class="d-flex justify-content-between">
                             <a href="{{ url_for('course.course_detail', course_id=course.id) }}" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left"></i> Back to Course
@@ -64,39 +64,39 @@
         <div class="card-body">
             {% set students = course.students %}
             {% if students %}
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead class="thead-light">
-                            <tr>
-                                <th>Student ID</th>
-                                <th>Name</th>
-                                <th class="text-center">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for student in students %}
-                                <tr>
-                                    <td>{{ student.student_id }}</td>
-                                    <td>{{ student.first_name }} {{ student.last_name }}</td>
-                                    <td class="text-center">
-                                        <button type="button" class="btn btn-sm btn-outline-danger" 
-                                                data-bs-toggle="modal" 
-                                                data-bs-target="#confirmDeleteModal" 
-                                                data-student-id="{{ student.id }}"
-                                                data-student-name="{{ student.student_id }}"
-                                                title="Delete">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Student ID</th>
+                            <th>Name</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr>
+                            <td>{{ student.student_id }}</td>
+                            <td>{{ student.first_name }} {{ student.last_name }}</td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#confirmDeleteModal"
+                                        data-student-id="{{ student.id }}"
+                                        data-student-name="{{ student.student_id }}"
+                                        title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
             {% else %}
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle"></i> No students are currently enrolled in this course.
-                </div>
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> No students are currently enrolled in this course.
+            </div>
             {% endif %}
         </div>
     </div>
@@ -125,14 +125,14 @@
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const confirmDeleteModal = document.getElementById('confirmDeleteModal');
         if (confirmDeleteModal) {
-            confirmDeleteModal.addEventListener('show.bs.modal', function(event) {
+            confirmDeleteModal.addEventListener('show.bs.modal', function (event) {
                 const button = event.relatedTarget;
                 const studentId = button.getAttribute('data-student-id');
                 const studentName = button.getAttribute('data-student-name');
-                
+
                 document.getElementById('studentNameToDelete').textContent = studentName;
                 document.getElementById('deleteStudentForm').action = `/student/delete/${studentId}`;
             });

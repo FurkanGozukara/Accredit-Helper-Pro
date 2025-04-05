@@ -516,7 +516,7 @@ def restore_from_backup(filename):
 
 @utility_bp.route('/merge', methods=['GET', 'POST'])
 def merge_database():
-    """Merge courses for ABET data consolidation"""
+    """Merge courses for Accredit data consolidation"""
     # Get all courses for selecting source/destination courses
     courses = Course.query.order_by(Course.code).all()
     

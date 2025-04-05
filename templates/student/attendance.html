@@ -1,0 +1,235 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Attendance - {{ exam.name }} - Accredit Calculator{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .attendance-table th, .attendance-table td {
+        vertical-align: middle;
+    }
+    
+    .not-attended {
+        background-color: #f8d7da;
+    }
+    
+    .attended {
+        background-color: #d1e7dd;
+    }
+    
+    .form-check-input {
+        cursor: pointer;
+        width: 20px;
+        height: 20px;
+    }
+    
+    .form-check-label {
+        cursor: pointer;
+    }
+    
+    .student-name {
+        font-weight: 500;
+    }
+    
+    .student-id {
+        font-size: 0.9rem;
+        color: #666;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('course.course_detail', course_id=course.id) }}">{{ course.code }}</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('exam.exam_detail', exam_id=exam.id) }}">{{ exam.name }}</a></li>
+<li class="breadcrumb-item active">Manage Attendance</li>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-clipboard-check me-2"></i> Manage Student Attendance - {{ exam.name }}
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Important:</strong> Students marked as "Not Attended" will have their scores ignored in all calculations. 
+                These students' scores will still be saved in the database but will be treated as if they didn't take the exam.
+            </div>
+            
+            <div class="alert alert-success" id="saveStatus" style="display: none;">
+                <i class="fas fa-check-circle me-2"></i>
+                <span id="saveStatusText">Attendance updated successfully</span>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-hover attendance-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="50">#</th>
+                            <th>Student ID</th>
+                            <th>Name</th>
+                            <th width="150" class="text-center">
+                                Attendance 
+                                <div class="btn-group btn-group-sm ms-2">
+                                    <button type="button" class="btn btn-outline-success btn-sm" id="markAllAttended">
+                                        <i class="fas fa-check"></i> All
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" id="markAllNotAttended">
+                                        <i class="fas fa-times"></i> None
+                                    </button>
+                                </div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                            {% set record = attendance_dict.get(student.id) %}
+                            {% set attended = record.attended if record else True %}
+                            <tr class="{{ 'attended' if attended else 'not-attended' }}">
+                                <td>{{ loop.index }}</td>
+                                <td>{{ student.student_id }}</td>
+                                <td>
+                                    <div class="student-name">{{ student.first_name }} {{ student.last_name }}</div>
+                                </td>
+                                <td class="text-center">
+                                    <div class="form-check form-switch d-flex justify-content-center">
+                                        <input class="form-check-input attendance-toggle" type="checkbox" role="switch" 
+                                            id="attended_{{ student.id }}" name="attended_{{ student.id }}" 
+                                            data-student-id="{{ student.id }}"
+                                            data-exam-id="{{ exam.id }}"
+                                            {{ 'checked' if attended else '' }}>
+                                        <label class="form-check-label ms-2" for="attended_{{ student.id }}">
+                                            {{ 'Attended' if attended else 'Not Attended' }}
+                                        </label>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{{ url_for('exam.exam_detail', exam_id=exam.id) }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Exam
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Import Section -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">
+                <i class="fas fa-file-import"></i> Import Attendance Data
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('student.import_attendance', exam_id=exam.id) }}">
+                <div class="mb-3">
+                    <label for="attendanceData" class="form-label">Paste attendance data (Format: student_id;attended)</label>
+                    <textarea class="form-control font-monospace" id="attendanceData" name="attendance_data" rows="5" placeholder="12345;yes&#10;67890;no"></textarea>
+                    <div class="form-text">
+                        Valid values for attendance: 'y', 'yes', '1', 'true', 'attended' (case-insensitive) = Attended<br>
+                        Any other value = Not Attended
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-upload"></i> Import Attendance
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Function to show save status message
+        function showSaveStatus(message, type) {
+            const saveStatus = document.getElementById('saveStatus');
+            const saveStatusText = document.getElementById('saveStatusText');
+            
+            saveStatus.className = 'alert ' + (type === 'success' ? 'alert-success' : 'alert-danger');
+            saveStatusText.textContent = message;
+            saveStatus.style.display = 'block';
+            
+            // Hide the message after 3 seconds
+            setTimeout(() => {
+                saveStatus.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Toggle row class when attendance is changed
+        document.querySelectorAll('.attendance-toggle').forEach(function(toggle) {
+            toggle.addEventListener('change', function() {
+                const row = this.closest('tr');
+                const label = this.closest('.form-check').querySelector('.form-check-label');
+                const studentId = this.dataset.studentId;
+                const examId = this.dataset.examId;
+                const attended = this.checked;
+                
+                if (this.checked) {
+                    row.classList.remove('not-attended');
+                    row.classList.add('attended');
+                    label.textContent = 'Attended';
+                } else {
+                    row.classList.remove('attended');
+                    row.classList.add('not-attended');
+                    label.textContent = 'Not Attended';
+                }
+                
+                // Send AJAX request to update attendance
+                fetch('/student/exam/' + examId + '/update-attendance', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        student_id: studentId,
+                        attended: attended
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showSaveStatus('Attendance updated successfully', 'success');
+                    } else {
+                        showSaveStatus('Error: ' + data.error, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showSaveStatus('Error updating attendance', 'error');
+                });
+            });
+        });
+        
+        // Mark all as attended
+        document.getElementById('markAllAttended').addEventListener('click', function() {
+            document.querySelectorAll('.attendance-toggle').forEach(function(toggle) {
+                if (!toggle.checked) {
+                    toggle.checked = true;
+                    toggle.dispatchEvent(new Event('change'));
+                }
+            });
+        });
+        
+        // Mark all as not attended
+        document.getElementById('markAllNotAttended').addEventListener('click', function() {
+            document.querySelectorAll('.attendance-toggle').forEach(function(toggle) {
+                if (toggle.checked) {
+                    toggle.checked = false;
+                    toggle.dispatchEvent(new Event('change'));
+                }
+            });
+        });
+    });
+</script>
+{% endblock %} 

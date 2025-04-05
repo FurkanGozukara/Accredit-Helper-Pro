@@ -1,4 +1,4 @@
-// charts.js - Chart handling for ABET results
+// charts.js - Chart handling for Accredit results
 
 function setupResultsCharts() {
     console.log('Setting up charts...');

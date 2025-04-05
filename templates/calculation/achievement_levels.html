@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Achievement Levels - {{ course.code }} - ABET Calculator{% endblock %}
+{% block title %}Achievement Levels - {{ course.code }} - Accredit Calculator{% endblock %}
 
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
@@ -42,7 +42,7 @@
                     <div class="card-body">
                         <form method="POST" action="{{ url_for('calculation.manage_achievement_levels', course_id=course.id) }}" id="newLevelForm">
                             <input type="hidden" name="action" value="save">
-                            
+
                             <div class="row">
                                 <div class="col-md-3">
                                     <div class="mb-3">
@@ -54,14 +54,14 @@
                                 <div class="col-md-2">
                                     <div class="mb-3">
                                         <label for="min_score" class="form-label">Min Score (%) <span class="text-danger">*</span></label>
-                                        <input type="number" class="form-control" id="min_score" name="min_score" 
+                                        <input type="number" class="form-control" id="min_score" name="min_score"
                                                required min="0" max="100" step="0.1">
                                     </div>
                                 </div>
                                 <div class="col-md-2">
                                     <div class="mb-3">
                                         <label for="max_score" class="form-label">Max Score (%) <span class="text-danger">*</span></label>
-                                        <input type="number" class="form-control" id="max_score" name="max_score" 
+                                        <input type="number" class="form-control" id="max_score" name="max_score"
                                                required min="0" max="100" step="0.1">
                                     </div>
                                 </div>
@@ -107,80 +107,80 @@
                     </thead>
                     <tbody>
                         {% for level in achievement_levels %}
-                            <tr id="level-row-{{ level.id }}" class="level-row">
-                                <td>{{ level.name }}</td>
-                                <td>{{ level.min_score }}% - {{ level.max_score }}%</td>
-                                <td>
-                                    <span class="badge bg-{{ level.color }}">{{ level.color }}</span>
-                                </td>
-                                <td>
-                                    <button type="button" class="btn btn-sm btn-outline-primary edit-level-btn" 
-                                            data-level-id="{{ level.id }}">
-                                        <i class="fas fa-edit"></i> Edit
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" 
-                                            onclick="confirmDelete('{{ level.id }}', '{{ level.name }}')">
-                                        <i class="fas fa-trash"></i> Delete
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr id="level-edit-row-{{ level.id }}" class="level-edit-row" style="display: none;">
-                                <td colspan="4">
-                                    <form method="POST" action="{{ url_for('calculation.manage_achievement_levels', course_id=course.id) }}" class="edit-level-form">
-                                        <input type="hidden" name="action" value="save">
-                                        <input type="hidden" name="level_id" value="{{ level.id }}">
-                                        
-                                        <div class="row">
-                                            <div class="col-md-3">
-                                                <div class="mb-3">
-                                                    <label for="name-{{ level.id }}" class="form-label">Level Name <span class="text-danger">*</span></label>
-                                                    <input type="text" class="form-control" id="name-{{ level.id }}" name="name" 
-                                                           value="{{ level.name }}" required>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-2">
-                                                <div class="mb-3">
-                                                    <label for="min_score-{{ level.id }}" class="form-label">Min Score (%) <span class="text-danger">*</span></label>
-                                                    <input type="number" class="form-control" id="min_score-{{ level.id }}" name="min_score" 
-                                                           value="{{ level.min_score }}" required min="0" max="100" step="0.1">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-2">
-                                                <div class="mb-3">
-                                                    <label for="max_score-{{ level.id }}" class="form-label">Max Score (%) <span class="text-danger">*</span></label>
-                                                    <input type="number" class="form-control" id="max_score-{{ level.id }}" name="max_score" 
-                                                           value="{{ level.max_score }}" required min="0" max="100" step="0.1">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-3">
-                                                <div class="mb-3">
-                                                    <label for="color-{{ level.id }}" class="form-label">Color <span class="text-danger">*</span></label>
-                                                    <select class="form-select" id="color-{{ level.id }}" name="color" required>
-                                                        <option value="primary" {% if level.color == 'primary' %}selected{% endif %}>Primary (Blue)</option>
-                                                        <option value="secondary" {% if level.color == 'secondary' %}selected{% endif %}>Secondary (Gray)</option>
-                                                        <option value="success" {% if level.color == 'success' %}selected{% endif %}>Success (Green)</option>
-                                                        <option value="danger" {% if level.color == 'danger' %}selected{% endif %}>Danger (Red)</option>
-                                                        <option value="warning" {% if level.color == 'warning' %}selected{% endif %}>Warning (Yellow)</option>
-                                                        <option value="info" {% if level.color == 'info' %}selected{% endif %}>Info (Teal)</option>
-                                                        <option value="dark" {% if level.color == 'dark' %}selected{% endif %}>Dark (Black)</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-2 d-flex align-items-end">
-                                                <div class="mb-3 w-100">
-                                                    <button type="submit" class="btn btn-success btn-sm">
-                                                        <i class="fas fa-save"></i> Save
-                                                    </button>
-                                                    <button type="button" class="btn btn-secondary btn-sm cancel-edit-btn" 
-                                                            data-level-id="{{ level.id }}">
-                                                        Cancel
-                                                    </button>
-                                                </div>
+                        <tr id="level-row-{{ level.id }}" class="level-row">
+                            <td>{{ level.name }}</td>
+                            <td>{{ level.min_score }}% - {{ level.max_score }}%</td>
+                            <td>
+                                <span class="badge bg-{{ level.color }}">{{ level.color }}</span>
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-outline-primary edit-level-btn"
+                                        data-level-id="{{ level.id }}">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                        onclick="confirmDelete('{{ level.id }}', '{{ level.name }}')">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </td>
+                        </tr>
+                        <tr id="level-edit-row-{{ level.id }}" class="level-edit-row" style="display: none;">
+                            <td colspan="4">
+                                <form method="POST" action="{{ url_for('calculation.manage_achievement_levels', course_id=course.id) }}" class="edit-level-form">
+                                    <input type="hidden" name="action" value="save">
+                                    <input type="hidden" name="level_id" value="{{ level.id }}">
+
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label for="name-{{ level.id }}" class="form-label">Level Name <span class="text-danger">*</span></label>
+                                                <input type="text" class="form-control" id="name-{{ level.id }}" name="name"
+                                                       value="{{ level.name }}" required>
                                             </div>
                                         </div>
-                                    </form>
-                                </td>
-                            </tr>
+                                        <div class="col-md-2">
+                                            <div class="mb-3">
+                                                <label for="min_score-{{ level.id }}" class="form-label">Min Score (%) <span class="text-danger">*</span></label>
+                                                <input type="number" class="form-control" id="min_score-{{ level.id }}" name="min_score"
+                                                       value="{{ level.min_score }}" required min="0" max="100" step="0.1">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="mb-3">
+                                                <label for="max_score-{{ level.id }}" class="form-label">Max Score (%) <span class="text-danger">*</span></label>
+                                                <input type="number" class="form-control" id="max_score-{{ level.id }}" name="max_score"
+                                                       value="{{ level.max_score }}" required min="0" max="100" step="0.1">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label for="color-{{ level.id }}" class="form-label">Color <span class="text-danger">*</span></label>
+                                                <select class="form-select" id="color-{{ level.id }}" name="color" required>
+                                                    <option value="primary" {% if level.color == 'primary' %}selected{% endif %}>Primary (Blue)</option>
+                                                    <option value="secondary" {% if level.color == 'secondary' %}selected{% endif %}>Secondary (Gray)</option>
+                                                    <option value="success" {% if level.color == 'success' %}selected{% endif %}>Success (Green)</option>
+                                                    <option value="danger" {% if level.color == 'danger' %}selected{% endif %}>Danger (Red)</option>
+                                                    <option value="warning" {% if level.color == 'warning' %}selected{% endif %}>Warning (Yellow)</option>
+                                                    <option value="info" {% if level.color == 'info' %}selected{% endif %}>Info (Teal)</option>
+                                                    <option value="dark" {% if level.color == 'dark' %}selected{% endif %}>Dark (Black)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2 d-flex align-items-end">
+                                            <div class="mb-3 w-100">
+                                                <button type="submit" class="btn btn-success btn-sm">
+                                                    <i class="fas fa-save"></i> Save
+                                                </button>
+                                                <button type="button" class="btn btn-secondary btn-sm cancel-edit-btn"
+                                                        data-level-id="{{ level.id }}">
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -198,17 +198,17 @@
                         <h6>Score Ranges</h6>
                         <div class="progress" style="height: 30px;">
                             {% for level in achievement_levels %}
-                                {% set range_size = level.max_score|float - level.min_score|float %}
-                                {% set width = range_size %}
-                                <div class="progress-bar bg-{{ level.color }}" 
-                                     role="progressbar" 
-                                     style="width: {{ width }}%;" 
-                                     aria-valuenow="{{ width }}" 
-                                     aria-valuemin="0" 
-                                     aria-valuemax="100" 
-                                     title="{{ level.name }} ({{ level.min_score }}% - {{ level.max_score }}%)">
-                                    {{ level.name }}
-                                </div>
+                            {% set range_size = level.max_score|float - level.min_score|float %}
+                            {% set width = range_size %}
+                            <div class="progress-bar bg-{{ level.color }}"
+                                 role="progressbar"
+                                 style="width: {{ width }}%;"
+                                 aria-valuenow="{{ width }}"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100"
+                                 title="{{ level.name }} ({{ level.min_score }}% - {{ level.max_score }}%)">
+                                {{ level.name }}
+                            </div>
                             {% endfor %}
                         </div>
                     </div>
@@ -252,7 +252,7 @@
         if (levelsChart && typeof Chart !== 'undefined') {
             try {
                 const ctx = levelsChart.getContext('2d');
-                
+
                 // Create chart configuration
                 const config = {
                     type: 'bar',
@@ -326,35 +326,35 @@
                         }
                     }
                 };
-                
+
                 // Create chart
                 new Chart(ctx, config);
             } catch (error) {
                 console.error("Error creating achievement levels chart:", error);
             }
         }
-        
+
         // Add New Level functionality
         const addNewLevelBtn = document.getElementById('addNewLevelBtn');
         const newLevelFormContainer = document.getElementById('newLevelFormContainer');
         const cancelNewBtn = document.getElementById('cancelNewBtn');
-        
+
         if (addNewLevelBtn && newLevelFormContainer && cancelNewBtn) {
             addNewLevelBtn.addEventListener('click', function() {
                 newLevelFormContainer.style.display = 'block';
                 addNewLevelBtn.style.display = 'none';
             });
-            
+
             cancelNewBtn.addEventListener('click', function() {
                 newLevelFormContainer.style.display = 'none';
                 addNewLevelBtn.style.display = 'inline-block';
             });
         }
-        
+
         // Edit Level functionality
         const editButtons = document.querySelectorAll('.edit-level-btn');
         const cancelEditButtons = document.querySelectorAll('.cancel-edit-btn');
-        
+
         editButtons.forEach(function(button) {
             button.addEventListener('click', function() {
                 const levelId = this.getAttribute('data-level-id');
@@ -362,7 +362,7 @@
                 document.getElementById(`level-edit-row-${levelId}`).style.display = 'table-row';
             });
         });
-        
+
         cancelEditButtons.forEach(function(button) {
             button.addEventListener('click', function() {
                 const levelId = this.getAttribute('data-level-id');
@@ -371,7 +371,7 @@
             });
         });
     });
-    
+
     function confirmDelete(levelId, levelName) {
         document.getElementById('levelIdToDelete').value = levelId;
         document.getElementById('levelNameToDelete').textContent = levelName;

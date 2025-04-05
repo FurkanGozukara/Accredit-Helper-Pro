@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Import Database - ABET Calculator{% endblock %}
+{% block title %}Import Database - Accredit Calculator{% endblock %}
 
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
@@ -16,7 +16,7 @@
             <i class="fas fa-arrow-left"></i> Back to Utilities
         </a>
     </div>
-    
+
     <div class="alert alert-info">
         <h5><i class="fas fa-info-circle"></i> Import and Merge</h5>
         <p>This utility allows you to import data from a backup file and merge it with your existing database.</p>
@@ -24,7 +24,7 @@
         <p>For example, you can import courses, students, and assessments from another database without losing your current data.</p>
         <p><strong><i class="fas fa-shield-alt"></i> Your current database will be automatically backed up before the import process begins.</strong></p>
     </div>
-    
+
     <div class="card mb-4">
         <div class="card-header bg-light">
             <h5 class="mb-0">Import from Backup File</h5>
@@ -36,7 +36,7 @@
                     <input class="form-control" type="file" id="backup_file" name="backup_file" required>
                     <div class="form-text">Select a database backup file (.db or .sqlite)</div>
                 </div>
-                
+
                 <div class="card mb-3">
                     <div class="card-header">What to Import</div>
                     <div class="card-body">
@@ -47,7 +47,7 @@
                             </label>
                             <small class="form-text text-muted d-block">Import courses that don't already exist in your database</small>
                         </div>
-                        
+
                         <div class="form-check mb-2">
                             <input class="form-check-input" type="checkbox" id="import_students" name="import_students" checked>
                             <label class="form-check-label" for="import_students">
@@ -55,7 +55,7 @@
                             </label>
                             <small class="form-text text-muted d-block">Import students that don't already exist in your database</small>
                         </div>
-                        
+
                         <div class="form-check mb-2">
                             <input class="form-check-input" type="checkbox" id="import_exams" name="import_exams" checked>
                             <label class="form-check-label" for="import_exams">
@@ -63,7 +63,7 @@
                             </label>
                             <small class="form-text text-muted d-block">Import exams and questions that don't already exist</small>
                         </div>
-                        
+
                         <div class="form-check mb-2">
                             <input class="form-check-input" type="checkbox" id="import_outcomes" name="import_outcomes" checked>
                             <label class="form-check-label" for="import_outcomes">
@@ -71,7 +71,7 @@
                             </label>
                             <small class="form-text text-muted d-block">Import course outcomes that don't already exist</small>
                         </div>
-                        
+
                         <div class="form-check mb-2">
                             <input class="form-check-input" type="checkbox" id="import_achievement_levels" name="import_achievement_levels" checked>
                             <label class="form-check-label" for="import_achievement_levels">
@@ -81,62 +81,62 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="form-check mb-3">
                     <input class="form-check-input" type="checkbox" id="confirm_import" name="confirm_import" required>
                     <label class="form-check-label" for="confirm_import">
                         I understand this will merge data from the uploaded file with my existing database
                     </label>
                 </div>
-                
+
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-file-import"></i> Import and Merge
                 </button>
             </form>
         </div>
     </div>
-    
+
     {% if backups %}
-        <div class="card">
-            <div class="card-header bg-light">
-                <h5 class="mb-0">Available Backups</h5>
-                <small class="text-muted">These are your existing backups. You can download one and then use it for import.</small>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead class="thead-light">
-                            <tr>
-                                <th>Date Created</th>
-                                <th>Description</th>
-                                <th>File Size</th>
-                                <th class="text-center">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for backup in backups %}
-                                <tr>
-                                    <td>{{ backup.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-                                    <td>{{ backup.description or 'Backup file' }}</td>
-                                    <td>{{ backup.size_formatted }}</td>
-                                    <td class="text-center">
-                                        <a href="{{ url_for('utility.download_backup', filename=backup.filename) }}" 
-                                           class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-download"></i> Download
-                                        </a>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Available Backups</h5>
+            <small class="text-muted">These are your existing backups. You can download one and then use it for import.</small>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Date Created</th>
+                            <th>Description</th>
+                            <th>File Size</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for backup in backups %}
+                        <tr>
+                            <td>{{ backup.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            <td>{{ backup.description or 'Backup file' }}</td>
+                            <td>{{ backup.size_formatted }}</td>
+                            <td class="text-center">
+                                <a href="{{ url_for('utility.download_backup', filename=backup.filename) }}"
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-download"></i> Download
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
+    </div>
     {% endif %}
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         // Set minimum requirements for import
         const coursesCheckbox = document.getElementById('import_courses');
         const studentsCheckbox = document.getElementById('import_students');
@@ -145,10 +145,10 @@
         const achievementLevelsCheckbox = document.getElementById('import_achievement_levels');
         const confirmCheckbox = document.getElementById('confirm_import');
         const submitButton = document.querySelector('button[type="submit"]');
-        
+
         function checkAtLeastOneSelected() {
-            if (!coursesCheckbox.checked && !studentsCheckbox.checked && 
-                !examsCheckbox.checked && !outcomesCheckbox.checked && 
+            if (!coursesCheckbox.checked && !studentsCheckbox.checked &&
+                !examsCheckbox.checked && !outcomesCheckbox.checked &&
                 !achievementLevelsCheckbox.checked) {
                 confirmCheckbox.disabled = true;
                 submitButton.disabled = true;
@@ -160,13 +160,13 @@
                 return true;
             }
         }
-        
+
         // Add event listeners
         [coursesCheckbox, studentsCheckbox, examsCheckbox, outcomesCheckbox, achievementLevelsCheckbox].forEach(checkbox => {
             checkbox.addEventListener('change', checkAtLeastOneSelected);
         });
-        
-        confirmCheckbox.addEventListener('change', function() {
+
+        confirmCheckbox.addEventListener('change', function () {
             if (checkAtLeastOneSelected()) {
                 submitButton.disabled = !this.checked;
             }

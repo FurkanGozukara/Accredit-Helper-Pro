@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Edit Student - ABET Calculator{% endblock %}
+{% block title %}Edit Student - Accredit Calculator{% endblock %}
 
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
@@ -20,23 +20,23 @@
                     <form method="POST" action="{{ url_for('student.edit_student', student_id=student.id) }}">
                         <div class="mb-3">
                             <label for="student_id" class="form-label">Student ID</label>
-                            <input type="text" class="form-control" id="student_id" name="student_id" 
+                            <input type="text" class="form-control" id="student_id" name="student_id"
                                    value="{{ student.student_id }}" required>
                             <div class="form-text">Student ID must be unique within this course.</div>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label for="first_name" class="form-label">First Name</label>
-                            <input type="text" class="form-control" id="first_name" name="first_name" 
+                            <input type="text" class="form-control" id="first_name" name="first_name"
                                    value="{{ student.first_name }}" required>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label for="last_name" class="form-label">Last Name</label>
-                            <input type="text" class="form-control" id="last_name" name="last_name" 
+                            <input type="text" class="form-control" id="last_name" name="last_name"
                                    value="{{ student.last_name }}">
                         </div>
-                        
+
                         <div class="d-flex justify-content-between mt-4">
                             <a href="{{ url_for('course.course_detail', course_id=course.id) }}" class="btn btn-secondary">
                                 <i class="bi bi-arrow-left"></i> Cancel

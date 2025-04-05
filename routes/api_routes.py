@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from models import Question, CourseOutcome, Log, Student, Exam, Score, Course, AchievementLevel, ExamWeight
+from models import Question, CourseOutcome, Log, Student, Exam, Score, Course, AchievementLevel, ExamWeight, StudentExamAttendance
 from app import db
 import logging
 from decimal import Decimal
@@ -29,7 +29,7 @@ def get_question_outcomes(exam_id):
 
 @api_bp.route('/student/<int:student_id>/abet-scores', methods=['GET'])
 def get_student_abet_scores(student_id):
-    """API endpoint to get ABET scores for a specific student in a course"""
+    """API endpoint to get Accredit scores for a specific student in a course"""
     student = Student.query.get_or_404(student_id)
     
     # Get course_id from query parameters
@@ -39,9 +39,17 @@ def get_student_abet_scores(student_id):
     
     course = Course.query.get_or_404(course_id)
     
-    # Get exams for this course
-    exams = Exam.query.filter_by(course_id=course_id).all()
-    if not exams:
+    # Get regular and makeup exams for this course separately
+    regular_exams = Exam.query.filter_by(course_id=course_id, is_makeup=False).all()
+    makeup_exams = Exam.query.filter_by(course_id=course_id, is_makeup=True).all()
+    
+    # Create a map from original exam to makeup exam
+    makeup_map = {}
+    for makeup in makeup_exams:
+        if makeup.makeup_for:
+            makeup_map[makeup.makeup_for] = makeup.id
+            
+    if not regular_exams:
         return jsonify([])
         
     # Get all course outcomes for this course
@@ -69,27 +77,62 @@ def get_student_abet_scores(student_id):
             'total_weight': 0
         }
     
-    # For each exam, calculate student scores per outcome
-    for exam in exams:
+    # Get all scores for this student in this course
+    all_scores = Score.query.filter_by(student_id=student_id).all()
+    exam_scores = {}
+    question_scores = {}
+    
+    for score in all_scores:
+        # Group scores by exam
+        if score.exam_id not in exam_scores:
+            exam_scores[score.exam_id] = []
+        exam_scores[score.exam_id].append(score)
+        
+        # Also create a dict for easy question lookup
+        question_scores[(score.exam_id, score.question_id)] = score.score
+    
+    # Get attendance records for this student
+    attendance_records = StudentExamAttendance.query.filter_by(student_id=student_id).all()
+    attendance_dict = {}
+    for record in attendance_records:
+        attendance_dict[record.exam_id] = record.attended
+    
+    # For each regular exam, calculate student scores per outcome
+    for exam in regular_exams:
+        # Check if there's a makeup exam and if the student took it
+        makeup_exam_id = makeup_map.get(exam.id)
+        use_makeup = False
+        
+        if makeup_exam_id and makeup_exam_id in exam_scores:
+            # Student has taken the makeup exam, use it instead
+            use_makeup = True
+            actual_exam_id = makeup_exam_id
+        else:
+            # Use the original exam
+            actual_exam_id = exam.id
+            
         # Skip if exam has no weight
         weight = exam_weights.get(exam.id, 0)
         if weight == 0:
             continue
+        
+        # Check if student attended the exam
+        if actual_exam_id in attendance_dict and not attendance_dict[actual_exam_id]:
+            continue  # Student didn't attend this exam, skip it
             
         # Get questions for this exam
-        questions = Question.query.filter_by(exam_id=exam.id).all()
+        if use_makeup:
+            questions = Question.query.filter_by(exam_id=actual_exam_id).all()
+        else:
+            questions = Question.query.filter_by(exam_id=exam.id).all()
+            
         if not questions:
             continue
             
-        # Get student scores for this exam
-        exam_score = Score.query.filter_by(student_id=student_id, exam_id=exam.id).first()
-        if not exam_score:
+        # Check if student has any scores for this exam
+        if actual_exam_id not in exam_scores:
             continue
             
-        # Get scores for all questions in this exam
-        answers = Score.query.filter_by(student_id=student_id, exam_id=exam.id).all()
-        answer_dict = {a.question_id: a.score for a in answers}
-        
         # Calculate outcome scores for this exam
         outcome_question_scores = {}
         outcome_question_totals = {}
@@ -107,7 +150,7 @@ def get_student_abet_scores(student_id):
                     outcome_question_totals[outcome_id] = 0
                 
                 # Add score if available
-                score = answer_dict.get(question.id, 0)
+                score = question_scores.get((actual_exam_id, question.id), 0)
                 outcome_question_scores[outcome_id] += score
                 outcome_question_totals[outcome_id] += question.max_score
         
