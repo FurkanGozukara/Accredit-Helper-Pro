@@ -293,6 +293,12 @@
                                             <td>{{ student_data.student_id }}</td>
                                             <td>{{ student_data.name }}</td>
                                             <td>
+                                                {% if student_data.missing_mandatory is defined and student_data.missing_mandatory %}
+                                                    <div class="alert alert-danger p-2 mb-0 d-flex align-items-center">
+                                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                                        <span>Missed Mandatory Exam</span>
+                                                    </div>
+                                                {% else %}
                                                 <div class="progress" style="height: 25px;">
                                                     <div class="progress-bar bg-{{ 
                                                         (get_achievement_level(student_data.overall_percentage, achievement_levels))['color'] 
@@ -307,6 +313,7 @@
                                                         }})
                                                     </div>
                                                 </div>
+                                                {% endif %}
                                             </td>
                                             <td>
                                                 <button class="btn btn-sm btn-outline-info" type="button" 

@@ -285,6 +285,11 @@
                 autoSaveScore(this);
             });
             
+            input.addEventListener('input', function() {
+                validateScore(this);
+                updateStudentTotal(this.dataset.studentId);
+            });
+            
             input.addEventListener('focus', function() {
                 this.select();
             });

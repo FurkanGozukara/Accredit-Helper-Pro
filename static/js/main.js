@@ -55,6 +55,18 @@ function initScoreAutoSave() {
         input.addEventListener('input', function() {
             clearTimeout(saveTimeout);
             
+            // Validate score against max value
+            const maxScore = parseFloat(this.getAttribute('data-max-score'));
+            let scoreValue = parseFloat(this.value);
+            
+            if (!isNaN(scoreValue)) {
+                if (scoreValue > maxScore) {
+                    scoreValue = maxScore;
+                    this.value = maxScore;
+                }
+                this.value = parseFloat(scoreValue.toFixed(1));
+            }
+            
             const studentId = this.getAttribute('data-student-id');
             const questionId = this.getAttribute('data-question-id');
             const examId = this.getAttribute('data-exam-id');
