@@ -112,6 +112,24 @@ def delete_course(course_id):
         students_count = Student.query.filter_by(course_id=course_id).count()
         outcomes_count = CourseOutcome.query.filter_by(course_id=course_id).count()
         
+        # First condition: Allow deletion if there are no exams
+        if exams_count == 0:
+            # Handle CourseSettings deletion first
+            from models import CourseSettings
+            settings = CourseSettings.query.filter_by(course_id=course_id).first()
+            if settings:
+                db.session.delete(settings)
+            
+            # Log action before deletion
+            log = Log(action="DELETE_COURSE", description=f"Deleted course: {course.code} - {course.name}")
+            db.session.add(log)
+            
+            db.session.delete(course)
+            db.session.commit()
+            flash(f'Course {course.code} - {course.name} deleted successfully', 'success')
+            return redirect(url_for('course.list_courses'))
+            
+        # Second condition: Prevent deletion if there are exams and other data
         if exams_count > 0 or students_count > 0 or outcomes_count > 0:
             detail_message = []
             if exams_count > 0:

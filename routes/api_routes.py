@@ -4,6 +4,7 @@ from app import db
 import logging
 from decimal import Decimal
 from routes.calculation_routes import get_achievement_level
+import re
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -81,12 +82,12 @@ def get_student_abet_scores(student_id):
             continue
             
         # Get student scores for this exam
-        exam_score = ExamScore.query.filter_by(student_id=student_id, exam_id=exam.id).first()
+        exam_score = Score.query.filter_by(student_id=student_id, exam_id=exam.id).first()
         if not exam_score:
             continue
             
-        # Get answers for this exam score
-        answers = Answer.query.filter_by(exam_score_id=exam_score.id).all()
+        # Get scores for all questions in this exam
+        answers = Score.query.filter_by(student_id=student_id, exam_id=exam.id).all()
         answer_dict = {a.question_id: a.score for a in answers}
         
         # Calculate outcome scores for this exam
@@ -94,16 +95,21 @@ def get_student_abet_scores(student_id):
         outcome_question_totals = {}
         
         for question in questions:
-            if question.course_outcome_id and question.course_outcome_id in outcome_scores:
+            # Get course outcomes associated with this question
+            for outcome in question.course_outcomes:
+                outcome_id = outcome.id
+                if outcome_id not in outcome_scores:
+                    continue
+                    
                 # Initialize if not already
-                if question.course_outcome_id not in outcome_question_scores:
-                    outcome_question_scores[question.course_outcome_id] = 0
-                    outcome_question_totals[question.course_outcome_id] = 0
+                if outcome_id not in outcome_question_scores:
+                    outcome_question_scores[outcome_id] = 0
+                    outcome_question_totals[outcome_id] = 0
                 
                 # Add score if available
                 score = answer_dict.get(question.id, 0)
-                outcome_question_scores[question.course_outcome_id] += score
-                outcome_question_totals[question.course_outcome_id] += question.points
+                outcome_question_scores[outcome_id] += score
+                outcome_question_totals[outcome_id] += question.max_score
         
         # Calculate outcome percentages for this exam
         for outcome_id, total_score in outcome_question_scores.items():
@@ -149,8 +155,110 @@ def batch_add_questions(exam_id):
 @api_bp.route('/mass-associate-outcomes', methods=['POST'])
 def mass_associate_outcomes():
     """API endpoint for mass associating questions with course outcomes"""
-    # Implementation will be added
-    pass
+    data = request.json
+    
+    if not data or 'exam_id' not in data or 'associations' not in data:
+        return jsonify({'success': False, 'message': 'Missing required data'}), 400
+    
+    exam_id = data['exam_id']
+    associations_text = data['associations']
+    
+    try:
+        # Get the exam
+        exam = Exam.query.get(exam_id)
+        if not exam:
+            return jsonify({'success': False, 'message': 'Exam not found'}), 404
+        
+        # Get the course outcomes for this exam's course
+        course_outcomes = CourseOutcome.query.filter_by(course_id=exam.course_id).all()
+        outcome_map = {}
+        
+        # Create a map of outcome numbers to outcome IDs
+        for outcome in course_outcomes:
+            # Extract numeric part from outcome code (CSE301-1 -> 1)
+            code_match = re.search(r'\D*(\d+)$', outcome.code)
+            if code_match:
+                outcome_map[int(code_match.group(1))] = outcome.id
+        
+        # Parse the associations text
+        associations = associations_text.split(';')
+        updates = 0
+        errors = []
+        
+        for assoc in associations:
+            if not assoc.strip():
+                continue
+                
+            parts = assoc.split(':')
+            if len(parts) < 2:
+                errors.append(f"Invalid format for '{assoc}'")
+                continue
+            
+            # Extract question number (q1 -> 1)
+            q_match = re.match(r'q(\d+)', parts[0].lower())
+            if not q_match:
+                errors.append(f"Invalid question format in '{parts[0]}'")
+                continue
+            
+            question_num = int(q_match.group(1))
+            
+            # Find the question by number in this exam
+            question = Question.query.filter_by(exam_id=exam_id, number=question_num).first()
+            if not question:
+                errors.append(f"Question {question_num} not found in this exam")
+                continue
+            
+            # Extract outcomes (oc1 -> 1)
+            outcome_ids = []
+            for i in range(1, len(parts)):
+                oc_match = re.match(r'oc(\d+)', parts[i].lower())
+                if oc_match:
+                    outcome_num = int(oc_match.group(1))
+                    if outcome_num in outcome_map:
+                        outcome_ids.append(outcome_map[outcome_num])
+                    else:
+                        errors.append(f"Outcome {outcome_num} not found in this course")
+            
+            # Update the question's outcomes
+            if outcome_ids:
+                # Clear existing associations
+                question.course_outcomes = []
+                
+                # Add the new associations
+                for outcome_id in outcome_ids:
+                    outcome = CourseOutcome.query.get(outcome_id)
+                    if outcome:
+                        question.course_outcomes.append(outcome)
+                
+                updates += 1
+        
+        if updates > 0:
+            # Log the action
+            log = Log(
+                action="MASS_ASSOCIATE_OUTCOMES",
+                description=f"Updated outcome associations for {updates} questions in exam: {exam.name}"
+            )
+            db.session.add(log)
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Updated outcome associations for {updates} questions',
+                'errors': errors if errors else None
+            })
+        else:
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'message': 'No updates were made',
+                'errors': errors
+            }), 400
+            
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error mass associating outcomes: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @api_bp.route('/update-question-outcome', methods=['POST'])
 def update_question_outcome():

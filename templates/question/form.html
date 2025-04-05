@@ -29,7 +29,7 @@
                             <div class="col-md-3 mb-3">
                                 <label for="max_score" class="form-label">Max Score <span class="text-danger">*</span></label>
                                 <input type="number" class="form-control" id="max_score" name="max_score" required 
-                                       value="{{ question.max_score if question else (exam.max_score / exam.questions|length) if exam.questions|length > 0 else exam.max_score }}" 
+                                       value="{{ question.max_score if question else (form_data.max_score if form_data else (exam.max_score / exam.questions|length) if exam.questions|length > 0 else exam.max_score) }}" 
                                        min="0.5" step="0.5">
                                 <div class="form-text">Maximum points for this question</div>
                             </div>
@@ -59,7 +59,7 @@
                         <div class="mb-3">
                             <label for="text" class="form-label">Question Text</label>
                             <textarea class="form-control" id="text" name="text" rows="3"
-                                     placeholder="Enter a description or the text of the question (optional)">{{ question.text if question else '' }}</textarea>
+                                     placeholder="Enter a description or the text of the question (optional)">{{ question.text if question else (form_data.text if form_data else '') }}</textarea>
                             <div class="form-text">Optional: Description or text of the question for your reference</div>
                         </div>
                         
@@ -73,7 +73,8 @@
                                             <input class="form-check-input" type="checkbox" 
                                                    name="course_outcomes" value="{{ co.id }}" 
                                                    id="co_{{ co.id }}"
-                                                   {% if question and co in question.course_outcomes %}checked{% endif %}>
+                                                   {% if question and co in question.course_outcomes %}checked
+                                                   {% elif form_data and co.id|string in form_data.selected_outcomes %}checked{% endif %}>
                                             <label class="form-check-label" for="co_{{ co.id }}">
                                                 <strong>{{ co.code }}</strong> - {{ co.description|truncate(100) }}
                                             </label>

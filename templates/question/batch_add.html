@@ -33,14 +33,30 @@
                     <label for="num_questions" class="form-label">Number of Questions:</label>
                     <div class="input-group">
                         <input type="number" id="num_questions" name="num_questions" class="form-control" 
-                               value="{{ num_questions }}" min="1" max="100">
+                               value="{{ form_data.num_questions if form_data else num_questions }}" min="1" max="100">
                         <button type="button" id="update_num" class="btn btn-outline-primary">
                             <i class="fas fa-sync-alt"></i> Update
                         </button>
+                        <button type="button" id="distribute_points" class="btn btn-outline-success ms-2"
+                               data-exam-max-score="{{ exam.max_score }}"
+                               data-existing-total="{{ exam.questions|rejectattr('id', 'in', request.args.getlist('exclude_questions'))|sum(attribute='max_score')|default(0) }}">
+                            <i class="fas fa-balance-scale"></i> Distribute Points Equally
+                        </button>
+                    </div>
+                    <div class="form-text">
+                        Exam max score: {{ exam.max_score }}. Clicking "Distribute Points Equally" will divide this among all questions.
                     </div>
                 </div>
                 
                 <div class="table-responsive">
+                    <div class="d-flex justify-content-end mb-2">
+                        <button type="button" id="mark_all_global" class="btn btn-outline-primary me-2">
+                            <i class="fas fa-check-square"></i> Mark All Outcomes (All Questions)
+                        </button>
+                        <button type="button" id="unmark_all_global" class="btn btn-outline-secondary">
+                            <i class="fas fa-square"></i> Unmark All Outcomes (All Questions)
+                        </button>
+                    </div>
                     <table class="table table-striped table-bordered" id="questionsTable">
                         <thead class="thead-light">
                             <tr>
@@ -56,19 +72,31 @@
                                     <td>{{ i + 1 }}</td>
                                     <td>
                                         <input type="text" name="text_{{ i }}" class="form-control question-field" 
-                                               data-index="{{ i }}" placeholder="Question text (optional)">
+                                               data-index="{{ i }}" placeholder="Question text (optional)"
+                                               value="{{ form_data.questions[i].text if form_data and i < form_data.questions|length else '' }}">
                                     </td>
                                     <td>
                                         <input type="number" name="max_score_{{ i }}" class="form-control question-field" 
-                                               data-index="{{ i }}" value="1" min="0.5" step="0.5" required>
+                                               data-index="{{ i }}" 
+                                               value="{{ form_data.questions[i].max_score if form_data and i < form_data.questions|length else 1 }}" 
+                                               min="0.5" step="0.5" required>
                                     </td>
                                     <td>
                                         <div class="outcome-checkboxes">
+                                            <div class="d-flex justify-content-end mb-2">
+                                                <button type="button" class="btn btn-sm btn-outline-primary mark-all" data-index="{{ i }}">
+                                                    <i class="fas fa-check-square"></i> Mark All
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary ms-1 unmark-all" data-index="{{ i }}">
+                                                    <i class="fas fa-square"></i> Unmark All
+                                                </button>
+                                            </div>
                                             {% for outcome in course_outcomes %}
                                                 <div class="form-check">
                                                     <input class="form-check-input outcome-checkbox" type="checkbox" 
                                                            name="course_outcomes_{{ i }}" value="{{ outcome.id }}" 
-                                                           id="outcome_{{ i }}_{{ outcome.id }}" data-index="{{ i }}">
+                                                           id="outcome_{{ i }}_{{ outcome.id }}" data-index="{{ i }}"
+                                                           {% if form_data and i < form_data.questions|length and outcome.id|string in form_data.questions[i].selected_outcomes %}checked{% endif %}>
                                                     <label class="form-check-label" for="outcome_{{ i }}_{{ outcome.id }}">
                                                         <strong>{{ outcome.code }}</strong>: {{ outcome.description|truncate(50) }}
                                                     </label>
@@ -126,6 +154,71 @@
             } else {
                 alert('Please enter a valid number between 1 and 100');
             }
+        });
+        
+        // Equal points distribution functionality
+        document.getElementById('distribute_points').addEventListener('click', function() {
+            const numQuestions = parseInt(document.getElementById('num_questions').value) || 1;
+            const examMaxScore = parseFloat(this.getAttribute('data-exam-max-score'));
+            const existingQuestionsTotal = parseFloat(this.getAttribute('data-existing-total'));
+            const remainingScore = examMaxScore - existingQuestionsTotal;
+            
+            if (remainingScore <= 0) {
+                alert('Warning: The exam has already reached or exceeded its maximum score with existing questions.');
+                return;
+            }
+            
+            // Calculate equal points per question, rounded to 0.5
+            let pointsPerQuestion = parseFloat((remainingScore / numQuestions).toFixed(1));
+            // Ensure it's a multiple of 0.5
+            pointsPerQuestion = Math.round(pointsPerQuestion * 2) / 2;
+            
+            // Apply to all question score inputs
+            const scoreInputs = document.querySelectorAll('input[name^="max_score_"]');
+            let lastIndex = -1;
+            
+            scoreInputs.forEach((input, index) => {
+                input.value = pointsPerQuestion;
+                lastIndex = index;
+                
+                // Store in session storage
+                const questionIndex = input.dataset.index;
+                const textInput = document.querySelector(`input[name="text_${questionIndex}"]`);
+                
+                const questionData = {
+                    index: questionIndex,
+                    text: textInput ? textInput.value : '',
+                    max_score: pointsPerQuestion
+                };
+                
+                sessionStorage.setItem(`question_${questionIndex}`, JSON.stringify(questionData));
+            });
+            
+            // Check if we need to adjust the last question to match exact total
+            if (lastIndex >= 0) {
+                const calculatedTotal = pointsPerQuestion * numQuestions;
+                const roundingError = remainingScore - calculatedTotal;
+                
+                if (Math.abs(roundingError) > 0.01) {
+                    const lastInput = scoreInputs[lastIndex];
+                    const adjustedValue = parseFloat(lastInput.value) + parseFloat(roundingError.toFixed(1));
+                    lastInput.value = Math.max(0.5, adjustedValue.toFixed(1));
+                    
+                    // Update session storage for the last question
+                    const questionIndex = lastInput.dataset.index;
+                    const textInput = document.querySelector(`input[name="text_${questionIndex}"]`);
+                    
+                    const questionData = {
+                        index: questionIndex,
+                        text: textInput ? textInput.value : '',
+                        max_score: lastInput.value
+                    };
+                    
+                    sessionStorage.setItem(`question_${questionIndex}`, JSON.stringify(questionData));
+                }
+            }
+            
+            showSaveStatus();
         });
         
         // Styles for outcome checkboxes
@@ -403,6 +496,108 @@
                 document.getElementById('apply_mass_import').click();
             }, 500);
         }
+        
+        // Global Mark/Unmark All functionality
+        document.getElementById('mark_all_global').addEventListener('click', function(e) {
+            e.preventDefault();
+            const totalQuestions = parseInt(document.getElementById('num_questions').value) || 1;
+            
+            for (let i = 0; i < totalQuestions; i++) {
+                const checkboxes = document.querySelectorAll(`input[name="course_outcomes_${i}"]`);
+                const outcomes = [];
+                
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = true;
+                    outcomes.push(checkbox.value);
+                    
+                    // Apply styles
+                    const container = checkbox.closest('.form-check');
+                    if (container) {
+                        container.style.backgroundColor = '#e8f0fe';
+                        container.style.borderLeftColor = '#0d6efd';
+                    }
+                });
+                
+                // Store in session storage
+                sessionStorage.setItem(`outcomes_${i}`, JSON.stringify(outcomes));
+            }
+            
+            showSaveStatus();
+        });
+        
+        document.getElementById('unmark_all_global').addEventListener('click', function(e) {
+            e.preventDefault();
+            const totalQuestions = parseInt(document.getElementById('num_questions').value) || 1;
+            
+            for (let i = 0; i < totalQuestions; i++) {
+                const checkboxes = document.querySelectorAll(`input[name="course_outcomes_${i}"]`);
+                
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                    
+                    // Reset styles
+                    const container = checkbox.closest('.form-check');
+                    if (container) {
+                        container.style.backgroundColor = '';
+                        container.style.borderLeftColor = 'transparent';
+                    }
+                });
+                
+                // Clear stored outcomes
+                sessionStorage.setItem(`outcomes_${i}`, JSON.stringify([]));
+            }
+            
+            showSaveStatus();
+        });
+        
+        // Mark/Unmark All functionality
+        document.querySelectorAll('.mark-all').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const index = this.getAttribute('data-index');
+                const checkboxes = document.querySelectorAll(`input[name="course_outcomes_${index}"]`);
+                const outcomes = [];
+                
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = true;
+                    outcomes.push(checkbox.value);
+                    
+                    // Apply styles
+                    const container = checkbox.closest('.form-check');
+                    if (container) {
+                        container.style.backgroundColor = '#e8f0fe';
+                        container.style.borderLeftColor = '#0d6efd';
+                    }
+                });
+                
+                // Store in session storage
+                sessionStorage.setItem(`outcomes_${index}`, JSON.stringify(outcomes));
+                showSaveStatus();
+            });
+        });
+        
+        document.querySelectorAll('.unmark-all').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const index = this.getAttribute('data-index');
+                const checkboxes = document.querySelectorAll(`input[name="course_outcomes_${index}"]`);
+                
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                    
+                    // Reset styles
+                    const container = checkbox.closest('.form-check');
+                    if (container) {
+                        container.style.backgroundColor = '';
+                        container.style.borderLeftColor = 'transparent';
+                    }
+                });
+                
+                // Clear stored outcomes
+                sessionStorage.setItem(`outcomes_${index}`, JSON.stringify([]));
+                showSaveStatus();
+            });
+        });
     });
 </script>
 {% endblock %} 

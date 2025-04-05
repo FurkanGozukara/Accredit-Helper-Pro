@@ -74,7 +74,7 @@ class ExamWeight(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     exam_id = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=False, index=True)
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False, index=True)
-    weight = db.Column(db.Numeric(10, 2), nullable=False)
+    weight = db.Column(db.Numeric(10, 4), nullable=False)  # Increased precision to 4 decimal places
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     
@@ -197,14 +197,15 @@ class Log(db.Model):
 class CourseSettings(db.Model):
     """CourseSettings model for storing course-specific settings like success rate calculation method"""
     id = db.Column(db.Integer, primary_key=True)
-    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False, unique=True, index=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id', ondelete='CASCADE'), nullable=False, unique=True, index=True)
     success_rate_method = db.Column(db.String(20), nullable=False, default='absolute')  # 'absolute' or 'relative'
     relative_success_threshold = db.Column(db.Numeric(10, 2), nullable=False, default=60.0)
+    excluded = db.Column(db.Boolean, nullable=False, default=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     
     # Relationship
-    course = db.relationship('Course', backref=db.backref('settings', uselist=False), lazy=True)
+    course = db.relationship('Course', backref=db.backref('settings', uselist=False, cascade="all, delete-orphan"), lazy=True)
     
     def __repr__(self):
         return f"<CourseSettings for Course {self.course_id}>"
@@ -212,7 +213,7 @@ class CourseSettings(db.Model):
 class AchievementLevel(db.Model):
     """AchievementLevel model for storing custom success metrics for courses"""
     id = db.Column(db.Integer, primary_key=True)
-    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False, index=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id', ondelete='CASCADE'), nullable=False, index=True)
     name = db.Column(db.String(50), nullable=False)
     min_score = db.Column(db.Numeric(10, 2), nullable=False)
     max_score = db.Column(db.Numeric(10, 2), nullable=False)

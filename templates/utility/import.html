@@ -71,6 +71,14 @@
                             </label>
                             <small class="form-text text-muted d-block">Import course outcomes that don't already exist</small>
                         </div>
+                        
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="import_achievement_levels" name="import_achievement_levels" checked>
+                            <label class="form-check-label" for="import_achievement_levels">
+                                Achievement Levels
+                            </label>
+                            <small class="form-text text-muted d-block">Import achievement levels for imported courses</small>
+                        </div>
                     </div>
                 </div>
                 
@@ -134,12 +142,14 @@
         const studentsCheckbox = document.getElementById('import_students');
         const examsCheckbox = document.getElementById('import_exams');
         const outcomesCheckbox = document.getElementById('import_outcomes');
+        const achievementLevelsCheckbox = document.getElementById('import_achievement_levels');
         const confirmCheckbox = document.getElementById('confirm_import');
         const submitButton = document.querySelector('button[type="submit"]');
         
         function checkAtLeastOneSelected() {
             if (!coursesCheckbox.checked && !studentsCheckbox.checked && 
-                !examsCheckbox.checked && !outcomesCheckbox.checked) {
+                !examsCheckbox.checked && !outcomesCheckbox.checked && 
+                !achievementLevelsCheckbox.checked) {
                 confirmCheckbox.disabled = true;
                 submitButton.disabled = true;
                 alert('Please select at least one data type to import');
@@ -152,7 +162,7 @@
         }
         
         // Add event listeners
-        [coursesCheckbox, studentsCheckbox, examsCheckbox, outcomesCheckbox].forEach(checkbox => {
+        [coursesCheckbox, studentsCheckbox, examsCheckbox, outcomesCheckbox, achievementLevelsCheckbox].forEach(checkbox => {
             checkbox.addEventListener('change', checkAtLeastOneSelected);
         });
         

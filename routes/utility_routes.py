@@ -360,6 +360,17 @@ def restore_database():
         backup_dir = app.config['BACKUP_FOLDER']
         backups = []
         
+        # Load backup descriptions
+        descriptions_file = os.path.join(backup_dir, 'backup_descriptions.json')
+        descriptions = {}
+        if os.path.exists(descriptions_file):
+            try:
+                with open(descriptions_file, 'r') as f:
+                    descriptions = json.load(f)
+            except json.JSONDecodeError:
+                # Handle corrupt JSON file
+                descriptions = {}
+        
         if os.path.exists(backup_dir):
             backup_files = glob.glob(os.path.join(backup_dir, "accredit_data_backup_*.db"))
             for backup_file in backup_files:
@@ -370,7 +381,9 @@ def restore_database():
                 backups.append({
                     'filename': filename,
                     'created_at': datetime.fromtimestamp(created_at),
-                    'size': round(size, 2)
+                    'size': round(size, 2),
+                    'size_formatted': f"{round(size, 2)} MB",
+                    'description': descriptions.get(filename, '')
                 })
         
         # Sort backups by creation time (newest first)
@@ -1007,6 +1020,7 @@ def import_database():
                 import_students = request.form.get('import_students') == 'on'
                 import_exams = request.form.get('import_exams') == 'on'
                 import_outcomes = request.form.get('import_outcomes') == 'on'
+                import_achievement_levels = request.form.get('import_achievement_levels') == 'on'
                 
                 # Connect to both databases
                 current_db = sqlite3.connect(db_path)
@@ -1424,8 +1438,82 @@ def import_database():
                             # Log but continue if there was an issue with settings import
                             logging.warning(f"Could not import course settings: {str(e)}")
                     
+                    # STEP 5D: Import achievement levels
+                    if import_achievement_levels and course_id_map:
+                        # Check if the achievement_level table exists in both databases
+                        achievement_level_exists_import = import_db.execute(
+                            "SELECT name FROM sqlite_master WHERE type='table' AND name='achievement_level'"
+                        ).fetchone()
+                        
+                        achievement_level_exists_current = current_db.execute(
+                            "SELECT name FROM sqlite_master WHERE type='table' AND name='achievement_level'"
+                        ).fetchone()
+                        
+                        if achievement_level_exists_import and achievement_level_exists_current:
+                            # Get existing achievement levels to avoid duplicates
+                            current_achievement_levels = {}
+                            for level in current_db.execute(
+                                "SELECT course_id, name, min_score, max_score FROM achievement_level"
+                            ).fetchall():
+                                key = (level['course_id'], level['name'])
+                                current_achievement_levels[key] = {
+                                    'min_score': level['min_score'],
+                                    'max_score': level['max_score']
+                                }
+                            
+                            # Get all achievement levels from import database
+                            import_achievement_levels_data = import_db.execute("SELECT * FROM achievement_level").fetchall()
+                            achievement_levels_imported = 0
+                            
+                            for level_data in import_achievement_levels_data:
+                                import_course_id = level_data['course_id']
+                                
+                                # Skip if mapping is missing
+                                if import_course_id not in course_id_map:
+                                    continue
+                                
+                                # Skip importing levels for existing courses
+                                if import_course_id in existing_course_ids:
+                                    continue
+                                
+                                current_course_id = course_id_map[import_course_id]
+                                level_key = (current_course_id, level_data['name'])
+                                
+                                # Check if level already exists
+                                if level_key in current_achievement_levels:
+                                    # Could update existing level if needed
+                                    # For now, we'll skip to avoid overwriting user preferences
+                                    continue
+                                
+                                # Insert the achievement level
+                                cursor = current_db.execute(
+                                    """
+                                    INSERT INTO achievement_level 
+                                    (course_id, name, min_score, max_score, color, created_at, updated_at)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                                    """,
+                                    (
+                                        current_course_id,
+                                        level_data['name'],
+                                        level_data['min_score'],
+                                        level_data['max_score'],
+                                        level_data['color'],
+                                        datetime.now(),
+                                        datetime.now()
+                                    )
+                                )
+                                achievement_levels_imported += 1
+                            
+                            if achievement_levels_imported > 0:
+                                logging.info(f"Imported {achievement_levels_imported} achievement levels")
+                        else:
+                            # Log reason for not importing achievement levels
+                            if not achievement_level_exists_import:
+                                logging.warning("achievement_level table not found in import database")
+                            if not achievement_level_exists_current:
+                                logging.warning("achievement_level table not found in current database")
+                    
                     # STEP 6: Import scores - we can import scores regardless of whether we imported students/exams/questions
-                    # as long as we have the mappings for them. For existing courses, skip score import.
                     if student_id_map and question_id_map and exam_id_map:
                         import_scores_data = import_db.execute("SELECT * FROM score").fetchall()
                         
@@ -1838,6 +1926,7 @@ def import_database():
                     logging.info(f"  Exams: {exams_imported} imported")
                     logging.info(f"  Exam Weights: {weights_imported if 'weights_imported' in locals() else 0} imported")
                     logging.info(f"  Course Settings: {settings_imported if 'settings_imported' in locals() else 0} imported")
+                    logging.info(f"  Achievement Levels: {achievement_levels_imported if 'achievement_levels_imported' in locals() else 0} imported")
                     logging.info(f"  Scores: {scores_imported} imported")
                     
                     # Log action
@@ -1862,6 +1951,8 @@ def import_database():
                         summary_parts.append(f"{weights_imported} exam weights")
                     if 'settings_imported' in locals() and settings_imported > 0:
                         summary_parts.append(f"{settings_imported} course settings")
+                    if 'achievement_levels_imported' in locals() and achievement_levels_imported > 0:
+                        summary_parts.append(f"{achievement_levels_imported} achievement levels")
                     
                     if summary_parts:
                         summary = ", ".join(summary_parts)

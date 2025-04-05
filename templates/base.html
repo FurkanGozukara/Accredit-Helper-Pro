@@ -37,7 +37,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if active_page == 'all_courses' %}active{% endif %}" href="{{ url_for('calculation.all_courses_calculations') }}">
+                            <a class="nav-link {% if active_page == 'all_courses' %}active{% endif %}" href="{{ url_for('calculation.all_courses') }}">
                                 <i class="bi bi-graph-up"></i> All Courses Analysis
                             </a>
                         </li>
@@ -117,7 +117,9 @@
 
     <footer class="footer mt-auto py-3 bg-light">
         <div class="container text-center">
-            <span class="text-muted">Accredit Helper Pro by SECourses V8 - Only Authorized Purchase from <a href="https://www.patreon.com/c/SECourses">www.patreon.com/c/SECourses</a> - Per License Needed for Per Department (e.g. Computer Engineering) - All Rights Reserved | <a href="{{ url_for('utility.help_page') }}">Help</a></span>
+            <span class="text-muted">
+                Accredit Helper Pro V9 by SECourses: Purchase a <a href="YOUR_DEPARTMENT_LINK_HERE">Per Department</a> license or an <a href="YOUR_INSTITUTION_LINK_HERE">Institution/University Wide</a> license. All licenses are permanent (lifetime) and include future updates. Only purchases made through these official links are valid. All Rights Reserved | <a href="{{ url_for('utility.help_page') }}">Help</a>
+            </span>
         </div>
     </footer>
 

@@ -29,6 +29,19 @@ def add_question(exam_id):
         # Get selected course outcomes
         selected_outcomes = request.form.getlist('course_outcomes')
         
+        # Get next question number for form
+        next_question_number = 1
+        last_question = Question.query.filter_by(exam_id=exam_id).order_by(Question.number.desc()).first()
+        if last_question:
+            next_question_number = last_question.number + 1
+        
+        # Store form data for possible re-rendering
+        form_data = {
+            'text': text,
+            'max_score': max_score,
+            'selected_outcomes': selected_outcomes
+        }
+        
         # Basic validation
         if not max_score:
             flash('Maximum score is required', 'error')
@@ -36,6 +49,8 @@ def add_question(exam_id):
                                  exam=exam, 
                                  course=course,
                                  course_outcomes=course_outcomes,
+                                 form_data=form_data,
+                                 next_number=next_question_number,
                                  active_page='courses')
         
         if not selected_outcomes:
@@ -44,18 +59,14 @@ def add_question(exam_id):
                                  exam=exam, 
                                  course=course,
                                  course_outcomes=course_outcomes,
+                                 form_data=form_data,
+                                 next_number=next_question_number,
                                  active_page='courses')
         
         try:
             max_score = Decimal(max_score)
             if max_score <= 0:
                 raise ValueError("Score must be positive")
-            
-            # Get next question number
-            next_question_number = 1
-            last_question = Question.query.filter_by(exam_id=exam_id).order_by(Question.number.desc()).first()
-            if last_question:
-                next_question_number = last_question.number + 1
             
             # Create new question
             new_question = Question(
@@ -88,6 +99,8 @@ def add_question(exam_id):
                                  exam=exam, 
                                  course=course,
                                  course_outcomes=course_outcomes,
+                                 form_data=form_data,
+                                 next_number=next_question_number,
                                  active_page='courses')
         except Exception as e:
             db.session.rollback()
@@ -97,13 +110,21 @@ def add_question(exam_id):
                                  exam=exam, 
                                  course=course,
                                  course_outcomes=course_outcomes,
+                                 form_data=form_data,
+                                 next_number=next_question_number,
                                  active_page='courses')
     
-    # GET request
+    # GET request - calculate next question number
+    next_question_number = 1
+    last_question = Question.query.filter_by(exam_id=exam_id).order_by(Question.number.desc()).first()
+    if last_question:
+        next_question_number = last_question.number + 1
+        
     return render_template('question/form.html', 
                          exam=exam, 
                          course=course,
                          course_outcomes=course_outcomes,
+                         next_number=next_question_number,
                          active_page='courses')
 
 @question_bp.route('/edit/<int:question_id>', methods=['GET', 'POST'])
@@ -121,6 +142,13 @@ def edit_question(question_id):
         # Get selected course outcomes
         selected_outcomes = request.form.getlist('course_outcomes')
         
+        # Store form data for possible re-rendering
+        form_data = {
+            'text': text,
+            'max_score': max_score,
+            'selected_outcomes': selected_outcomes
+        }
+        
         # Basic validation
         if not max_score:
             flash('Maximum score is required', 'error')
@@ -129,6 +157,7 @@ def edit_question(question_id):
                                  exam=exam, 
                                  course=course,
                                  course_outcomes=course_outcomes,
+                                 form_data=form_data,
                                  active_page='courses')
         
         if not selected_outcomes:
@@ -138,6 +167,7 @@ def edit_question(question_id):
                                  exam=exam, 
                                  course=course,
                                  course_outcomes=course_outcomes,
+                                 form_data=form_data,
                                  active_page='courses')
         
         try:
@@ -172,6 +202,7 @@ def edit_question(question_id):
                                  exam=exam, 
                                  course=course,
                                  course_outcomes=course_outcomes,
+                                 form_data=form_data,
                                  active_page='courses')
         except Exception as e:
             db.session.rollback()
@@ -182,6 +213,7 @@ def edit_question(question_id):
                                  exam=exam, 
                                  course=course,
                                  course_outcomes=course_outcomes,
+                                 form_data=form_data,
                                  active_page='courses')
     
     # GET request
@@ -268,12 +300,29 @@ def batch_add_questions(exam_id):
     if request.method == 'POST':
         num_questions = int(request.form.get('num_questions', 0))
         
+        # Create form_data dictionary to store submitted values
+        form_data = {
+            'num_questions': num_questions,
+            'questions': []
+        }
+        
+        # Gather all posted form data
+        for i in range(num_questions):
+            question_data = {
+                'text': request.form.get(f'text_{i}', ''),
+                'max_score': request.form.get(f'max_score_{i}', 0),
+                'selected_outcomes': request.form.getlist(f'course_outcomes_{i}')
+            }
+            form_data['questions'].append(question_data)
+        
         if num_questions <= 0:
             flash('Please specify a valid number of questions to add', 'error')
             return render_template('question/batch_add.html', 
                                  exam=exam, 
                                  course=course,
                                  course_outcomes=course_outcomes,
+                                 form_data=form_data,
+                                 num_questions=max(1, num_questions),
                                  active_page='courses')
         
         # Get next question number
@@ -328,17 +377,40 @@ def batch_add_questions(exam_id):
                 return redirect(url_for('exam.exam_detail', exam_id=exam_id))
             else:
                 flash('No valid questions were provided', 'warning')
+                return render_template('question/batch_add.html', 
+                                     exam=exam, 
+                                     course=course,
+                                     course_outcomes=course_outcomes,
+                                     form_data=form_data,
+                                     num_questions=num_questions,
+                                     active_page='courses')
                 
         except Exception as e:
             db.session.rollback()
             logging.error(f"Error adding batch questions: {str(e)}")
             flash('An error occurred while adding the questions', 'error')
+            return render_template('question/batch_add.html', 
+                                 exam=exam, 
+                                 course=course,
+                                 course_outcomes=course_outcomes,
+                                 form_data=form_data,
+                                 num_questions=num_questions,
+                                 active_page='courses')
+    
+    # Get num_questions from URL parameter if provided (for GET requests)
+    num_questions = request.args.get('num_questions')
+    if num_questions and num_questions.isdigit():
+        num_questions = int(num_questions)
+        if num_questions <= 0 or num_questions > 100:
+            num_questions = 40  # Default if invalid
+    else:
+        num_questions = 40  # Default number
     
     return render_template('question/batch_add.html', 
                          exam=exam, 
                          course=course,
                          course_outcomes=course_outcomes,
-                         num_questions=40,  # Default number
+                         num_questions=num_questions,
                          active_page='courses')
 
 @question_bp.route('/mass-associate/<int:course_id>', methods=['GET', 'POST'])
@@ -408,6 +480,36 @@ def mass_associate_outcomes(course_id):
                          course_outcomes=course_outcomes,
                          exams=exams,
                          active_page='courses')
+
+@question_bp.route('/mass-associate/<int:course_id>/export')
+def export_mass_associate_outcomes(course_id):
+    """Export all questions and their associated outcomes for a course"""
+    course = Course.query.get_or_404(course_id)
+    exams = Exam.query.filter_by(course_id=course_id).all()
+    
+    # Prepare data for export
+    data = []
+    headers = ['Exam', 'Question Number', 'Question Text', 'Max Score', 'Associated Outcomes']
+    
+    for exam in exams:
+        questions = Question.query.filter_by(exam_id=exam.id).order_by(Question.number).all()
+        for question in questions:
+            # Get related course outcomes
+            co_codes = [co.code for co in question.course_outcomes]
+            co_text = ', '.join(co_codes) if co_codes else 'None'
+            
+            question_data = {
+                'Exam': exam.name,
+                'Question Number': question.number,
+                'Question Text': question.text or '',
+                'Max Score': question.max_score,
+                'Associated Outcomes': co_text
+            }
+            
+            data.append(question_data)
+    
+    # Export data using utility function
+    return export_to_excel_csv(data, f"questions_outcomes_{course.code}", headers)
 
 @question_bp.route('/exam/<int:exam_id>/export')
 def export_exam_questions(exam_id):

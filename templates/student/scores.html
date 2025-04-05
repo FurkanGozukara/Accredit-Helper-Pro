@@ -152,16 +152,16 @@
                                                 <div class="summary-value" id="percentage_value_{{ student.id }}">0%</div>
                                             </td>
                                             <td class="summary-cell" rowspan="{{ num_rows }}">
-                                                <div class="summary-label">ABET Scores</div>
+                                                <div class="summary-label">Accredited Scores</div>
                                                 <button type="button" 
                                                         class="btn btn-sm btn-outline-info abet-scores-btn" 
                                                         data-bs-toggle="popover" 
                                                         data-bs-trigger="focus" 
                                                         data-bs-html="true"
-                                                        title="ABET Outcomes for {{ student.first_name }} {{ student.last_name }}"
+                                                        title="Accredited Outcomes for {{ student.first_name }} {{ student.last_name }}"
                                                         data-bs-content="<div id='abet-scores-{{ student.id }}'>Computing...</div>"
                                                         data-student-id="{{ student.id }}">
-                                                    <i class="fas fa-chart-bar"></i> View ABET Scores
+                                                    <i class="fas fa-chart-bar"></i> View Accredited Scores
                                                 </button>
                                             </td>
                                         {% endif %}
@@ -250,7 +250,9 @@
         document.querySelectorAll('.abet-scores-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const studentId = this.dataset.studentId;
-                fetchAbetScores(studentId, "{{ exam.course_id }}", this.nextElementSibling);
+                const containerId = `abet-scores-${studentId}`;
+                const container = document.getElementById(containerId);
+                fetchAbetScores(studentId, "{{ exam.course_id }}", container);
             });
         });
         
@@ -385,7 +387,7 @@
                         });
                 })
                 .catch(error => {
-                    container.innerHTML = `<div class="alert alert-danger">Error loading ABET scores: ${error.message}</div>`;
+                    container.innerHTML = `<div class="alert alert-danger">Error loading Accredited scores: ${error.message}</div>`;
                     console.error('Error:', error);
                 });
         }

@@ -60,12 +60,20 @@
     {% elif not has_exam_questions %}
         <div class="alert alert-warning">
             <i class="fas fa-exclamation-triangle"></i> No exam questions have been associated with course outcomes.
-            <a href="{{ url_for('exam.exam_detail', exam_id=exams[0].id) }}" class="alert-link">Add questions to exams</a> and associate them with course outcomes.
+            {% if exams and exams|length > 0 %}
+                <a href="{{ url_for('exam.exam_detail', exam_id=exams[0].id) }}" class="alert-link">Add questions to exams</a> and associate them with course outcomes.
+            {% else %}
+                <a href="{{ url_for('exam.add_exam', course_id=course.id) }}" class="alert-link">Create an exam</a> first, then add questions and associate them with course outcomes.
+            {% endif %}
         </div>
     {% elif not has_student_scores %}
         <div class="alert alert-warning">
             <i class="fas fa-exclamation-triangle"></i> No student scores have been entered for the exams.
-            <a href="{{ url_for('student.manage_scores', exam_id=exams[0].id) }}" class="alert-link">Enter student scores</a> to calculate outcomes.
+            {% if exams and exams|length > 0 %}
+                <a href="{{ url_for('student.manage_scores', exam_id=exams[0].id) }}" class="alert-link">Enter student scores</a> to calculate outcomes.
+            {% else %}
+                <a href="{{ url_for('exam.add_exam', course_id=course.id) }}" class="alert-link">Create an exam</a> first, then enter student scores.
+            {% endif %}
         </div>
     {% else %}
         {% if total_weight_percent != 100 %}

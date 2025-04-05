@@ -367,10 +367,6 @@ def import_scores(exam_id):
     # Get all students for this course, indexed by student_id
     students_dict = {s.student_id: s for s in Student.query.filter_by(course_id=course.id).all()}
     
-    if not students_dict:
-        flash('No students found for this course. Please import students first.', 'warning')
-        return redirect(url_for('student.import_students', course_id=course.id))
-    
     # Get score data from file or textarea
     scores_data = ""
     if 'scores_file' in request.files and request.files['scores_file'].filename:
@@ -393,6 +389,7 @@ def import_scores(exam_id):
     # Process data
     lines = scores_data.strip().split('\n')
     scores_added = 0
+    students_added = 0
     errors = []
     
     for i, line in enumerate(lines, 1):
@@ -410,32 +407,67 @@ def import_scores(exam_id):
                 continue
             
             student_id = parts[0]
-            # We don't use the name part (parts[1]) as we match by student_id
+            full_name = parts[1]
             
-            # Find the student
-            if student_id not in students_dict:
-                errors.append(f"Line {i}: Student with ID {student_id} not found in this course")
-                continue
-            
-            student = students_dict[student_id]
+            # Find or create the student
+            student = None
+            if student_id in students_dict:
+                student = students_dict[student_id]
+            else:
+                # Create a new student
+                name_parts = full_name.split()
+                if len(name_parts) == 1:
+                    first_name = name_parts[0]
+                    last_name = ""
+                else:
+                    first_name = " ".join(name_parts[:-1])
+                    last_name = name_parts[-1]
+                
+                try:
+                    new_student = Student(
+                        student_id=student_id,
+                        first_name=first_name,
+                        last_name=last_name,
+                        course_id=course.id,
+                        created_at=datetime.now(),
+                        updated_at=datetime.now()
+                    )
+                    db.session.add(new_student)
+                    db.session.flush()  # Get the ID without committing
+                    student = new_student
+                    students_dict[student_id] = student  # Add to dictionary for future lookups
+                    students_added += 1
+                except Exception as e:
+                    errors.append(f"Line {i}: Error creating student - {str(e)}")
+                    continue
             
             # Process scores (format q1:score1;q2:score2;...)
-            for j, score_str in enumerate(parts[2:], 1):
+            for score_data in parts[2:]:
                 # Skip empty scores
-                if not score_str:
+                if not score_data:
                     continue
                 
-                # Map score to question number
-                if j > len(questions):
-                    errors.append(f"Line {i}: Too many scores provided (only {len(questions)} questions exist)")
-                    break
-                
-                # Try to convert score to number
+                # Parse the question number and score
                 try:
+                    if ':' in score_data:
+                        q_part, score_part = score_data.split(':', 1)
+                        # Extract the question number (remove 'q' or 'Q' prefix)
+                        q_num = int(q_part.lower().replace('q', ''))
+                        score_str = score_part
+                    else:
+                        # If no question number, use position in list
+                        q_num = len(scores_added) + 1
+                        score_str = score_data
+                    
+                    # Convert score to Decimal
                     score_value = Decimal(score_str)
                     
-                    # Get corresponding question
-                    question = questions[j]
+                    # Check if question exists
+                    if q_num not in questions:
+                        errors.append(f"Line {i}: Question {q_num} does not exist for this exam")
+                        continue
+                    
+                    question = questions[q_num]
                     
                     # Validate score is within range
                     if score_value < 0:
@@ -463,21 +495,28 @@ def import_scores(exam_id):
                     
                     scores_added += 1
                     
-                except (ValueError, KeyError) as e:
-                    errors.append(f"Line {i}: Error processing score {score_str} for question {j}: {str(e)}")
+                except ValueError as e:
+                    errors.append(f"Line {i}: Error processing score '{score_data}' - {str(e)}")
+                    continue
+                except Exception as e:
+                    errors.append(f"Line {i}: Error processing score '{score_data}' - {str(e)}")
                     continue
         
         except Exception as e:
             errors.append(f"Line {i}: Error processing line - {str(e)}")
     
-    if scores_added > 0:
+    if scores_added > 0 or students_added > 0:
         try:
             # Log action
             log = Log(action="IMPORT_SCORES", 
-                     description=f"Imported {scores_added} scores for exam: {exam.name} in course: {course.code}")
+                     description=f"Imported {scores_added} scores and {students_added} new students for exam: {exam.name} in course: {course.code}")
             db.session.add(log)
             
             db.session.commit()
+            
+            if students_added > 0:
+                flash(f'Successfully added {students_added} new students', 'success')
+            
             flash(f'Successfully imported {scores_added} scores', 'success')
             
             if errors:
@@ -701,4 +740,65 @@ def add_student(course_id):
     # GET request
     return render_template('student/add.html', 
                         course=course,
-                        active_page='courses') 
+                        active_page='courses')
+
+@student_bp.route('/mass_delete', methods=['POST'])
+def mass_delete_students():
+    """Delete multiple students at once"""
+    student_ids = request.form.getlist('student_ids')
+    course_id = request.form.get('course_id')
+    
+    if not course_id:
+        flash('Course ID is required', 'error')
+        return redirect(url_for('index'))
+    
+    # Verify course exists
+    course = Course.query.get_or_404(int(course_id))
+    
+    if not student_ids:
+        flash('No students selected for deletion', 'warning')
+        return redirect(url_for('course.course_detail', course_id=course_id))
+    
+    deleted_count = 0
+    error_count = 0
+    
+    for student_id in student_ids:
+        student = Student.query.get(int(student_id))
+        if not student:
+            error_count += 1
+            continue
+            
+        try:
+            # Check for related scores
+            scores_count = Score.query.filter_by(student_id=student.id).count()
+            
+            if scores_count > 0:
+                error_count += 1
+                continue
+                
+            db.session.delete(student)
+            deleted_count += 1
+            
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error deleting student: {str(e)}")
+            error_count += 1
+    
+    if deleted_count > 0:
+        # Log action
+        log = Log(action="MASS_DELETE_STUDENTS", 
+                 description=f"Deleted {deleted_count} students from course: {course.code}")
+        db.session.add(log)
+        
+        try:
+            db.session.commit()
+            flash(f'Successfully deleted {deleted_count} students', 'success')
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error committing student deletion: {str(e)}")
+            flash('An error occurred while deleting students', 'error')
+    
+    if error_count > 0:
+        flash(f'Failed to delete {error_count} students due to existing scores or other errors', 'warning')
+    
+    return redirect(url_for('course.course_detail', course_id=course_id)) 

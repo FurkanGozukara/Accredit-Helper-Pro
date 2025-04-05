@@ -201,29 +201,36 @@ def delete_exam(exam_id):
     course_id = exam.course_id
     
     try:
-        # Check for related data
+        # Count related data for logging purposes
         questions_count = Question.query.filter_by(exam_id=exam_id).count()
         scores_count = Score.query.filter_by(exam_id=exam_id).count()
         
+        # Log action before deletion
+        description = f"Deleted exam: {exam.name} from course: {exam.course.code}"
         if questions_count > 0 or scores_count > 0:
             detail_message = []
             if questions_count > 0:
                 detail_message.append(f"{questions_count} questions")
             if scores_count > 0:
                 detail_message.append(f"{scores_count} student scores")
-                
-            error_message = f"Cannot delete exam: It has related data ({', '.join(detail_message)}). "
-            error_message += "Delete the related data first."
-            flash(error_message, 'error')
-            return redirect(url_for('course.course_detail', course_id=course_id))
-            
-        # Log action before deletion
-        log = Log(action="DELETE_EXAM", description=f"Deleted exam: {exam.name} from course: {exam.course.code}")
+            description += f" with related data ({', '.join(detail_message)})"
+        
+        log = Log(action="DELETE_EXAM", description=description)
         db.session.add(log)
         
+        # Also delete any exam weights
+        exam_weight = ExamWeight.query.filter_by(exam_id=exam_id).first()
+        if exam_weight:
+            db.session.delete(exam_weight)
+        
+        # Delete the exam (will cascade delete questions and scores due to relationship configuration)
         db.session.delete(exam)
         db.session.commit()
-        flash(f'Exam {exam.name} deleted successfully', 'success')
+        
+        success_message = f'Exam {exam.name} deleted successfully'
+        if questions_count > 0 or scores_count > 0:
+            success_message += f' along with all related data'
+        flash(success_message, 'success')
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error deleting exam: {str(e)}")
@@ -242,12 +249,16 @@ def exam_detail(exam_id):
     # Get exam weight
     exam_weight = ExamWeight.query.filter_by(exam_id=exam_id).first()
     
+    # Calculate the sum of all question scores
+    total_question_score = sum(float(q.max_score) for q in questions) if questions else 0
+    
     return render_template('exam/detail.html', 
                          exam=exam, 
                          course=course,
                          questions=questions,
                          course_outcomes=course_outcomes,
                          exam_weight=exam_weight,
+                         total_question_score=total_question_score,
                          active_page='courses')
 
 @exam_bp.route('/course/<int:course_id>/weights', methods=['GET', 'POST'])
@@ -273,23 +284,37 @@ def manage_weights(course_id):
                 weight_value = request.form.get(weight_key, '0')
                 
                 try:
-                    # Convert from percentage (0-100) to decimal (0-1)
-                    weight_value = Decimal(str(weight_value)) / Decimal('100')
-                    if weight_value < Decimal('0'):
-                        weight_value = Decimal('0')
-                    if weight_value > Decimal('1'):
-                        weight_value = Decimal('1')
+                    # Ensure the weight value is properly formatted and handled as Decimal
+                    # First, strip any whitespace
+                    weight_value = weight_value.strip()
                     
-                    exam_weights[exam.id] = weight_value
-                    total_weight += weight_value
+                    # Handle various decimal separators (both . and ,)
+                    if ',' in weight_value and '.' not in weight_value:
+                        weight_value = weight_value.replace(',', '.')
+                    
+                    # Force string conversion for Decimal to handle properly
+                    decimal_weight = Decimal(str(weight_value))
+                    
+                    # Convert from percentage (0-100) to decimal (0-1)
+                    decimal_weight = decimal_weight / Decimal('100')
+                    
+                    # Ensure value is within valid range
+                    if decimal_weight < Decimal('0'):
+                        decimal_weight = Decimal('0')
+                    if decimal_weight > Decimal('1'):
+                        decimal_weight = Decimal('1')
+                    
+                    # Store the properly converted decimal value
+                    exam_weights[exam.id] = decimal_weight
+                    total_weight += decimal_weight
                 except (ValueError, InvalidOperation) as e:
                     flash(f'Invalid weight value for {exam.name}: {str(e)}', 'error')
                     return redirect(url_for('exam.manage_weights', course_id=course_id))
             
             # Ensure weights sum to 1 (100%)
             if abs(total_weight - Decimal('1.0')) > Decimal('0.01'):  # Allow small decimal error
-                flash(f'The sum of weights must equal 100%. Current total: {(total_weight * Decimal("100")).quantize(Decimal("0.1"))}%', 'error')
-                return redirect(url_for('exam.manage_weights', course_id=course_id))
+                # Display a warning but don't prevent saving
+                flash(f'Warning: The sum of weights is {(total_weight * Decimal("100")).quantize(Decimal("0.1"))}% (not 100%)', 'warning')
             
             # Log action
             log = Log(action="UPDATE_EXAM_WEIGHTS", 
@@ -319,9 +344,14 @@ def manage_weights(course_id):
                         new_makeup_weight = ExamWeight(exam_id=makeup_exam.id, course_id=course_id, weight=weight)
                         db.session.add(new_makeup_weight)
             
-            db.session.commit()
-            flash('Exam weights updated successfully', 'success')
-            return redirect(url_for('course.course_detail', course_id=course_id))
+            try:
+                # Commit the changes
+                db.session.commit()
+                flash('Exam weights updated successfully', 'success')
+                return redirect(url_for('exam.manage_weights', course_id=course_id))
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Database error while updating weights: {str(e)}', 'error')
             
         except Exception as e:
             db.session.rollback()
@@ -403,10 +433,8 @@ def export_exams(course_id):
                      description=f"Automatically fixed {fixes_count} makeup exam relationships for course: {course.code}")
             db.session.add(log)
             db.session.commit()
-            print(f"Fixed {fixes_count} makeup exam relationships before exporting")
         except Exception as e:
             db.session.rollback()
-            print(f"Error fixing makeup exam relationships: {str(e)}")
     
     # Refresh exam list after possible changes
     exams = Exam.query.filter_by(course_id=course_id).order_by(Exam.name).all()

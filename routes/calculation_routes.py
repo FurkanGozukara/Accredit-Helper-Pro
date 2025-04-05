@@ -506,11 +506,14 @@ def export_results(course_id):
     return export_to_excel_csv(data, f"accredit_results_{course.code}", None)
 
 
-@calculation_bp.route('/all_courses')
+@calculation_bp.route('/all_courses', endpoint='all_courses')
 def all_courses_calculations():
     """Show program outcome scores for all courses"""
     # Check if this is an AJAX request
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
+    # Get sort parameters from query string, default to course_code_asc
+    sort_by = request.args.get('sort_by', 'course_code_asc')
     
     # Improved query with eager loading to reduce database hits
     courses = Course.query.options(
@@ -530,6 +533,10 @@ def all_courses_calculations():
     # Initialize data structure to hold results for all courses
     all_results = {}
     
+    # Extract years from courses for year filter
+    years = sorted(set(course.semester.split(' ')[1] for course in courses 
+                       if ' ' in course.semester), reverse=True)
+    
     # Total number of courses for progress calculation
     total_courses = len([c for c in courses if c.course_outcomes and c.exams])
     processed_courses = 0
@@ -543,6 +550,20 @@ def all_courses_calculations():
     for weight in exam_weights:
         all_exam_weights[(weight.exam_id)] = weight.weight
     
+    # First, check if we need to update all course settings
+    should_update_settings = False
+    for course in courses:
+        if course.settings and course.settings.success_rate_method != display_method:
+            should_update_settings = True
+            break
+
+    # Update all course settings if needed
+    if should_update_settings:
+        for course in courses:
+            if course.settings:
+                course.settings.success_rate_method = display_method
+        db.session.commit()
+
     for course in courses:
         # Skip courses with no outcomes or exams
         if not course.course_outcomes or not course.exams:
@@ -566,6 +587,337 @@ def all_courses_calculations():
             db.session.add(settings)
             db.session.commit()
         
+        # Update the calculation method based on session if needed
+        if settings.success_rate_method != display_method:
+            settings.success_rate_method = display_method
+            db.session.commit()
+        
+        # Filter preloaded exams instead of new queries
+        exams = [e for e in course.exams if not e.is_makeup]
+        makeup_exams = [e for e in course.exams if e.is_makeup]
+        
+        # Get students for this course - use preloaded relation
+        students = course.students
+        
+        # Check if we have all necessary data to calculate results
+        if not exams or not students:
+            continue
+            
+        # Get mandatory exams - filter in-memory
+        mandatory_exams = [exam for exam in exams if exam.is_mandatory]
+        
+        # Get exam weights - use preloaded weights dict
+        weights = {}
+        for exam in exams:
+            weight = all_exam_weights.get(exam.id)
+            weights[exam.id] = weight if weight is not None else Decimal('0')
+        
+        # Preload all course outcomes for this course
+        course_outcomes = course.course_outcomes
+        
+        # Preload all question-course outcome associations for this course
+        question_ids = []
+        for exam in exams:
+            question_ids.extend([q.id for q in exam.questions])
+        
+        # Create a map of course outcomes to their related questions
+        outcome_questions = {}
+        for co in course_outcomes:
+            outcome_questions[co.id] = co.questions
+        
+        # Create a map of exams to their questions
+        questions_by_exam = {}
+        for exam in exams + makeup_exams:
+            questions_by_exam[exam.id] = exam.questions
+        
+        # Create a map of program outcomes to their related course outcomes
+        program_to_course_outcomes = {}
+        for po in program_outcomes:
+            related_cos = [co for co in course_outcomes if po in co.program_outcomes]
+            program_to_course_outcomes[po.id] = related_cos
+        
+        # Calculate student results based on selected method
+        student_results = {}
+        success_count = 0
+        total_students = 0
+        
+        # Preload scores for this course to reduce database hits
+        # Get all scores for this course's students in one query
+        student_ids = [s.id for s in students]
+        exam_ids = [e.id for e in exams + makeup_exams]
+        
+        # Only load scores if we have students and exams
+        if student_ids and exam_ids:
+            # Preload scores in batches if there are many students/exams
+            batch_size = 100
+            scores_dict = {}
+            
+            for i in range(0, len(student_ids), batch_size):
+                batch_student_ids = student_ids[i:i+batch_size]
+                scores = Score.query.filter(
+                    Score.student_id.in_(batch_student_ids),
+                    Score.exam_id.in_(exam_ids)
+                ).all()
+                
+                for score in scores:
+                    key = (score.student_id, score.question_id, score.exam_id)
+                    scores_dict[key] = score.score
+        
+        for student in students:
+            # Initialize student results
+            student_results[student.id] = {
+                'student': student,
+                'exam_scores': {},  # Raw scores per exam
+                'weighted_score': Decimal('0'),  # Final weighted score
+                'program_outcome_scores': {},  # Scores per program outcome
+                'skip': False
+            }
+            
+            # Check if student should be skipped due to mandatory exam policy
+            if mandatory_exams:
+                skip_student = True
+                for exam in mandatory_exams:
+                    # Check regular exam
+                    exam_score = calculate_student_exam_score_optimized(
+                        student.id, exam.id, scores_dict, questions_by_exam[exam.id]
+                    )
+                    if exam_score is not None and exam_score > Decimal('0'):
+                        skip_student = False
+                        break
+                        
+                    # Check makeup exam if exists
+                    makeup_exam = next((m for m in makeup_exams if m.makeup_for == exam.id), None)
+                    if makeup_exam:
+                        makeup_score = calculate_student_exam_score_optimized(
+                            student.id, makeup_exam.id, scores_dict, questions_by_exam[makeup_exam.id]
+                        )
+                        if makeup_score is not None and makeup_score > Decimal('0'):
+                            skip_student = False
+                            break
+                
+                if skip_student:
+                    student_results[student.id]['skip'] = True
+                    continue
+            
+            # Calculate exam scores for student
+            for exam in exams:
+                # Check if student has a makeup exam for this exam
+                makeup_exam = next((m for m in makeup_exams if m.makeup_for == exam.id), None)
+                
+                # If student has a makeup, use that instead
+                if makeup_exam:
+                    makeup_score = calculate_student_exam_score_optimized(student.id, makeup_exam.id, scores_dict, questions_by_exam[makeup_exam.id])
+                    if makeup_score is not None:
+                        student_results[student.id]['exam_scores'][exam.id] = makeup_score
+                        continue
+                
+                # Otherwise use regular exam score
+                exam_score = calculate_student_exam_score_optimized(student.id, exam.id, scores_dict, questions_by_exam[exam.id])
+                if exam_score is not None:
+                    student_results[student.id]['exam_scores'][exam.id] = exam_score
+            
+            # Calculate weighted score
+            weighted_score = Decimal('0')
+            for exam_id, score in student_results[student.id]['exam_scores'].items():
+                weighted_score += score * weights.get(exam_id, Decimal('0'))
+            
+            student_results[student.id]['weighted_score'] = weighted_score
+            
+            # Calculate program outcome scores
+            for outcome in program_outcomes:
+                score = calculate_program_outcome_score_optimized(student.id, outcome.id, course_id, scores_dict, program_to_course_outcomes, outcome_questions)
+                student_results[student.id]['program_outcome_scores'][outcome.id] = score
+                
+            # Count successes for relative method
+            total_students += 1
+            if weighted_score >= settings.relative_success_threshold:
+                success_count += 1
+        
+        # Calculate success rate based on method
+        class_results = {
+            'program_outcome_scores': {},
+            'total_students': total_students,
+            'success_count': success_count,
+            'success_rate': (success_count / total_students * 100) if total_students > 0 else 0
+        }
+        
+        # Calculate average program outcome scores
+        for outcome in program_outcomes:
+            scores = [r['program_outcome_scores'][outcome.id] for r in student_results.values() 
+                    if not r.get('skip') and r['program_outcome_scores'][outcome.id] is not None]
+            
+            if scores:
+                # For absolute method: average of all student scores
+                if settings.success_rate_method == 'absolute':
+                    avg_score = sum(scores) / len(scores)
+                    class_results['program_outcome_scores'][outcome.id] = avg_score
+                # For relative method: percentage of students who achieved the threshold
+                else:  # 'relative'
+                    success_students = sum(1 for score in scores if score >= settings.relative_success_threshold)
+                    success_rate = (success_students / len(scores) * 100) if len(scores) > 0 else 0
+                    class_results['program_outcome_scores'][outcome.id] = success_rate
+            else:
+                class_results['program_outcome_scores'][outcome.id] = None
+        
+        # Format program outcome results for template
+        program_outcome_results = {}
+        for outcome in program_outcomes:
+            avg_score = class_results['program_outcome_scores'].get(outcome.id)
+            
+            # Check if this program outcome is linked to any course outcomes for this course
+            contributes = False
+            for co in course.course_outcomes:
+                if outcome in co.program_outcomes:
+                    contributes = True
+                    break
+                    
+            program_outcome_results[outcome.code] = {
+                'description': outcome.description,
+                'percentage': avg_score if avg_score is not None else 0,
+                'contributes': contributes
+            }
+        
+        # Store results for this course
+        all_results[course_code] = {
+            'course': course,
+            'program_outcome_results': program_outcome_results,
+            'settings': settings,
+            'avg_outcome_score': calculate_avg_outcome_score(program_outcome_results)
+        }
+    
+    # Sort the results according to the sort parameter
+    sorted_results = {}
+    
+    if sort_by == 'course_code_asc':
+        sorted_keys = sorted(all_results.keys())
+    elif sort_by == 'course_code_desc':
+        sorted_keys = sorted(all_results.keys(), reverse=True)
+    elif sort_by == 'course_name_asc':
+        sorted_keys = sorted(all_results.keys(), key=lambda k: all_results[k]['course'].name.lower())
+    elif sort_by == 'course_name_desc':
+        sorted_keys = sorted(all_results.keys(), key=lambda k: all_results[k]['course'].name.lower(), reverse=True)
+    elif sort_by == 'avg_score_asc':
+        sorted_keys = sorted(all_results.keys(), key=lambda k: all_results[k]['avg_outcome_score'])
+    elif sort_by == 'avg_score_desc':
+        sorted_keys = sorted(all_results.keys(), key=lambda k: all_results[k]['avg_outcome_score'], reverse=True)
+    else:
+        # Default to course code ascending
+        sorted_keys = sorted(all_results.keys())
+    
+    for key in sorted_keys:
+        sorted_results[key] = all_results[key]
+    
+    # Log action
+    log = Log(action="ALL_COURSES_CALCULATIONS", 
+            description=f"Viewed program outcome scores for all courses")
+    db.session.add(log)
+    db.session.commit()
+    
+    # Check if this is an AJAX request
+    if is_ajax:
+        # Return JSON data for AJAX requests
+        return jsonify({
+            'all_results': {k: {
+                'course': {
+                    'id': v['course'].id,
+                    'code': v['course'].code,
+                    'name': v['course'].name,
+                    'semester': v['course'].semester
+                },
+                'program_outcome_results': v['program_outcome_results'],
+                'settings': {
+                    'success_rate_method': v['settings'].success_rate_method,
+                    'relative_success_threshold': float(v['settings'].relative_success_threshold),
+                    'excluded': v['settings'].excluded
+                },
+                'avg_outcome_score': float(v['avg_outcome_score'])
+            } for k, v in sorted_results.items()},
+            'program_outcomes': [{'id': po.id, 'code': po.code, 'description': po.description} for po in program_outcomes],
+            'progress': 100,  # Always 100 when returning final results
+            'current_sort': sort_by
+        })
+    
+    # For regular requests, render the template
+    return render_template('calculation/all_courses.html', 
+                          all_results=sorted_results,
+                          program_outcomes=program_outcomes,
+                          years=years,
+                          active_page='all_courses',
+                          current_sort=sort_by)
+
+# Helper function to calculate average outcome score
+def calculate_avg_outcome_score(program_outcome_results):
+    """Calculate the average program outcome score for a course"""
+    valid_scores = [float(po_data['percentage']) for po_code, po_data in program_outcome_results.items() 
+                   if po_data['contributes'] and po_data['percentage'] is not None]
+    
+    if valid_scores:
+        return sum(valid_scores) / len(valid_scores)
+    else:
+        return 0.0
+
+@calculation_bp.route('/all_courses_loading', endpoint='all_courses_loading')
+def all_courses_loading():
+    """Redirects to all_courses for backward compatibility"""
+    return redirect(url_for('calculation.all_courses'))
+
+@calculation_bp.route('/all_courses/export', endpoint='export_all_courses')
+def export_all_courses():
+    """Export program outcome scores for all courses to CSV"""
+    # Get sort parameters from query string, default to course_code_asc
+    sort_by = request.args.get('sort_by', 'course_code_asc')
+    
+    # Use the same calculation logic as all_courses_calculations to ensure consistency
+    # Improved query with eager loading to reduce database hits
+    courses = Course.query.options(
+        db.joinedload(Course.course_outcomes),
+        db.joinedload(Course.exams),
+        db.joinedload(Course.students),
+        db.joinedload(Course.settings)
+    ).all()
+    
+    # Preload all program outcomes in one query
+    program_outcomes = ProgramOutcome.query.all()
+    program_outcomes_dict = {po.id: po for po in program_outcomes}
+    
+    # Get the display method from session or default to absolute
+    display_method = session.get('display_method', 'absolute')
+    
+    # Initialize data structure to hold results for all courses
+    all_results = {}
+    
+    # Prepare mapping tables to reduce lookups
+    # Get all exam weights and score data in batches
+    all_exam_weights = {}
+    
+    # Get all exam weights in a single query
+    exam_weights = ExamWeight.query.all()
+    for weight in exam_weights:
+        all_exam_weights[(weight.exam_id)] = weight.weight
+    
+    for course in courses:
+        # Skip courses with no outcomes or exams
+        if not course.course_outcomes or not course.exams:
+            continue
+        
+        course_id = course.id
+        course_code = course.code
+        
+        # Get the course settings or create default - use the preloaded relation
+        settings = course.settings
+        if not settings:
+            settings = CourseSettings(
+                course_id=course_id,
+                success_rate_method=display_method,
+                relative_success_threshold=60.0
+            )
+            db.session.add(settings)
+            db.session.commit()
+        
+        # Skip excluded courses
+        if settings.excluded:
+            continue
+            
         # Update the calculation method based on session if needed
         settings.success_rate_method = display_method
         
@@ -758,50 +1110,98 @@ def all_courses_calculations():
         all_results[course_code] = {
             'course': course,
             'program_outcome_results': program_outcome_results,
-            'settings': settings
+            'settings': settings,
+            'avg_outcome_score': calculate_avg_outcome_score(program_outcome_results)
         }
     
+    # Sort the results according to the sort parameter
+    sorted_results = {}
+    
+    if sort_by == 'course_code_asc':
+        sorted_keys = sorted(all_results.keys())
+    elif sort_by == 'course_code_desc':
+        sorted_keys = sorted(all_results.keys(), reverse=True)
+    elif sort_by == 'course_name_asc':
+        sorted_keys = sorted(all_results.keys(), key=lambda k: all_results[k]['course'].name.lower())
+    elif sort_by == 'course_name_desc':
+        sorted_keys = sorted(all_results.keys(), key=lambda k: all_results[k]['course'].name.lower(), reverse=True)
+    elif sort_by == 'avg_score_asc':
+        sorted_keys = sorted(all_results.keys(), key=lambda k: all_results[k]['avg_outcome_score'])
+    elif sort_by == 'avg_score_desc':
+        sorted_keys = sorted(all_results.keys(), key=lambda k: all_results[k]['avg_outcome_score'], reverse=True)
+    else:
+        # Default to course code ascending
+        sorted_keys = sorted(all_results.keys())
+    
+    for key in sorted_keys:
+        sorted_results[key] = all_results[key]
+    
+    # Prepare data for export
+    data = []
+    
+    # Create headers
+    headers = ['Course Code', 'Course Name', 'Semester', 'Success Rate Method', 'Success Threshold']
+    
+    # Add program outcome headers in the same order as they appear on the page
+    for po in program_outcomes:
+        headers.append(f'PO: {po.code} (%)')
+    
+    # Add course data rows in the same format as shown on the page
+    for course_code, course_data in sorted_results.items():
+        course_row = {
+            'Course Code': course_code,
+            'Course Name': course_data['course'].name,
+            'Semester': course_data['course'].semester,
+            'Success Rate Method': course_data['settings'].success_rate_method,
+            'Success Threshold': float(course_data['settings'].relative_success_threshold),
+        }
+        
+        # Add program outcome values directly from the calculated results
+        for po in program_outcomes:
+            po_header = f'PO: {po.code} (%)'
+            po_result = course_data['program_outcome_results'].get(po.code, {})
+            
+            if po_result.get('contributes', False) and po_result.get('percentage') is not None:
+                course_row[po_header] = round(float(po_result['percentage']), 1)
+            else:
+                course_row[po_header] = 'N/A'
+                
+        data.append(course_row)
+    
+    # Add a summary row with program outcome averages
+    summary_row = {
+        'Course Code': 'AVERAGE',
+        'Course Name': 'Program Outcome Averages',
+        'Semester': '',
+        'Success Rate Method': '',
+        'Success Threshold': '',
+    }
+    
+    # Calculate averages for each program outcome - using the same values displayed on the page
+    for po in program_outcomes:
+        po_header = f'PO: {po.code} (%)'
+        valid_scores = []
+        
+        for course_code, course_data in sorted_results.items():
+            po_result = course_data['program_outcome_results'].get(po.code, {})
+            if po_result.get('contributes', False) and po_result.get('percentage') is not None:
+                valid_scores.append(float(po_result['percentage']))
+        
+        if valid_scores:
+            summary_row[po_header] = round(sum(valid_scores) / len(valid_scores), 1)
+        else:
+            summary_row[po_header] = 'N/A'
+    
+    data.append(summary_row)
+    
     # Log action
-    log = Log(action="ALL_COURSES_CALCULATIONS", 
-            description=f"Viewed program outcome scores for all courses")
+    log = Log(action="EXPORT_ALL_COURSES", 
+             description=f"Exported program outcome scores for all courses")
     db.session.add(log)
     db.session.commit()
     
-    # Check if this is an AJAX request
-    if is_ajax:
-        # Return JSON data for AJAX requests
-        return jsonify({
-            'all_results': {k: {
-                'course': {
-                    'id': v['course'].id,
-                    'code': v['course'].code,
-                    'name': v['course'].name
-                },
-                'program_outcome_results': v['program_outcome_results'],
-                'settings': {
-                    'success_rate_method': v['settings'].success_rate_method,
-                    'relative_success_threshold': float(v['settings'].relative_success_threshold)
-                }
-            } for k, v in all_results.items()},
-            'program_outcomes': [{'id': po.id, 'code': po.code, 'description': po.description} for po in program_outcomes],
-            'progress': 100  # Always 100 when returning final results
-        })
-    
-    # For regular requests, render the template
-    return render_template('calculation/all_courses.html', 
-                          all_results=all_results,
-                          program_outcomes=program_outcomes,
-                          active_page='all_courses')
-
-@calculation_bp.route('/all_courses_loading')
-def all_courses_loading():
-    """Shows a loading page for all courses calculations"""
-    # Get program outcomes for the basic structure
-    program_outcomes = ProgramOutcome.query.all()
-    
-    return render_template('calculation/all_courses_loading.html', 
-                          program_outcomes=program_outcomes,
-                          active_page='all_courses')
+    # Export data using utility function
+    return export_to_excel_csv(data, "all_courses_program_outcomes", headers)
 
 @calculation_bp.route('/course/<int:course_id>/settings', methods=['POST'])
 def update_course_settings(course_id):
@@ -821,6 +1221,9 @@ def update_course_settings(course_id):
     except:
         settings.relative_success_threshold = Decimal('60.0')
     
+    # Update excluded status
+    settings.excluded = 'excluded' in request.form
+    
     db.session.commit()
     
     # Log action
@@ -834,7 +1237,7 @@ def update_course_settings(course_id):
     # Return to the appropriate page
     referer = request.referrer
     if referer and 'all_courses' in referer:
-        return redirect(url_for('calculation.all_courses_loading'))
+        return redirect(url_for('calculation.all_courses'))
     else:
         return redirect(url_for('calculation.course_calculations', course_id=course_id))
 
@@ -858,6 +1261,31 @@ def toggle_mandatory_exam(exam_id):
     flash(f"Exam '{exam.name}' is now {status}.", 'success')
     return redirect(url_for('exam.manage_exams', course_id=course.id))
 
+@calculation_bp.route('/course/<int:course_id>/toggle_exclusion', methods=['POST'])
+def toggle_course_exclusion(course_id):
+    """Toggle the exclusion status of a course"""
+    course = Course.query.get_or_404(course_id)
+    
+    # Get the settings or create new if it doesn't exist
+    settings = CourseSettings.query.filter_by(course_id=course_id).first()
+    if not settings:
+        settings = CourseSettings(course_id=course_id)
+        db.session.add(settings)
+    
+    # Toggle the status
+    settings.excluded = not settings.excluded
+    db.session.commit()
+    
+    # Log action
+    status = "excluded" if settings.excluded else "included"
+    log = Log(action="TOGGLE_COURSE_EXCLUSION",
+             description=f"Changed course '{course.code}' to {status}")
+    db.session.add(log)
+    db.session.commit()
+    
+    flash(f"Course '{course.code}' is now {status}.", 'success')
+    return redirect(url_for('calculation.all_courses'))
+
 @calculation_bp.route('/update_display_method', methods=['POST'])
 def update_display_method():
     """Update display method preference in session"""
@@ -866,7 +1294,7 @@ def update_display_method():
         if display_method in ['absolute', 'relative']:
             # Store the display method in session
             session['display_method'] = display_method
-            return jsonify({'status': 'success'})
+            return jsonify({'status': 'success', 'reload': True})
     return jsonify({'status': 'error'})
 
 def calculate_student_exam_score_optimized(student_id, exam_id, scores_dict, questions):

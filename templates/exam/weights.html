@@ -21,7 +21,7 @@
                         <div class="alert alert-info mb-4">
                             <i class="fas fa-info-circle"></i> 
                             Set the percentage weight of each exam in the final course calculation. 
-                            The total must equal 100%.
+                            The total should ideally equal 100%. If it doesn't, a warning will be displayed, but you can still save.
                         </div>
                         
                         <div class="table-responsive">
@@ -43,7 +43,9 @@
                                                        name="weight_{{ exam.id }}" 
                                                        value="{{ weight.display_value|round(1) }}"
                                                        min="0" max="100" step="0.1" required
-                                                       {% if exam.is_makeup %}readonly{% endif %}>
+                                                       {% if exam.is_makeup %}readonly{% endif %}
+                                                       inputmode="decimal"
+                                                       pattern="[0-9]*[.,]?[0-9]*">
                                             </td>
                                             <td>
                                                 {% if exam.is_makeup %}
@@ -64,7 +66,7 @@
                                         <th>
                                             <span id="weightTotal">0</span>%
                                             <div class="invalid-feedback" id="totalError">
-                                                Total must equal 100%
+                                                Warning: Total does not equal 100%. You can still save, but calculations may be affected.
                                             </div>
                                         </th>
                                         <th></th>
@@ -108,7 +110,7 @@
         form.addEventListener('submit', function(event) {
             const total = calculateTotal();
             if (Math.abs(total - 100) > 0.1) {
-                event.preventDefault();
+                // Don't prevent form submission, but show warning
                 totalError.style.display = 'block';
                 weightTotal.parentElement.classList.add('text-danger');
             }
@@ -118,15 +120,13 @@
             const total = calculateTotal();
             weightTotal.textContent = total.toFixed(1);
             
-            // Validate total equals 100%
+            // Show warning if not 100%, but don't disable the save button
             if (Math.abs(total - 100) > 0.1) {
                 totalError.style.display = 'block';
                 weightTotal.parentElement.classList.add('text-danger');
-                saveButton.disabled = true;
             } else {
                 totalError.style.display = 'none';
                 weightTotal.parentElement.classList.remove('text-danger');
-                saveButton.disabled = false;
             }
         }
         
@@ -134,8 +134,17 @@
             let total = 0;
             weightInputs.forEach(input => {
                 if (!input.readOnly) {
-                    const value = parseFloat(input.value) || 0;
-                    total += value;
+                    // Handle decimal separators (both . and ,)
+                    let value = input.value;
+                    if (value.includes(',') && !value.includes('.')) {
+                        value = value.replace(',', '.');
+                    }
+                    
+                    // Parse as float and handle NaN
+                    const numValue = parseFloat(value) || 0;
+                    
+                    // Add to total, rounded to 1 decimal place for consistency
+                    total += Math.round(numValue * 10) / 10;
                 }
             });
             return total;

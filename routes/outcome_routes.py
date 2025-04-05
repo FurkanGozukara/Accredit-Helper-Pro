@@ -160,7 +160,7 @@ def delete_course_outcome(outcome_id):
     
     try:
         # Check for related data (questions associated with this outcome)
-        question_count = course_outcome.questions.count()
+        question_count = len(course_outcome.questions)
         
         if question_count > 0:
             error_message = f"Cannot delete course outcome: It is associated with {question_count} exam questions. "
@@ -180,6 +180,59 @@ def delete_course_outcome(outcome_id):
         db.session.rollback()
         logging.error(f"Error deleting course outcome: {str(e)}")
         flash(f'An error occurred while deleting the course outcome: {str(e)}', 'error')
+    
+    return redirect(url_for('course.course_detail', course_id=course_id))
+
+@outcome_bp.route('/course/mass-delete', methods=['POST'])
+def mass_delete_outcomes():
+    """Batch delete multiple course outcomes"""
+    course_id = request.form.get('course_id', type=int)
+    outcome_ids = request.form.getlist('outcome_ids', type=int)
+    
+    if not course_id or not outcome_ids:
+        flash('No course outcomes selected for deletion', 'error')
+        return redirect(url_for('course.course_detail', course_id=course_id))
+    
+    course = Course.query.get_or_404(course_id)
+    deleted_count = 0
+    error_count = 0
+    
+    for outcome_id in outcome_ids:
+        outcome = CourseOutcome.query.get(outcome_id)
+        
+        if outcome and outcome.course_id == course_id:
+            # Check for related data (questions associated with this outcome)
+            question_count = len(outcome.questions)
+            
+            if question_count > 0:
+                flash(f"Cannot delete '{outcome.code}': It is associated with {question_count} exam questions", 'warning')
+                error_count += 1
+                continue
+                
+            try:
+                # Log action before deletion
+                log = Log(action="DELETE_COURSE_OUTCOME", 
+                         description=f"Deleted course outcome {outcome.code} from course: {course.code}")
+                db.session.add(log)
+                
+                db.session.delete(outcome)
+                deleted_count += 1
+            except Exception as e:
+                logging.error(f"Error deleting outcome {outcome.code}: {str(e)}")
+                error_count += 1
+                flash(f'Error deleting outcome {outcome.code}: {str(e)}', 'error')
+    
+    try:
+        db.session.commit()
+        if deleted_count > 0:
+            flash(f'Successfully deleted {deleted_count} course outcomes', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error in batch deletion transaction: {str(e)}")
+        flash(f'An error occurred during batch deletion: {str(e)}', 'error')
+    
+    if error_count > 0:
+        flash(f'Failed to delete {error_count} course outcomes due to associations with exam questions', 'warning')
     
     return redirect(url_for('course.course_detail', course_id=course_id))
 
