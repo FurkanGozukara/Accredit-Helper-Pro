@@ -284,6 +284,11 @@ def course_calculations(course_id):
                         if makeup_score is not None:
                             exam_score = makeup_score
                             exam_to_use = makeup_exam
+                            # Always use the original exam's weight for the makeup exam
+                            student_data['exam_scores'][exam_to_use.name] = exam_score
+                            total_weighted_score += exam_score * weight
+                            total_exams_weight += weight
+                            continue  # Skip to next exam, don't check the original
                 
                 # If no makeup was taken or makeup score is None, use the original exam
                 if exam_score is None:
@@ -912,7 +917,7 @@ def all_courses_calculations():
                         # Use makeup score even if it's 0 (as long as it's not None)
                         if makeup_score is not None:
                             student_results[student.id]['exam_scores'][exam.id] = makeup_score
-                            continue
+                            continue  # Skip the original exam completely
                 
                 # If no makeup was attended or makeup score is None, use regular exam score
                 exam_score = calculate_student_exam_score_optimized(
@@ -1292,7 +1297,7 @@ def export_all_courses():
                         # Use makeup score even if it's 0 (as long as it's not None)
                         if makeup_score is not None:
                             student_results[student.id]['exam_scores'][exam.id] = makeup_score
-                            continue
+                            continue  # Skip the original exam completely
                 
                 # If no makeup was attended or makeup score is None, use regular exam score
                 exam_score = calculate_student_exam_score_optimized(
@@ -1638,7 +1643,7 @@ def calculate_course_outcome_score_optimized(student_id, outcome_id, scores_dict
         for question in questions:
             exam_id = question.exam_id
             score_value = scores_dict.get((student_id, question.id, exam_id))
-            if score_value and score_value > 0:
+            if score_value is not None and score_value > 0:
                 student_score_exists_positive = True
                 break
         # If possible is 0, but student scored > 0 (extra credit?), return 100%. Otherwise 0 or None.
@@ -1652,7 +1657,7 @@ def calculate_course_outcome_score_optimized(student_id, outcome_id, scores_dict
         # Use .get() which returns None if the key is not found
         score_value = scores_dict.get((student_id, question.id, exam_id))
 
-        if score_value is not None: # Check if score exists
+        if score_value is not None: # Check if score exists - includes score of 0
             # Ensure score_value is Decimal for consistency
             total_score += Decimal(str(score_value))
         # Implicitly, if score_value is None, we add 0, which is correct.
