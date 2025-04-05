@@ -151,6 +151,7 @@ class Student(db.Model):
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    excluded = db.Column(db.Boolean, default=False, nullable=False, index=True)
     
     # Relationships
     scores = db.relationship('Score', backref='student', lazy=True, cascade="all, delete-orphan")
@@ -160,6 +161,7 @@ class Student(db.Model):
     __table_args__ = (
         db.UniqueConstraint('student_id', 'course_id', name='_student_course_uc'),
         db.Index('idx_student_course_student_id', 'course_id', 'student_id'),
+        db.Index('idx_student_excluded', 'excluded'),
     )
     
     def __repr__(self):

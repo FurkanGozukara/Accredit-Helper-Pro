@@ -288,8 +288,15 @@
                         {% for student in students %}
                         <tr>
                             <td class="checkbox-column" style="display: none;"><input type="checkbox" class="student-checkbox" name="student_ids" value="{{ student.id }}"></td>
-                            <td>{{ student.student_id }}</td>
-                            <td>{{ student.first_name }} {{ student.last_name }}</td>
+                            <td>
+                                {{ student.student_id }}
+                                {% if student.excluded %}
+                                <span class="badge bg-warning text-dark ms-2">Excluded</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ student.first_name }} {{ student.last_name }}
+                            </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
                                     <a href="{{ url_for('student.edit_student', student_id=student.id) }}" class="btn btn-outline-secondary">
@@ -299,6 +306,15 @@
                                             data-delete-url="{{ url_for('student.delete_student', student_id=student.id) }}"
                                             data-delete-name="student '{{ student.student_id }}'">
                                         <i class="bi bi-trash"></i> Delete
+                                    </button>
+                                    <button type="button" class="btn btn-exclusion {% if student.excluded %}btn-outline-success{% else %}btn-outline-warning{% endif %}"
+                                            data-student-id="{{ student.id }}"
+                                            data-toggle-url="{{ url_for('student.toggle_exclusion', student_id=student.id) }}">
+                                        {% if student.excluded %}
+                                        <i class="bi bi-plus-circle"></i> Include
+                                        {% else %}
+                                        <i class="bi bi-dash-circle"></i> Exclude
+                                        {% endif %}
                                     </button>
                                 </div>
                             </td>
@@ -480,6 +496,125 @@
                 }
             });
         });
+
+        // Student exclusion functionality
+        const exclusionButtons = document.querySelectorAll('.btn-exclusion');
+        
+        function handleExclusionClick(event) {
+            const button = event.currentTarget;
+            const studentId = button.getAttribute('data-student-id');
+            const toggleUrl = button.getAttribute('data-toggle-url');
+            
+            // Show a spinner in the button while processing
+            const originalContent = button.innerHTML;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+            button.disabled = true;
+            
+            fetch(toggleUrl, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update button appearance
+                    if (data.excluded) {
+                        button.classList.remove('btn-outline-warning');
+                        button.classList.add('btn-outline-success');
+                        button.innerHTML = '<i class="bi bi-plus-circle"></i> Include';
+                        
+                        // Add excluded badge to the student ID
+                        const row = button.closest('tr');
+                        const idCell = row.querySelector('td:nth-child(2)');
+                        if (!idCell.querySelector('.badge')) {
+                            const badge = document.createElement('span');
+                            badge.className = 'badge bg-warning text-dark ms-2';
+                            badge.innerText = 'Excluded';
+                            idCell.appendChild(badge);
+                        }
+                    } else {
+                        button.classList.remove('btn-outline-success');
+                        button.classList.add('btn-outline-warning');
+                        button.innerHTML = '<i class="bi bi-dash-circle"></i> Exclude';
+                        
+                        // Remove excluded badge from the student ID
+                        const row = button.closest('tr');
+                        const idCell = row.querySelector('td:nth-child(2)');
+                        const badge = idCell.querySelector('.badge');
+                        if (badge) {
+                            idCell.removeChild(badge);
+                        }
+                    }
+                    
+                    // Re-enable the button
+                    button.disabled = false;
+                    
+                    // Show success message
+                    const alertContainer = document.createElement('div');
+                    alertContainer.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 end-0 m-3';
+                    alertContainer.setAttribute('role', 'alert');
+                    alertContainer.innerHTML = `
+                        ${data.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    `;
+                    document.body.appendChild(alertContainer);
+                    
+                    // Remove alert after 3 seconds
+                    setTimeout(() => {
+                        alertContainer.remove();
+                    }, 3000);
+                } else {
+                    // Restore original button content on error
+                    button.innerHTML = originalContent;
+                    button.disabled = false;
+                    
+                    // Show error message
+                    const alertContainer = document.createElement('div');
+                    alertContainer.className = 'alert alert-danger alert-dismissible fade show position-fixed top-0 end-0 m-3';
+                    alertContainer.setAttribute('role', 'alert');
+                    alertContainer.innerHTML = `
+                        Error: ${data.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    `;
+                    document.body.appendChild(alertContainer);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                button.innerHTML = originalContent;
+                button.disabled = false;
+                
+                // Show error message
+                const alertContainer = document.createElement('div');
+                alertContainer.className = 'alert alert-danger alert-dismissible fade show position-fixed top-0 end-0 m-3';
+                alertContainer.setAttribute('role', 'alert');
+                alertContainer.innerHTML = `
+                    An error occurred while processing your request.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                document.body.appendChild(alertContainer);
+            });
+        }
+        
+        // Add click handler to all exclusion buttons
+        exclusionButtons.forEach(button => {
+            button.addEventListener('click', handleExclusionClick);
+        });
+        
+        // Use event delegation for the student table to handle dynamically changed buttons
+        const studentsTable = document.querySelector('#students table');
+        if (studentsTable) {
+            studentsTable.addEventListener('click', function(e) {
+                // Find closest .btn-exclusion if clicked on a child element
+                const button = e.target.closest('.btn-exclusion');
+                if (button && !button.disabled) {
+                    handleExclusionClick({currentTarget: button});
+                }
+            });
+        }
     });
 
     // Toggle batch delete mode

@@ -9,6 +9,12 @@ import re
 from routes.utility_routes import export_to_excel_csv
 from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
+import pandas as pd
+import numpy as np
+import json
+from sqlalchemy import and_, or_
+from werkzeug.utils import secure_filename
+import os
 
 student_bp = Blueprint('student', __name__, url_prefix='/student')
 
@@ -992,4 +998,49 @@ def update_attendance(exam_id):
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error updating attendance: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}) 
+        return jsonify({'success': False, 'error': str(e)})
+
+@student_bp.route('/<int:student_id>/toggle_exclusion', methods=['POST'])
+def toggle_exclusion(student_id):
+    """Toggle exclusion status for a student"""
+    student = Student.query.get_or_404(student_id)
+    course_id = student.course_id
+    
+    # Toggle exclusion status
+    student.excluded = not student.excluded
+    
+    # Log the action
+    action = "EXCLUDE_STUDENT" if student.excluded else "INCLUDE_STUDENT"
+    log = Log(action=action, description=f"{action} {student.student_id}: {student.first_name} {student.last_name}")
+    
+    db.session.add(log)
+    
+    try:
+        db.session.commit()
+        status = "excluded from" if student.excluded else "included in"
+        message = f'Student {student.student_id} {status} calculations successfully'
+        
+        # Check if this is an AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': True,
+                'message': message,
+                'student_id': student_id,
+                'excluded': student.excluded
+            })
+        
+        flash(message, 'success')
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error toggling student exclusion: {str(e)}")
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': False,
+                'message': 'An error occurred while updating student status',
+                'error': str(e)
+            }), 500
+        
+        flash('An error occurred while updating student status', 'error')
+    
+    return redirect(url_for('course.course_detail', course_id=course_id)) 

@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
 from werkzeug.utils import secure_filename
+from flask_migrate import Migrate
 import sqlite3
 import csv
 import json
@@ -30,6 +31,7 @@ def create_app():
     
     # Initialize extensions with app
     db.init_app(app)
+    migrate = Migrate(app, db)
     
     # Setup logging
     logging.basicConfig(

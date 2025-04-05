@@ -200,9 +200,18 @@ def course_calculations(course_id):
                 'course_outcomes': {},
                 'exam_scores': {},
                 'overall_percentage': 0,
-                'skip': False
+                'skip': False,
+                'excluded': getattr(student, 'excluded', False)  # Add excluded flag
             }
             
+            # Check if student should be excluded due to excluded flag
+            if student_data['excluded']:
+                student_data['skip'] = True
+                student_data['missing_mandatory'] = True
+                student_data['overall_percentage'] = 0
+                student_results[student_id] = student_data
+                continue
+                
             # Check if student should be excluded due to mandatory exam policy
             if mandatory_exams:
                 skip_student = False
@@ -296,6 +305,10 @@ def course_calculations(course_id):
                         student_id, exam.id, scores_dict,
                         questions_by_exam[exam.id], attendance_dict
                     )
+                    
+                    # For non-mandatory exams, ensure None is treated as 0
+                    if exam_score is None and not exam.is_mandatory:
+                        exam_score = Decimal('0')
                 
                 if exam_score is not None:
                     student_data['exam_scores'][exam_to_use.name] = exam_score
@@ -307,55 +320,14 @@ def course_calculations(course_id):
             
             # Calculate course outcome achievement
             for co in course_outcomes:
-                co_score = Decimal('0')
-                co_total_weight = Decimal('0')
+                # Use the optimized course outcome score calculation
+                co_score = calculate_course_outcome_score_optimized(
+                    student_id, co.id, scores_dict, outcome_questions
+                )
                 
-                # For each regular exam, calculate outcome scores
-                for exam in regular_exams:
-                    weight = normalized_weights.get(exam.id, Decimal('0'))
-                    if weight == Decimal('0'):
-                        continue
-                    
-                    # Determine if we should use the makeup exam instead
-                    use_makeup = False
-                    actual_exam = exam
-                    
-                    if exam.id in makeup_map:
-                        makeup_exam = makeup_map[exam.id]
-                        makeup_attended = attendance_dict.get((student_id, makeup_exam.id), False)
-                        
-                        # If student attended the makeup, use that score exclusively
-                        if makeup_attended:
-                            use_makeup = True
-                            actual_exam = makeup_exam
-                    
-                    # Skip this exam if student didn't attend and it's mandatory
-                    if actual_exam.is_mandatory:
-                        attended = attendance_dict.get((student_id, actual_exam.id), True)
-                        if not attended:
-                            continue
-                    
-                    exam_co_score = Decimal('0')
-                    exam_co_total = Decimal('0')
-                    
-                    # Use the appropriate exam (original or makeup)
-                    for question in questions_by_exam[actual_exam.id]:
-                        # Check if this question is related to the course outcome
-                        if co in question.course_outcomes:
-                            # Get the student's score for this question
-                            score_value = scores_dict.get((student_id, question.id, actual_exam.id))
-                            if score_value is not None:
-                                exam_co_score += Decimal(str(score_value))
-                            exam_co_total += question.max_score
-                    
-                    if exam_co_total > Decimal('0'):
-                        exam_co_percentage = (exam_co_score / exam_co_total) * Decimal('100')
-                        co_score += exam_co_percentage * weight
-                        co_total_weight += weight
-                
-                # Calculate the weighted average for this course outcome
-                if co_total_weight > Decimal('0'):
-                    student_data['course_outcomes'][co.code] = co_score / co_total_weight
+                # Store the result
+                if co_score is not None:
+                    student_data['course_outcomes'][co.code] = co_score
                 else:
                     student_data['course_outcomes'][co.code] = None
             
@@ -407,7 +379,32 @@ def course_calculations(course_id):
     # Format student results for display
     formatted_student_results = {}
     for student_id, data in student_results.items():
-        formatted_student_results[student_id] = data
+        # Get the student object from the database if it doesn't exist in the data
+        if 'student' in data:
+            student = data['student']
+            student_id_value = student.student_id
+            student_name = f"{student.first_name} {student.last_name}"
+        else:
+            # Use the student_id and name directly from data
+            student_id_value = data.get('student_id', '')
+            student_name = data.get('name', '')
+        
+        # Format student data for the template
+        formatted_student_results[student_id] = {
+            'student_id': student_id_value,
+            'name': student_name,
+            'overall_percentage': float(data['weighted_score']) if 'weighted_score' in data and not data.get('skip', False) else float(data.get('overall_percentage', 0)),
+            'course_outcomes': {co.code: float(score) if score is not None else 0 
+                               for co in course_outcomes
+                               for score in [data.get('course_outcome_scores', {}).get(co.id, data.get('course_outcomes', {}).get(co.code))]
+                               if score is not None},
+            'exam_scores': {exam.name: float(score) if score is not None else 0
+                           for exam in all_exams
+                           for score in [data.get('exam_scores', {}).get(exam.id, data.get('exam_scores', {}).get(exam.name))]
+                           if score is not None},
+            'missing_mandatory': data.get('missing_mandatory', False),
+            'excluded': data.get('excluded', False)
+        }
     
     # Is this an AJAX request?
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
@@ -855,10 +852,20 @@ def all_courses_calculations():
                 'student': student,
                 'exam_scores': {},  # Raw scores per exam
                 'weighted_score': Decimal('0'),  # Final weighted score
+                'course_outcome_scores': {},  # Scores per course outcome
                 'program_outcome_scores': {},  # Scores per program outcome
-                'skip': False
+                'skip': False,
+                'missing_mandatory': False,
+                'excluded': student.excluded  # Add excluded flag
             }
             
+            # Skip student if manually excluded
+            if student.excluded:
+                student_results[student.id]['skip'] = True
+                student_results[student.id]['missing_mandatory'] = True
+                student_results[student.id]['overall_percentage'] = 0
+                continue
+
             # Check if student should be skipped due to mandatory exam policy
             if mandatory_exams:
                 skip_student = False
@@ -924,6 +931,11 @@ def all_courses_calculations():
                     student.id, exam.id, scores_dict,
                     questions_by_exam[exam.id], attendance_dict
                 )
+                
+                # For non-mandatory exams, ensure None is treated as 0
+                if exam_score is None and not exam.is_mandatory:
+                    exam_score = Decimal('0')
+                    
                 if exam_score is not None:
                     student_results[student.id]['exam_scores'][exam.id] = exam_score
             
@@ -933,6 +945,11 @@ def all_courses_calculations():
                 weighted_score += score * normalized_weights.get(exam_id, Decimal('0'))
             
             student_results[student.id]['weighted_score'] = weighted_score
+            
+            # Calculate course outcome scores
+            for outcome in course_outcomes:
+                score = calculate_course_outcome_score_optimized(student.id, outcome.id, scores_dict, outcome_questions)
+                student_results[student.id]['course_outcome_scores'][outcome.id] = score
             
             # Calculate program outcome scores
             for outcome in program_outcomes:
@@ -946,6 +963,7 @@ def all_courses_calculations():
         
         # Calculate success rate based on method
         class_results = {
+            'course_outcome_scores': {},
             'program_outcome_scores': {},
             'total_students': total_students,
             'success_count': success_count,
@@ -1235,10 +1253,20 @@ def export_all_courses():
                 'student': student,
                 'exam_scores': {},  # Raw scores per exam
                 'weighted_score': Decimal('0'),  # Final weighted score
+                'course_outcome_scores': {},  # Scores per course outcome
                 'program_outcome_scores': {},  # Scores per program outcome
-                'skip': False
+                'skip': False,
+                'missing_mandatory': False,
+                'excluded': student.excluded  # Add excluded flag
             }
             
+            # Skip student if manually excluded
+            if student.excluded:
+                student_results[student.id]['skip'] = True
+                student_results[student.id]['missing_mandatory'] = True
+                student_results[student.id]['overall_percentage'] = 0
+                continue
+
             # Check if student should be skipped due to mandatory exam policy
             if mandatory_exams:
                 skip_student = False
@@ -1304,6 +1332,11 @@ def export_all_courses():
                     student.id, exam.id, scores_dict,
                     questions_by_exam[exam.id], attendance_dict
                 )
+                
+                # For non-mandatory exams, ensure None is treated as 0
+                if exam_score is None and not exam.is_mandatory:
+                    exam_score = Decimal('0')
+                    
                 if exam_score is not None:
                     student_results[student.id]['exam_scores'][exam.id] = exam_score
             
@@ -1313,6 +1346,11 @@ def export_all_courses():
                 weighted_score += score * normalized_weights.get(exam_id, Decimal('0'))
             
             student_results[student.id]['weighted_score'] = weighted_score
+            
+            # Calculate course outcome scores
+            for outcome in course_outcomes:
+                score = calculate_course_outcome_score_optimized(student.id, outcome.id, scores_dict, outcome_questions)
+                student_results[student.id]['course_outcome_scores'][outcome.id] = score
             
             # Calculate program outcome scores
             for outcome in program_outcomes:
@@ -1326,6 +1364,7 @@ def export_all_courses():
         
         # Calculate success rate based on method
         class_results = {
+            'course_outcome_scores': {},
             'program_outcome_scores': {},
             'total_students': total_students,
             'success_count': success_count,
@@ -1616,6 +1655,10 @@ def calculate_student_exam_score_optimized(student_id, exam_id, scores_dict, que
     # If mandatory exam and no scores were found, exclude student
     if is_mandatory and not has_scores:
         return None
+    
+    # If non-mandatory exam and no scores were found, treat as 0%
+    if not is_mandatory and not has_scores:
+        return Decimal('0')
 
     if total_possible == Decimal('0'):
         return None
@@ -1629,42 +1672,105 @@ def calculate_course_outcome_score_optimized(student_id, outcome_id, scores_dict
     if not questions:
         return None # No questions linked to this outcome
 
-    # 1. Calculate the total possible score from ALL relevant questions first.
-    total_possible = Decimal('0')
-    for q in questions:
-        total_possible += q.max_score
-
-    # Handle cases where an outcome might be linked only to 0-point questions
-    if total_possible == Decimal('0'):
-        # If total possible is 0, achievement is undefined or could be considered 100% if any score > 0 exists?
-        # Returning None is safest, or 0 if preferred. Or check if any score > 0.
-        # Let's check if any score exists and is positive for this outcome's questions.
-        student_score_exists_positive = False
-        for question in questions:
-            exam_id = question.exam_id
-            score_value = scores_dict.get((student_id, question.id, exam_id))
-            if score_value is not None and score_value > 0:
-                student_score_exists_positive = True
-                break
-        # If possible is 0, but student scored > 0 (extra credit?), return 100%. Otherwise 0 or None.
-        # Returning 0 is a reasonable default if no points were possible and none were scored.
-        return Decimal('100.0') if student_score_exists_positive else Decimal('0.0')
-
-    # 2. Calculate the student's total score, treating missing scores as 0.
-    total_score = Decimal('0')
+    # Group questions by exam to properly apply exam weights
+    questions_by_exam = {}
     for question in questions:
         exam_id = question.exam_id
-        # Use .get() which returns None if the key is not found
-        score_value = scores_dict.get((student_id, question.id, exam_id))
-
-        if score_value is not None: # Check if score exists - includes score of 0
-            # Ensure score_value is Decimal for consistency
-            total_score += Decimal(str(score_value))
-        # Implicitly, if score_value is None, we add 0, which is correct.
-
-    # 3. Calculate the percentage.
-    # total_possible is guaranteed non-zero here due to the check above.
-    return (total_score / total_possible) * Decimal('100')
+        if exam_id not in questions_by_exam:
+            questions_by_exam[exam_id] = []
+        questions_by_exam[exam_id].append(question)
+    
+    # Get all exams
+    exam_ids = list(questions_by_exam.keys())
+    exams = Exam.query.filter(Exam.id.in_(exam_ids)).all()
+    
+    # Create a map from original exam to makeup exam
+    makeup_map = {}
+    for exam in exams:
+        if exam.is_makeup and exam.makeup_for:
+            makeup_map[exam.makeup_for] = exam.id
+    
+    # Filter out base exams that have makeup exams if student attended the makeup
+    filtered_exam_ids = []
+    for exam_id in exam_ids:
+        # Find if this is a base exam with a makeup
+        exam = next((e for e in exams if e.id == exam_id), None)
+        
+        # If this is a makeup exam, always include it
+        if exam and exam.is_makeup:
+            filtered_exam_ids.append(exam_id)
+            continue
+            
+        # If this is a base exam, check if it has a makeup that the student attended
+        if exam and not exam.is_makeup and exam.id in makeup_map:
+            makeup_id = makeup_map[exam.id]
+            
+            # Check if student attended the makeup
+            attended_makeup = StudentExamAttendance.query.filter_by(
+                student_id=student_id, 
+                exam_id=makeup_id,
+                attended=True
+            ).first() is not None
+            
+            # If student attended makeup, skip this base exam
+            if attended_makeup and makeup_id in questions_by_exam:
+                continue
+        
+        # Include the base exam if no makeup was attended
+        filtered_exam_ids.append(exam_id)
+    
+    # Get exam weights
+    weights = {}
+    total_weight = Decimal('0')
+    for exam_id in filtered_exam_ids:
+        weight_record = ExamWeight.query.filter_by(exam_id=exam_id).first()
+        if weight_record:
+            weights[exam_id] = weight_record.weight
+            total_weight += weight_record.weight
+        else:
+            weights[exam_id] = Decimal('0')
+    
+    # If no valid weights, return None or default to equal weights
+    if total_weight == Decimal('0'):
+        if len(filtered_exam_ids) > 0:
+            # Default to equal weights if no weights defined
+            equal_weight = Decimal('1') / Decimal(str(len(filtered_exam_ids)))
+            for exam_id in filtered_exam_ids:
+                weights[exam_id] = equal_weight
+            total_weight = Decimal('1')
+        else:
+            return None
+    
+    # Normalize weights
+    normalized_weights = {}
+    for exam_id, weight in weights.items():
+        normalized_weights[exam_id] = weight / total_weight
+    
+    # Calculate weighted score for each exam containing questions for this outcome
+    weighted_outcome_score = Decimal('0')
+    
+    for exam_id in filtered_exam_ids:
+        if exam_id not in questions_by_exam:
+            continue
+            
+        exam_questions = questions_by_exam[exam_id]
+        
+        # Calculate percentage score for this exam's questions related to the outcome
+        exam_total_possible = Decimal('0')
+        exam_total_score = Decimal('0')
+        
+        for question in exam_questions:
+            score_value = scores_dict.get((student_id, question.id, exam_id))
+            if score_value is not None:
+                exam_total_score += Decimal(str(score_value))
+            exam_total_possible += question.max_score
+        
+        if exam_total_possible > Decimal('0'):
+            exam_percentage = (exam_total_score / exam_total_possible) * Decimal('100')
+            # Apply exam weight to this percentage
+            weighted_outcome_score += exam_percentage * normalized_weights[exam_id]
+    
+    return weighted_outcome_score
 
 # Optimized helper function to calculate a student's score for a program outcome
 def calculate_program_outcome_score_optimized(student_id, outcome_id, course_id, scores_dict, 
@@ -1676,25 +1782,34 @@ def calculate_program_outcome_score_optimized(student_id, outcome_id, course_id,
     if not related_course_outcomes:
         return None
     
-    total_score = Decimal('0')
-    count = 0
-    
-    for course_outcome in related_course_outcomes:
-        score = calculate_course_outcome_score_optimized(
-            student_id, course_outcome.id, scores_dict, outcome_questions
-        )
-        if score is not None:
-            # Ensure score is a Decimal for consistent calculation
-            if not isinstance(score, Decimal):
-                score = Decimal(str(score))
-            total_score += score
-            count += 1
-    
-    if count == 0:
+    # Get course-specific settings for weighting
+    course = Course.query.get(course_id)
+    if not course:
         return None
     
-    # Return the average as a Decimal
-    return total_score / Decimal(str(count))
+    # Initialize variables for weighted calculation
+    total_weighted_score = Decimal('0')
+    total_weight = Decimal('0')
+    
+    # Get individual course outcome scores and apply weights
+    for course_outcome in related_course_outcomes:
+        # Calculate the score for this course outcome
+        co_score = calculate_course_outcome_score_optimized(
+            student_id, course_outcome.id, scores_dict, outcome_questions
+        )
+        
+        if co_score is not None:
+            # Each course outcome contributes equally by default (can be customized if needed)
+            weight = Decimal('1')
+            total_weighted_score += co_score * weight
+            total_weight += weight
+    
+    # Return None if no valid scores were calculated
+    if total_weight == Decimal('0'):
+        return None
+    
+    # Return the weighted average
+    return total_weighted_score / total_weight
 
 @calculation_bp.route('/course/<int:course_id>/debug')
 def debug_calculations(course_id):
@@ -1769,10 +1884,19 @@ def debug_calculations(course_id):
             'weighted_score': Decimal('0'),  # Final weighted score
             'course_outcome_scores': {},  # Scores per course outcome
             'program_outcome_scores': {},  # Scores per program outcome
-            'skip': False  # Track if student should be excluded from calculations
+            'skip': False,  # Track if student should be excluded from calculations
+            'missing_mandatory': False,
+            'excluded': student.excluded  # Add excluded flag
         }
         
-        # Check if student should be excluded due to mandatory exam policy
+        # Skip student if manually excluded
+        if student.excluded:
+            student_results[student.id]['skip'] = True
+            student_results[student.id]['missing_mandatory'] = True
+            student_results[student.id]['overall_percentage'] = 0
+            continue
+
+        # Check if student should be skipped due to mandatory exam policy
         if mandatory_exams:
             skip_student = False
             for exam in mandatory_exams:
@@ -1833,6 +1957,11 @@ def debug_calculations(course_id):
                 student.id, exam.id, scores_dict,
                 questions_by_exam[exam.id], attendance_dict
             )
+            
+            # For non-mandatory exams, ensure None is treated as 0
+            if exam_score is None and not exam.is_mandatory:
+                exam_score = Decimal('0')
+                
             if exam_score is not None:
                 student_results[student.id]['exam_scores'][exam.id] = exam_score
         
@@ -1923,28 +2052,30 @@ def debug_calculations(course_id):
     # Format student results for template
     formatted_student_results = {}
     for student_id, data in student_results.items():
-        student = data['student']
-        
-        # Format course outcome scores - ensure percentages are numbers not dictionaries
-        course_outcome_scores = {}
-        for outcome in course_outcomes:
-            percentage = data['course_outcome_scores'].get(outcome.id)
-            course_outcome_scores[outcome.code] = percentage if percentage is not None else 0
-        
-        # Format exam scores to include names
-        exam_scores = {}
-        for exam_id, score in data['exam_scores'].items():
-            exam = next((e for e in exams if e.id == exam_id), None)
-            if exam:
-                exam_scores[exam.name] = score
-        
-        formatted_student_results[student_id] = {
-            'student_id': student.student_id,
-            'name': f"{student.first_name} {student.last_name}".strip(),
-            'overall_percentage': data['weighted_score'],
-            'course_outcomes': course_outcome_scores,
-            'exam_scores': exam_scores
-        }
+        if 'student' in data:
+            student = data['student']
+            
+            # Format course outcome scores - ensure percentages are numbers not dictionaries
+            course_outcome_scores = {}
+            for outcome in course_outcomes:
+                percentage = data['course_outcome_scores'].get(outcome.id)
+                course_outcome_scores[outcome.code] = percentage if percentage is not None else 0
+            
+            # Format exam scores to include names
+            exam_scores = {}
+            for exam_id, score in data['exam_scores'].items():
+                exam = next((e for e in exams if e.id == exam_id), None)
+                if exam:
+                    exam_scores[exam.name] = score
+            
+            formatted_student_results[student_id] = {
+                'student_id': student.student_id,
+                'name': f"{student.first_name} {student.last_name}".strip(),
+                'overall_percentage': data.get('weighted_score', 0),
+                'course_outcomes': course_outcome_scores,
+                'exam_scores': exam_scores,
+                'excluded': getattr(student, 'excluded', False)
+            }
     
     # Check if questions are linked to course outcomes
     has_exam_questions = False
