@@ -339,6 +339,10 @@ def course_calculations(course_id):
             co_count = 0
             
             for student_id, student_data in student_results.items():
+                # Skip students marked for exclusion
+                if student_data.get('skip', False):
+                    continue
+                    
                 if co.code in student_data['course_outcomes']:
                     co_total += student_data['course_outcomes'][co.code]
                     co_count += 1
@@ -446,6 +450,10 @@ def export_results(course_id):
     """Export calculation results to CSV in Excel-compatible format"""
     course = Course.query.get_or_404(course_id)
     
+    # Get sorting parameters from query string
+    sort_by = request.args.get('sort_by', '')
+    sort_direction = request.args.get('sort_direction', 'asc')
+    
     # Get regular and makeup exams separately
     regular_exams = Exam.query.filter_by(course_id=course_id, is_makeup=False).order_by(Exam.created_at).all()
     makeup_exams = Exam.query.filter_by(course_id=course_id, is_makeup=True).order_by(Exam.created_at).all()
@@ -460,7 +468,21 @@ def export_results(course_id):
     all_exams = regular_exams + makeup_exams
     
     course_outcomes = CourseOutcome.query.filter_by(course_id=course_id).order_by(CourseOutcome.code).all()
-    students = Student.query.filter_by(course_id=course_id).order_by(Student.student_id).all()
+    students = Student.query.filter_by(course_id=course_id)
+    
+    # Apply sorting based on parameters
+    if sort_by == 'student_id':
+        students = students.order_by(Student.student_id.asc() if sort_direction == 'asc' else Student.student_id.desc())
+    elif sort_by == 'name':
+        students = students.order_by(
+            Student.first_name.asc() if sort_direction == 'asc' else Student.first_name.desc(),
+            Student.last_name.asc() if sort_direction == 'asc' else Student.last_name.desc()
+        )
+    else:
+        # Default sort by student_id
+        students = students.order_by(Student.student_id)
+        
+    students = students.all()
     
     # Get exam weights
     weights = {}
@@ -519,6 +541,20 @@ def export_results(course_id):
     # Add student data rows
     data = []
     for student in students:
+        # Skip excluded students
+        student_data = {}
+        attendances_count = StudentExamAttendance.query.filter_by(student_id=student.id).count()
+        
+        # Check if student should be skipped (similar to course_calculations logic)
+        should_skip = False
+        if student.excluded:
+            should_skip = True
+        elif course.settings and course.settings.excluded:
+            should_skip = True
+        
+        if should_skip:
+            continue
+            
         # Create a map to track which exams have scores for this student
         student_exam_scores = {}
         for exam in all_exams:
@@ -627,33 +663,46 @@ def export_results(course_id):
                 questions = questions_by_exam[actual_exam.id]
                 
                 # Calculate total possible points for this outcome in this exam
-                outcome_total_points = Decimal('0')
-                outcome_scored_points = Decimal('0')
-                
+                total_points = Decimal('0')
+                earned_points = Decimal('0')
                 for question in questions:
-                    if co in question.course_outcomes:
-                        outcome_total_points += question.max_score
-                        score_value = scores_dict.get((student.id, question.id, actual_exam.id))
-                        if score_value is not None:
-                            outcome_scored_points += Decimal(str(score_value))
+                    # Check if question is associated with this course outcome through the many-to-many relationship
+                    if question in co.questions:
+                        score_key = (student.id, question.id, actual_exam.id)
+                        if score_key in scores_dict:
+                            earned_points += Decimal(str(scores_dict[score_key])) * Decimal(str(question.max_score))
+                        total_points += Decimal(str(question.max_score))
                 
-                if outcome_total_points > Decimal('0'):
-                    outcome_percentage = (outcome_scored_points / outcome_total_points) * Decimal('100')
+                if total_points > Decimal('0'):
+                    outcome_percentage = (earned_points / total_points) * Decimal('100')
                     co_score += outcome_percentage * weight
                     co_total_weight += weight
             
-            # Calculate final outcome percentage
+            # Calculate the weighted average for the course outcome
             if co_total_weight > Decimal('0'):
-                co_percentage = co_score / co_total_weight
-                student_row[idx] = round(float(co_percentage), 2)
+                overall_co_percentage = co_score / co_total_weight
+                student_row[idx] = round(float(overall_co_percentage), 2)
         
-        # Calculate and add overall weighted score
+        # Calculate overall percentage
         if total_weight_used > Decimal('0'):
             overall_percentage = weighted_score / total_weight_used
+            # Set overall percentage in the last column
             student_row[-1] = round(float(overall_percentage), 2)
-        
-        # Add row to data
-        data.append(student_row)
+            # Store for potential sorting
+            student_data = {
+                'student_id': student.student_id,
+                'name': f"{student.first_name} {student.last_name}".strip(),
+                'row': student_row,
+                'overall_score': float(overall_percentage)
+            }
+            data.append(student_data)
+    
+    # Sort by overall_score if requested
+    if sort_by == 'overall_score':
+        data.sort(key=lambda x: x['overall_score'], reverse=(sort_direction == 'desc'))
+    
+    # Extract just the row data for CSV
+    csv_data = [d['row'] for d in data]
     
     # Log action
     log = Log(action="EXPORT_COURSE_RESULTS", 
@@ -662,7 +711,7 @@ def export_results(course_id):
     db.session.commit()
     
     # Convert data to CSV
-    return export_to_csv(data, f"results_{course.code}", headers)
+    return export_to_excel_csv(csv_data, f"results_{course.code}", headers)
 
 @calculation_bp.route('/all_courses', endpoint='all_courses')
 def all_courses_calculations():
@@ -2460,3 +2509,323 @@ def manage_achievement_levels(course_id):
                          course=course, 
                          achievement_levels=achievement_levels, 
                          active_page='courses') 
+
+@calculation_bp.route('/course/<int:course_id>/export_student_results')
+def export_student_results(course_id):
+    """Export detailed student results including exam scores and course outcome achievements"""
+    course = Course.query.get_or_404(course_id)
+    
+    # Get regular and makeup exams separately
+    regular_exams = Exam.query.filter_by(course_id=course_id, is_makeup=False).order_by(Exam.created_at).all()
+    makeup_exams = Exam.query.filter_by(course_id=course_id, is_makeup=True).order_by(Exam.created_at).all()
+    
+    # Combined list of all exams
+    all_exams = regular_exams + makeup_exams
+    
+    # Create a map from original exam to makeup exam
+    makeup_map = {}
+    for makeup in makeup_exams:
+        if makeup.makeup_for:
+            makeup_map[makeup.makeup_for] = makeup
+    
+    course_outcomes = CourseOutcome.query.filter_by(course_id=course_id).order_by(CourseOutcome.code).all()
+    students = Student.query.filter_by(course_id=course_id).order_by(Student.student_id).all()
+    
+    # Get achievement levels for this course
+    achievement_levels = AchievementLevel.query.filter_by(course_id=course_id).order_by(AchievementLevel.min_score.desc()).all()
+    
+    # Get exam weights
+    weights = {}
+    total_weight = Decimal('0')
+    for exam in regular_exams:
+        weight = ExamWeight.query.filter_by(exam_id=exam.id).first()
+        if weight:
+            weights[exam.id] = weight.weight
+            total_weight += weight.weight
+        else:
+            weights[exam.id] = Decimal('0')
+    
+    # Preload all scores
+    scores_dict = {}
+    student_ids = [s.id for s in students]
+    exam_ids = [e.id for e in all_exams]
+    
+    if student_ids and exam_ids:
+        scores = Score.query.filter(
+            Score.student_id.in_(student_ids),
+            Score.exam_id.in_(exam_ids)
+        ).all()
+        
+        for score in scores:
+            key = (score.student_id, score.question_id, score.exam_id)
+            scores_dict[key] = score.score
+    
+    # Preload attendance information
+    attendance_dict = {}
+    if student_ids and exam_ids:
+        attendances = StudentExamAttendance.query.filter(
+            StudentExamAttendance.student_id.in_(student_ids),
+            StudentExamAttendance.exam_id.in_(exam_ids)
+        ).all()
+        
+        for attendance in attendances:
+            attendance_dict[(attendance.student_id, attendance.exam_id)] = attendance.attended
+    
+    # Create a map of exams to their questions
+    questions_by_exam = {}
+    for exam in all_exams:
+        questions_by_exam[exam.id] = exam.questions
+    
+    # Create a map of course outcomes to their related questions
+    outcome_questions = {}
+    for co in course_outcomes:
+        outcome_questions[co.id] = co.questions
+    
+    # Define headers for CSV
+    headers = ['Student ID', 'Student Name']
+    
+    # Add exam score headers
+    for exam in regular_exams:
+        headers.append(f'{exam.name} Score (%)')
+    
+    # Add course outcome headers
+    for co in course_outcomes:
+        headers.append(f'{co.code} Achievement (%)')
+        headers.append(f'{co.code} Achievement Level')
+    
+    # Add overall percentage header
+    headers.append('Overall Weighted Score (%)')
+    headers.append('Overall Achievement Level')
+    
+    # Prepare data rows for export
+    data = []
+    
+    for student in students:
+        # Skip excluded students
+        if student.excluded:
+            continue
+            
+        # Prepare student row as a dictionary
+        student_row = {
+            'Student ID': student.student_id,
+            'Student Name': f"{student.first_name} {student.last_name}".strip()
+        }
+        
+        # Calculate and add exam scores
+        weighted_score = Decimal('0')
+        total_weight_used = Decimal('0')
+        
+        for exam in regular_exams:
+            # Check if this exam has a makeup and if the student took the makeup
+            use_makeup = False
+            actual_exam_id = exam.id
+            
+            if exam.id in makeup_map:
+                makeup_exam = makeup_map[exam.id]
+                # Check if student has scores for the makeup
+                has_makeup_scores = False
+                for question in questions_by_exam[makeup_exam.id]:
+                    if (student.id, question.id, makeup_exam.id) in scores_dict:
+                        has_makeup_scores = True
+                        break
+                
+                if has_makeup_scores:
+                    use_makeup = True
+                    actual_exam_id = makeup_exam.id
+            
+            # Calculate score
+            exam_score = calculate_student_exam_score_optimized(
+                student.id, actual_exam_id, scores_dict, 
+                questions_by_exam[actual_exam_id], attendance_dict
+            )
+            
+            if exam_score is not None:
+                # Add to student row
+                student_row[f'{exam.name} Score (%)'] = round(float(exam_score), 2)
+                
+                # Add to weighted score if weight exists
+                if exam.id in weights and weights[exam.id] > Decimal('0'):
+                    weighted_score += exam_score * weights[exam.id]
+                    total_weight_used += weights[exam.id]
+            else:
+                student_row[f'{exam.name} Score (%)'] = "N/A"
+        
+        # Calculate and add course outcome achievements
+        for co in course_outcomes:
+            # Calculate course outcome achievement
+            co_score = calculate_course_outcome_score_optimized(
+                student.id, co.id, scores_dict, outcome_questions
+            )
+            
+            if co_score is not None:
+                # Add score and achievement level
+                student_row[f'{co.code} Achievement (%)'] = round(float(co_score), 2)
+                
+                # Get achievement level
+                level = get_achievement_level(float(co_score), achievement_levels)
+                student_row[f'{co.code} Achievement Level'] = level['name']
+            else:
+                student_row[f'{co.code} Achievement (%)'] = "N/A"
+                student_row[f'{co.code} Achievement Level'] = "N/A"
+        
+        # Calculate and add overall weighted score
+        if total_weight_used > Decimal('0'):
+            overall_percentage = weighted_score / total_weight_used
+            student_row['Overall Weighted Score (%)'] = round(float(overall_percentage), 2)
+            
+            # Get overall achievement level
+            level = get_achievement_level(float(overall_percentage), achievement_levels)
+            student_row['Overall Achievement Level'] = level['name']
+        else:
+            student_row['Overall Weighted Score (%)'] = "N/A"
+            student_row['Overall Achievement Level'] = "N/A"
+        
+        # Add row to data
+        data.append(student_row)
+    
+    # Log action
+    log = Log(action="EXPORT_STUDENT_RESULTS", 
+             description=f"Exported detailed student results for course: {course.code}")
+    db.session.add(log)
+    db.session.commit()
+    
+    # Export data using utility function
+    return export_to_excel_csv(data, f"student_results_{course.code}", headers)
+
+@calculation_bp.route('/course/<int:course_id>/student_score', methods=['GET'])
+def get_student_score(course_id):
+    """Get HTML for a student's score after their inclusion/exclusion status changes"""
+    student_id = request.args.get('student_id')
+    
+    if not student_id:
+        return jsonify({
+            'success': False,
+            'message': 'Student ID is required'
+        }), 400
+    
+    try:
+        # Load the course and student
+        course = Course.query.get_or_404(course_id)
+        student = Student.query.get_or_404(student_id)
+        
+        # Get the achievement levels for this course
+        achievement_levels = get_achievement_levels(course_id)
+        
+        # Perform calculations to get the student's data
+        results = calculate_course_results(course, recalculate=True)
+        student_results = results.get('student_results', {})
+        student_data = student_results.get(int(student_id))
+        
+        if not student_data:
+            return jsonify({
+                'success': False,
+                'message': 'Student data not found'
+            }), 404
+        
+        # Generate HTML for the score cell
+        if student_data.get('excluded') or student_data.get('missing_mandatory'):
+            score_html = '''
+                <div class="alert alert-danger p-2 mb-0 d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <span>
+                        <strong>{}</strong>
+                        <small class="d-block text-muted">
+                            <i class="fas fa-info-circle me-1"></i>Score calculations may be inaccurate
+                        </small>
+                    </span>
+                </div>
+            '''.format("Manually Excluded" if student_data.get('excluded') else "Missed Mandatory Exam")
+        else:
+            # Get the percentage and achievement level
+            percentage = student_data.get('overall_percentage', 0)
+            level = get_achievement_level(percentage, achievement_levels)
+            
+            score_html = '''
+                <div class="progress" style="height: 25px;">
+                    <div class="progress-bar bg-{}" 
+                         role="progressbar" 
+                         style="width: {}%;" 
+                         aria-valuenow="{}" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                        {:.1f}% ({})
+                    </div>
+                </div>
+            '''.format(
+                level.get('color', 'secondary'),
+                percentage,
+                percentage,
+                percentage,
+                level.get('name', 'N/A')
+            )
+        
+        # Generate HTML for the details section
+        details_html = '''
+            <div class="p-3 bg-light">
+                <h6>Course Outcome Achievement for {}</h6>
+                <div class="row">
+        '''.format(student_data.get('name'))
+        
+        # Add course outcomes
+        for co_code, percentage in student_data.get('course_outcomes', {}).items():
+            level = get_achievement_level(percentage, achievement_levels)
+            details_html += '''
+                <div class="col-md-6 mb-2">
+                    <small><strong>{}:</strong></small>
+                    <div class="progress" style="height: 15px;">
+                        <div class="progress-bar bg-{}" 
+                             role="progressbar" 
+                             style="width: {}%;" 
+                             aria-valuenow="{}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                            {:.1f}%
+                        </div>
+                    </div>
+                </div>
+            '''.format(co_code, level.get('color', 'secondary'), percentage, percentage, percentage)
+        
+        details_html += '''
+                </div>
+                
+                <h6 class="mt-3">Exam Scores</h6>
+                <div class="row">
+        '''
+        
+        # Add exam scores
+        for exam_name, percentage in student_data.get('exam_scores', {}).items():
+            level = get_achievement_level(percentage, achievement_levels)
+            details_html += '''
+                <div class="col-md-6 mb-2">
+                    <small><strong>{}:</strong></small>
+                    <div class="progress" style="height: 15px;">
+                        <div class="progress-bar bg-{}" 
+                             role="progressbar" 
+                             style="width: {}%;" 
+                             aria-valuenow="{}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                            {:.1f}%
+                        </div>
+                    </div>
+                </div>
+            '''.format(exam_name, level.get('color', 'secondary'), percentage, percentage, percentage)
+        
+        details_html += '''
+                </div>
+            </div>
+        '''
+        
+        return jsonify({
+            'success': True,
+            'scoreHtml': score_html,
+            'detailsHtml': details_html
+        })
+    
+    except Exception as e:
+        logging.error(f"Error getting student score: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'An error occurred while retrieving student data',
+            'error': str(e)
+        }), 500

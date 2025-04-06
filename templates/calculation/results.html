@@ -8,6 +8,50 @@
 <li class="breadcrumb-item active">Program Outcome Scores</li>
 {% endblock %}
 
+{% block styles %}
+<style>
+    .sortable {
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    .sortable:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+    }
+    
+    .fa-sort-up, .fa-sort-down {
+        color: #0d6efd;
+    }
+    
+    /* Styling for the sorting buttons */
+    .sort-btn {
+        position: relative;
+        transition: all 0.2s;
+        border-width: 2px;
+    }
+    
+    .sort-btn.active {
+        background-color: #0d6efd;
+        color: white;
+        font-weight: bold;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+    
+    .sort-btn:hover:not(.active) {
+        background-color: #f8f9fa;
+        transform: translateY(-2px);
+    }
+    
+    .sort-btn .fas {
+        color: #0d6efd;
+    }
+    
+    .sort-btn.active .fas {
+        color: white;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid mt-4">
     <!-- Debug Information - Only visible when ?debug=1 is in URL -->
@@ -45,6 +89,9 @@
         <div>
             <button type="button" class="btn btn-outline-success me-2" onclick="exportResults()">
                 <i class="fas fa-file-export"></i> Export Results
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="exportStudentResults()">
+                <i class="fas fa-file-export"></i> Export Student Results
             </button>
             <a href="{{ url_for('course.course_detail', course_id=course.id) }}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left"></i> Back to Course
@@ -276,14 +323,61 @@
                             </div>
                         </div>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body" id="studentAchievementDataSection">
+                        <div class="mb-3">
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-search"></i>
+                                </span>
+                                <input type="text" class="form-control" id="studentSearch" 
+                                       placeholder="Search students by ID or name...">
+                            </div>
+                        </div>
+                        
+                        <!-- Sorting Control Panel -->
+                        <div class="card mb-3 bg-light">
+                            <div class="card-body py-2">
+                                <div class="d-flex align-items-center">
+                                    <label class="me-2 fw-bold mb-0">
+                                        <i class="fas fa-sort me-1"></i> Sort By:
+                                    </label>
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-outline-primary sort-btn" data-sort="student_id" data-direction="asc">
+                                            Student ID <i class="fas fa-sort-up ms-1"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary sort-btn" data-sort="student_id" data-direction="desc">
+                                            Student ID <i class="fas fa-sort-down ms-1"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary sort-btn" data-sort="name" data-direction="asc">
+                                            Name <i class="fas fa-sort-up ms-1"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary sort-btn" data-sort="name" data-direction="desc">
+                                            Name <i class="fas fa-sort-down ms-1"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary sort-btn" data-sort="overall_score" data-direction="asc">
+                                            Score <i class="fas fa-sort-up ms-1"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary sort-btn" data-sort="overall_score" data-direction="desc">
+                                            Score <i class="fas fa-sort-down ms-1"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="table-responsive">
                             <table class="table table-striped table-hover" id="studentResultsTable">
                                 <thead class="thead-light">
                                     <tr>
-                                        <th>Student ID</th>
-                                        <th>Name</th>
-                                        <th>Overall Score</th>
+                                        <th class="sortable" data-sort="student_id">
+                                            Student ID <i class="fas fa-sort ms-1"></i>
+                                        </th>
+                                        <th class="sortable" data-sort="name">
+                                            Name <i class="fas fa-sort ms-1"></i>
+                                        </th>
+                                        <th class="sortable" data-sort="overall_score">
+                                            Overall Score <i class="fas fa-sort ms-1"></i>
+                                        </th>
                                         <th>Course Outcomes Achievement</th>
                                     </tr>
                                 </thead>
@@ -339,6 +433,15 @@
                                                         aria-controls="student{{ student_id }}Details">
                                                     Show Details
                                                 </button>
+                                                {% if not student_data.excluded %}
+                                                <button type="button" class="btn btn-sm btn-outline-warning exclude-btn"
+                                                        data-student-id="{{ student_id }}"
+                                                        data-toggle-url="{{ url_for('student.toggle_exclusion', student_id=student_id) }}"
+                                                        data-student-name="{{ student_data.name }}"
+                                                        data-student-id-text="{{ student_data.student_id }}">
+                                                    <i class="bi bi-dash-circle"></i> Exclude
+                                                </button>
+                                                {% endif %}
                                             </td>
                                         </tr>
                                         <tr class="collapse" id="student{{ student_id }}Details">
@@ -414,7 +517,7 @@
                             Their scores do not impact Program Outcome calculations.
                         </div>
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover">
+                            <table class="table table-striped table-hover" id="excludedStudentsTable">
                                 <thead class="thead-light">
                                     <tr>
                                         <th>Student ID</th>
@@ -431,8 +534,8 @@
                                                 <td>{{ student_data.student_id }}</td>
                                                 <td>{{ student_data.name }}</td>
                                                 <td>
-                                                    <form method="post" action="{{ url_for('student.toggle_exclusion', student_id=student_id) }}" class="d-inline">
-                                                        <button type="submit" class="btn btn-sm btn-success">
+                                                    <form method="post" action="{{ url_for('student.toggle_exclusion', student_id=student_id) }}" class="d-inline include-form">
+                                                        <button type="submit" class="btn btn-sm btn-success include-btn">
                                                             <i class="bi bi-plus-circle"></i> Include in Calculations
                                                         </button>
                                                     </form>
@@ -462,10 +565,466 @@
 
 <script>
     function exportResults() {
-        window.location.href = "{{ url_for('calculation.export_results', course_id=course.id) }}";
+        // Get sorting parameters from sessionStorage
+        const sortBy = sessionStorage.getItem('studentSortBy') || '';
+        const sortDirection = sessionStorage.getItem('studentSortDirection') || '';
+        
+        // Add sorting parameters to the export URL
+        let exportUrl = "{{ url_for('calculation.export_results', course_id=course.id) }}";
+        if (sortBy && sortDirection) {
+            exportUrl += `?sort_by=${sortBy}&sort_direction=${sortDirection}`;
+        }
+        
+        window.location.href = exportUrl;
     }
     
+    function exportStudentResults() {
+        window.location.href = "{{ url_for('calculation.export_student_results', course_id=course.id) }}";
+    }
+    
+    // Helper function to show alerts
+    function showAlert(type, message) {
+        var alertContainer = document.createElement('div');
+        alertContainer.className = 'alert alert-' + type + ' alert-dismissible fade show position-fixed top-0 end-0 m-3';
+        alertContainer.setAttribute('role', 'alert');
+        alertContainer.innerHTML = message + 
+            '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
+        document.body.appendChild(alertContainer);
+        
+        // Remove alert after 3 seconds
+        setTimeout(function() {
+            alertContainer.remove();
+        }, 3000);
+    }
+    
+    // Function to refresh the student achievement data section
+    function refreshStudentAchievementData() {
+        // Get the course ID from the page URL
+        var pathParts = window.location.pathname.split('/');
+        var courseId = pathParts[pathParts.indexOf('course') + 1];
+        
+        // Get the student achievement data section
+        var achievementDataSection = document.getElementById('studentAchievementDataSection');
+        if (!achievementDataSection) return;
+        
+        // Show loading spinner in the section
+        var loadingSpinner = document.createElement('div');
+        loadingSpinner.className = 'text-center p-3';
+        loadingSpinner.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Refreshing data...</p>';
+        
+        achievementDataSection.appendChild(loadingSpinner);
+        
+        // Fetch updated data via AJAX
+        fetch(window.location.pathname, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(data) {
+            // Remove the loading spinner
+            if (loadingSpinner.parentNode) {
+                loadingSpinner.parentNode.removeChild(loadingSpinner);
+            }
+            
+            // Get the student results table body
+            var studentTableBody = document.querySelector('#studentResultsTable tbody');
+            if (studentTableBody && data.student_results) {
+                // Clear current table content
+                studentTableBody.innerHTML = '';
+                
+                // Rebuild the table with updated data
+                for (var studentId in data.student_results) {
+                    var studentData = data.student_results[studentId];
+                    
+                    // Create the main student row
+                    var row = document.createElement('tr');
+                    
+                    // Student ID cell
+                    var idCell = document.createElement('td');
+                    idCell.textContent = studentData.student_id;
+                    row.appendChild(idCell);
+                    
+                    // Name cell with exclusion badge if needed
+                    var nameCell = document.createElement('td');
+                    nameCell.textContent = studentData.name;
+                    if (studentData.excluded) {
+                        nameCell.innerHTML += ' <span class="badge bg-danger rounded-pill"><i class="fas fa-ban me-1"></i>Excluded from Calculations</span>';
+                    }
+                    row.appendChild(nameCell);
+                    
+                    // Overall score cell
+                    var scoreCell = document.createElement('td');
+                    if (studentData.missing_mandatory) {
+                        scoreCell.innerHTML = '<div class="alert alert-danger p-2 mb-0 d-flex align-items-center">' +
+                            '<i class="fas fa-exclamation-triangle me-2"></i>' +
+                            '<span>' +
+                            (studentData.excluded ? '<strong>Manually Excluded</strong>' +
+                                '<small class="d-block text-muted">' +
+                                '<i class="fas fa-info-circle me-1"></i>Score calculations may be inaccurate' +
+                                '</small>' : '<strong>Missed Mandatory Exam</strong>') +
+                            '</span>' +
+                            '</div>';
+                    } else {
+                        var achievement = getAchievementLevel(studentData.overall_percentage);
+                        scoreCell.innerHTML = '<div class="progress" style="height: 25px;">' +
+                            '<div class="progress-bar bg-' + achievement.color + '" ' +
+                            'role="progressbar" ' +
+                            'style="width: ' + studentData.overall_percentage + '%;" ' +
+                            'aria-valuenow="' + studentData.overall_percentage + '" ' +
+                            'aria-valuemin="0" ' +
+                            'aria-valuemax="100">' +
+                            studentData.overall_percentage.toFixed(1) + '% (' + achievement.name + ')' +
+                            '</div>' +
+                            '</div>';
+                    }
+                    row.appendChild(scoreCell);
+                    
+                    // Actions cell
+                    var actionsCell = document.createElement('td');
+                    actionsCell.innerHTML = '<button class="btn btn-sm btn-outline-info" type="button" ' +
+                        'data-bs-toggle="collapse" ' +
+                        'data-bs-target="#student' + studentId + 'Details" ' +
+                        'aria-expanded="false" ' +
+                        'aria-controls="student' + studentId + 'Details">' +
+                        'Show Details' +
+                        '</button>';
+                    
+                    if (!studentData.excluded) {
+                        actionsCell.innerHTML += ' <button type="button" class="btn btn-sm btn-outline-warning exclude-btn" ' +
+                            'data-student-id="' + studentId + '" ' +
+                            'data-toggle-url="/student/' + studentId + '/toggle_exclusion" ' +
+                            'data-student-name="' + studentData.name + '" ' +
+                            'data-student-id-text="' + studentData.student_id + '">' +
+                            '<i class="bi bi-dash-circle"></i> Exclude' +
+                            '</button>';
+                    }
+                    row.appendChild(actionsCell);
+                    
+                    studentTableBody.appendChild(row);
+                    
+                    // Create the details row
+                    var detailsRow = document.createElement('tr');
+                    detailsRow.className = 'collapse';
+                    detailsRow.id = 'student' + studentId + 'Details';
+                    
+                    var detailsCell = document.createElement('td');
+                    detailsCell.colSpan = 4;
+                    detailsCell.className = 'p-0';
+                    
+                    var detailsContent = document.createElement('div');
+                    detailsContent.className = 'p-3 bg-light';
+                    
+                    // Course outcomes achievement
+                    var coHtml = '<h6>Course Outcome Achievement for ' + studentData.name + '</h6>' +
+                        '<div class="row">';
+                    
+                    for (var coCode in studentData.course_outcomes) {
+                        var percentage = studentData.course_outcomes[coCode];
+                        var coAchievement = getAchievementLevel(percentage);
+                        
+                        coHtml += '<div class="col-md-6 mb-2">' +
+                            '<small><strong>' + coCode + ':</strong></small>' +
+                            '<div class="progress" style="height: 15px;">' +
+                            '<div class="progress-bar bg-' + coAchievement.color + '" ' +
+                            'role="progressbar" ' +
+                            'style="width: ' + percentage + '%;" ' +
+                            'aria-valuenow="' + percentage + '" ' +
+                            'aria-valuemin="0" ' +
+                            'aria-valuemax="100">' +
+                            percentage.toFixed(1) + '%' +
+                            '</div>' +
+                            '</div>' +
+                            '</div>';
+                    }
+                    
+                    coHtml += '</div>';
+                    
+                    // Exam scores
+                    coHtml += '<h6 class="mt-3">Exam Scores</h6>' +
+                        '<div class="row">';
+                    
+                    for (var examName in studentData.exam_scores) {
+                        var percentage = studentData.exam_scores[examName];
+                        var examAchievement = getAchievementLevel(percentage);
+                        
+                        coHtml += '<div class="col-md-6 mb-2">' +
+                            '<small><strong>' + examName + ':</strong></small>' +
+                            '<div class="progress" style="height: 15px;">' +
+                            '<div class="progress-bar bg-' + examAchievement.color + '" ' +
+                            'role="progressbar" ' +
+                            'style="width: ' + percentage + '%;" ' +
+                            'aria-valuenow="' + percentage + '" ' +
+                            'aria-valuemin="0" ' +
+                            'aria-valuemax="100">' +
+                            percentage.toFixed(1) + '%' +
+                            '</div>' +
+                            '</div>' +
+                            '</div>';
+                    }
+                    
+                    coHtml += '</div>';
+                    
+                    detailsContent.innerHTML = coHtml;
+                    detailsCell.appendChild(detailsContent);
+                    detailsRow.appendChild(detailsCell);
+                    
+                    studentTableBody.appendChild(detailsRow);
+                }
+                
+                // Reattach event listeners to the new exclude buttons
+                document.querySelectorAll('.exclude-btn').forEach(function(excludeButton) {
+                    excludeButton.addEventListener('click', handleExcludeButtonClick);
+                });
+            }
+            
+            // Update the excluded students section
+            var excludedTable = document.querySelector('#excludedStudentsTable tbody');
+            if (excludedTable && data.student_results) {
+                // Clear current table content
+                excludedTable.innerHTML = '';
+                
+                var hasExcluded = false;
+                
+                // Add rows for excluded students
+                for (var studentId in data.student_results) {
+                    var studentData = data.student_results[studentId];
+                    
+                    if (studentData.excluded) {
+                        hasExcluded = true;
+                        
+                        var row = document.createElement('tr');
+                        
+                        // Student ID cell
+                        var idCell = document.createElement('td');
+                        idCell.textContent = studentData.student_id;
+                        row.appendChild(idCell);
+                        
+                        // Name cell
+                        var nameCell = document.createElement('td');
+                        nameCell.textContent = studentData.name;
+                        row.appendChild(nameCell);
+                        
+                        // Actions cell
+                        var actionsCell = document.createElement('td');
+                        actionsCell.innerHTML = '<form method="post" action="/student/' + studentId + '/toggle_exclusion" class="d-inline include-form">' +
+                            '<button type="submit" class="btn btn-sm btn-success include-btn">' +
+                            '<i class="bi bi-plus-circle"></i> Include in Calculations' +
+                            '</button>' +
+                            '</form>';
+                        row.appendChild(actionsCell);
+                        
+                        excludedTable.appendChild(row);
+                    }
+                }
+                
+                // If no excluded students, show a message
+                if (!hasExcluded) {
+                    var emptyRow = document.createElement('tr');
+                    emptyRow.innerHTML = '<td colspan="3" class="text-center"><em>No manually excluded students</em></td>';
+                    excludedTable.appendChild(emptyRow);
+                }
+                
+                // Reattach event listeners to the new include forms
+                document.querySelectorAll('.include-form').forEach(function(form) {
+                    form.addEventListener('submit', handleIncludeFormSubmit);
+                });
+            }
+            
+            // Update charts if they're available
+            if (data.course_outcome_results && data.program_outcome_results) {
+                updateCharts(data);
+            }
+        })
+        .catch(function(error) {
+            console.error('Error refreshing data:', error);
+            // Remove the loading spinner
+            if (loadingSpinner.parentNode) {
+                loadingSpinner.parentNode.removeChild(loadingSpinner);
+            }
+            showAlert('danger', 'Error refreshing data. Please reload the page manually.');
+        });
+    }
+    
+    // Helper function to determine achievement level from percentage
+    function getAchievementLevel(percentage) {
+        // Default values in case achievement_levels isn't available
+        var achievementLevels = window.achievementLevels || [
+            { name: 'Excellent', min_score: 90, max_score: 100, color: 'success' },
+            { name: 'Good', min_score: 70, max_score: 89.99, color: 'primary' },
+            { name: 'Average', min_score: 60, max_score: 69.99, color: 'info' },
+            { name: 'Below Average', min_score: 50, max_score: 59.99, color: 'warning' },
+            { name: 'Poor', min_score: 0, max_score: 49.99, color: 'danger' }
+        ];
+        
+        for (var i = 0; i < achievementLevels.length; i++) {
+            var level = achievementLevels[i];
+            if (percentage >= level.min_score && percentage <= level.max_score) {
+                return level;
+            }
+        }
+        
+        // Default if no matching level is found
+        return { name: 'N/A', color: 'secondary' };
+    }
+    
+    // Store achievement levels from server in a global variable for use in JavaScript
+    window.achievementLevels = [
+        {% for level in achievement_levels %}
+        {
+            name: '{{ level.name }}',
+            min_score: {{ level.min_score|float }},
+            max_score: {{ level.max_score|float }},
+            color: '{{ level.color }}'
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    // Helper function to update charts if they exist
+    function updateCharts(data) {
+        // This would need to be expanded with the actual chart update code
+        // based on Chart.js specifics and your existing chart initialization
+        console.log('Charts would be updated with new data');
+    }
+    
+    // Function to handle exclude button clicks
+    function handleExcludeButtonClick(e) {
+        e.preventDefault();
+        
+        var thisButton = this;
+        var studentId = thisButton.getAttribute('data-student-id');
+        var toggleUrl = thisButton.getAttribute('data-toggle-url');
+        var studentName = thisButton.getAttribute('data-student-name');
+        var studentIdText = thisButton.getAttribute('data-student-id-text');
+        var originalContent = thisButton.innerHTML;
+        
+        // Show a spinner while processing
+        thisButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+        thisButton.disabled = true;
+        
+        // Submit the request via AJAX
+        fetch(toggleUrl, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(data) {
+            if (data.success) {
+                // Find the parent row
+                var currentRow = thisButton.closest('tr');
+                
+                // Add the "Excluded from Calculations" badge to the name cell
+                var nameCell = currentRow.querySelector('td:nth-child(2)');
+                var nameText = nameCell.textContent.trim();
+                nameCell.innerHTML = nameText + 
+                    ' <span class="badge bg-danger rounded-pill"><i class="fas fa-ban me-1"></i>Excluded from Calculations</span>';
+                
+                // Update the action cell - remove the exclude button
+                var actionCell = thisButton.closest('td');
+                actionCell.removeChild(thisButton);
+                
+                // Show success message
+                showAlert('success', data.message);
+                
+                // Refresh the student achievement data section
+                refreshStudentAchievementData();
+            } else {
+                // Restore original button content on error
+                thisButton.innerHTML = originalContent;
+                thisButton.disabled = false;
+                
+                // Show error message
+                showAlert('danger', 'Error: ' + data.message);
+            }
+        })
+        .catch(function(error) {
+            console.error('Error:', error);
+            thisButton.innerHTML = originalContent;
+            thisButton.disabled = false;
+            
+            // Show error message
+            showAlert('danger', 'An error occurred while processing your request.');
+        });
+    }
+    
+    // Function to handle include form submissions
+    function handleIncludeFormSubmit(e) {
+        e.preventDefault();
+        var form = this;
+        var submitButton = form.querySelector('.include-btn');
+        var originalContent = submitButton.innerHTML;
+        
+        // Show a spinner while processing
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+        submitButton.disabled = true;
+        
+        // Submit the form via AJAX
+        fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(data) {
+            if (data.success) {
+                // Remove the row since the student is no longer excluded
+                var row = form.closest('tr');
+                row.remove();
+                
+                // Show success message
+                showAlert('success', data.message);
+                
+                // Refresh the student achievement data section
+                refreshStudentAchievementData();
+                
+                // If there are no more excluded students, show the "No manually excluded students" message
+                var excludedTable = document.querySelector('#excludedStudentsTable tbody');
+                if (excludedTable && excludedTable.querySelectorAll('tr').length === 0) {
+                    var emptyRow = document.createElement('tr');
+                    emptyRow.innerHTML = '<td colspan="3" class="text-center"><em>No manually excluded students</em></td>';
+                    excludedTable.appendChild(emptyRow);
+                }
+            } else {
+                // Show error message
+                showAlert('danger', 'Error: ' + data.message);
+                
+                // Restore original button content
+                submitButton.innerHTML = originalContent;
+                submitButton.disabled = false;
+            }
+        })
+        .catch(function(error) {
+            console.error('Error:', error);
+            submitButton.innerHTML = originalContent;
+            submitButton.disabled = false;
+            showAlert('danger', 'An error occurred while processing your request.');
+        });
+    }
+    
+    // Add event listeners when the DOM is loaded
     document.addEventListener('DOMContentLoaded', function() {
+        // Handle "Include in Calculations" forms via AJAX
+        document.querySelectorAll('.include-form').forEach(function(form) {
+            form.addEventListener('submit', handleIncludeFormSubmit);
+        });
+        
+        // Handle "Exclude" buttons via AJAX
+        document.querySelectorAll('.exclude-btn').forEach(function(excludeButton) {
+            excludeButton.addEventListener('click', handleExcludeButtonClick);
+        });
+        
         console.log("DOM loaded, initializing charts directly");
         
         // Program Outcomes Chart
@@ -627,6 +1186,148 @@
                     }
                 });
             });
+        }
+        
+        // Student sorting functionality
+        let currentSort = null;
+        let currentDirection = 'asc';
+        
+        // Add click event to sort buttons in the sort panel
+        const sortButtons = document.querySelectorAll('.sort-btn');
+        if (sortButtons && table) {
+            sortButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const sortBy = this.getAttribute('data-sort');
+                    const direction = this.getAttribute('data-direction');
+                    
+                    // Update current sort state
+                    currentSort = sortBy;
+                    currentDirection = direction;
+                    
+                    // Update UI to show active sort button
+                    sortButtons.forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                    
+                    // Update sort icons in the table headers
+                    const sortableHeaders = document.querySelectorAll('.sortable');
+                    sortableHeaders.forEach(h => {
+                        const icon = h.querySelector('i');
+                        if (h.getAttribute('data-sort') === currentSort) {
+                            icon.className = currentDirection === 'asc' ? 
+                                'fas fa-sort-up ms-1' : 'fas fa-sort-down ms-1';
+                        } else {
+                            icon.className = 'fas fa-sort ms-1';
+                        }
+                    });
+                    
+                    // Sort the rows
+                    sortStudentTable(sortBy, direction);
+                });
+            });
+        }
+        
+        // Add click event to sortable headers
+        const sortableHeaders = document.querySelectorAll('.sortable');
+        if (sortableHeaders && table) {
+            sortableHeaders.forEach(header => {
+                header.addEventListener('click', function() {
+                    const sortBy = this.getAttribute('data-sort');
+                    
+                    // Toggle direction if same column clicked again
+                    if (currentSort === sortBy) {
+                        currentDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSort = sortBy;
+                        currentDirection = 'asc';
+                    }
+                    
+                    // Update sort buttons in the sort panel
+                    sortButtons.forEach(btn => {
+                        btn.classList.remove('active');
+                        if (btn.getAttribute('data-sort') === currentSort && 
+                            btn.getAttribute('data-direction') === currentDirection) {
+                            btn.classList.add('active');
+                        }
+                    });
+                    
+                    // Update sort icons in all headers
+                    sortableHeaders.forEach(h => {
+                        const icon = h.querySelector('i');
+                        if (h.getAttribute('data-sort') === currentSort) {
+                            icon.className = currentDirection === 'asc' ? 
+                                'fas fa-sort-up ms-1' : 'fas fa-sort-down ms-1';
+                        } else {
+                            icon.className = 'fas fa-sort ms-1';
+                        }
+                    });
+                    
+                    // Sort the rows
+                    sortStudentTable(sortBy, currentDirection);
+                });
+            });
+        }
+        
+        function sortStudentTable(sortBy, direction) {
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr:not(.collapse)'));
+            
+            // Save the details rows associated with each student row
+            const detailsMap = {};
+            rows.forEach(row => {
+                const studentId = row.querySelector('td:first-child').textContent.trim();
+                // Get the actual student ID from the data
+                const studentIdInData = studentId.split(' ')[0]; // Handle any badges/text after ID
+                // Find the associated details row - it's the next sibling that has class 'collapse'
+                const detailsRow = Array.from(tbody.querySelectorAll('tr.collapse')).find(r => 
+                    r.id.includes(studentIdInData) || r.id.includes(row.cells[0].textContent.trim())
+                );
+                if (detailsRow) {
+                    detailsMap[studentId] = detailsRow;
+                }
+            });
+            
+            // Sort the rows
+            rows.sort((a, b) => {
+                let valA, valB;
+                
+                if (sortBy === 'student_id') {
+                    valA = a.querySelector('td:nth-child(1)').textContent.trim();
+                    valB = b.querySelector('td:nth-child(1)').textContent.trim();
+                } else if (sortBy === 'name') {
+                    valA = a.querySelector('td:nth-child(2)').textContent.trim();
+                    valB = b.querySelector('td:nth-child(2)').textContent.trim();
+                } else if (sortBy === 'overall_score') {
+                    const scoreA = a.querySelector('td:nth-child(3) .progress-bar');
+                    const scoreB = b.querySelector('td:nth-child(3) .progress-bar');
+                    valA = scoreA ? parseFloat(scoreA.getAttribute('aria-valuenow')) : -1;
+                    valB = scoreB ? parseFloat(scoreB.getAttribute('aria-valuenow')) : -1;
+                }
+                
+                if (typeof valA === 'string' && typeof valB === 'string') {
+                    return direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                } else {
+                    return direction === 'asc' ? valA - valB : valB - valA;
+                }
+            });
+            
+            // Remove all rows from the table
+            rows.forEach(row => row.remove());
+            Object.values(detailsMap).forEach(row => row.remove());
+            
+            // Add the sorted rows back
+            rows.forEach(row => {
+                const studentId = row.querySelector('td:first-child').textContent.trim();
+                tbody.appendChild(row);
+                if (detailsMap[studentId]) {
+                    tbody.appendChild(detailsMap[studentId]);
+                }
+            });
+            
+            // Store sort settings in sessionStorage for export
+            sessionStorage.setItem('studentSortBy', sortBy);
+            sessionStorage.setItem('studentSortDirection', direction);
         }
     });
 </script>

@@ -21,7 +21,8 @@
         <h5><i class="fas fa-info-circle"></i> Import and Merge</h5>
         <p>This utility allows you to import data from a backup file and merge it with your existing database.</p>
         <p>Unlike the restore function which replaces all data, this will only add new items from the backup file.</p>
-        <p>For example, you can import courses, students, and assessments from another database without losing your current data.</p>
+        <p><strong><i class="fas fa-exclamation-triangle text-warning"></i> IMPORTANT: Courses with the same course code AND semester will NOT be imported. No data related to these existing courses will be imported either.</strong></p>
+        <p>For example, you can import completely new courses, students, and assessments from another database without affecting your current data.</p>
         <p><strong><i class="fas fa-shield-alt"></i> Your current database will be automatically backed up before the import process begins.</strong></p>
     </div>
 
@@ -30,11 +31,17 @@
             <h5 class="mb-0">Import from Backup File</h5>
         </div>
         <div class="card-body">
-            <form method="POST" action="{{ url_for('utility.import_database') }}" enctype="multipart/form-data">
+            <form method="POST" action="{{ url_for('utility.import_database') }}" enctype="multipart/form-data" id="importForm">
                 <div class="mb-3">
                     <label for="backup_file" class="form-label">Backup File</label>
-                    <input class="form-control" type="file" id="backup_file" name="backup_file" required>
+                    <div class="input-group">
+                        <input class="form-control" type="file" id="backup_file" name="backup_file" required>
+                        <button type="button" id="validateButton" class="btn btn-outline-primary">
+                            <i class="fas fa-check-circle"></i> Validate File
+                        </button>
+                    </div>
                     <div class="form-text">Select a database backup file (.db or .sqlite)</div>
+                    <div id="validationResult" class="mt-2" style="display: none;"></div>
                 </div>
 
                 <div class="card mb-3">
@@ -45,23 +52,7 @@
                             <label class="form-check-label" for="import_courses">
                                 Courses
                             </label>
-                            <small class="form-text text-muted d-block">Import courses that don't already exist in your database</small>
-                        </div>
-
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" id="import_students" name="import_students" checked>
-                            <label class="form-check-label" for="import_students">
-                                Students
-                            </label>
-                            <small class="form-text text-muted d-block">Import students that don't already exist in your database</small>
-                        </div>
-
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" id="import_exams" name="import_exams" checked>
-                            <label class="form-check-label" for="import_exams">
-                                Exams & Questions
-                            </label>
-                            <small class="form-text text-muted d-block">Import exams and questions that don't already exist</small>
+                            <small class="form-text text-muted d-block">Import courses that don't already exist in your database (based on course code + semester)</small>
                         </div>
 
                         <div class="form-check mb-2">
@@ -69,7 +60,31 @@
                             <label class="form-check-label" for="import_outcomes">
                                 Course Outcomes
                             </label>
-                            <small class="form-text text-muted d-block">Import course outcomes that don't already exist</small>
+                            <small class="form-text text-muted d-block">Import course outcomes that don't already exist (for new courses only)</small>
+                        </div>
+
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="import_program_outcomes" name="import_program_outcomes" checked>
+                            <label class="form-check-label" for="import_program_outcomes">
+                                Program Outcomes
+                            </label>
+                            <small class="form-text text-muted d-block">Import program outcomes that don't already exist</small>
+                        </div>
+
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="import_students" name="import_students" checked>
+                            <label class="form-check-label" for="import_students">
+                                Students
+                            </label>
+                            <small class="form-text text-muted d-block">Import students that don't already exist (for new courses only)</small>
+                        </div>
+
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="import_exams" name="import_exams" checked>
+                            <label class="form-check-label" for="import_exams">
+                                Exams & Questions
+                            </label>
+                            <small class="form-text text-muted d-block">Import exams and questions that don't already exist (for new courses only)</small>
                         </div>
 
                         <div class="form-check mb-2">
@@ -77,7 +92,7 @@
                             <label class="form-check-label" for="import_achievement_levels">
                                 Achievement Levels
                             </label>
-                            <small class="form-text text-muted d-block">Import achievement levels for imported courses</small>
+                            <small class="form-text text-muted d-block">Import achievement levels (for new courses only)</small>
                         </div>
                     </div>
                 </div>
@@ -93,6 +108,17 @@
                     <i class="fas fa-file-import"></i> Import and Merge
                 </button>
             </form>
+
+            <!-- Progress indicator (hidden by default) -->
+            <div id="importProgress" style="display: none;" class="mt-4">
+                <div class="alert alert-warning">
+                    <h5><i class="fas fa-spinner fa-spin"></i> Import in Progress</h5>
+                    <p>Please don't close this window or navigate away. Large databases may take several minutes to import.</p>
+                    <div class="progress mt-2">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -142,13 +168,19 @@
         const studentsCheckbox = document.getElementById('import_students');
         const examsCheckbox = document.getElementById('import_exams');
         const outcomesCheckbox = document.getElementById('import_outcomes');
+        const programOutcomesCheckbox = document.getElementById('import_program_outcomes');
         const achievementLevelsCheckbox = document.getElementById('import_achievement_levels');
         const confirmCheckbox = document.getElementById('confirm_import');
         const submitButton = document.querySelector('button[type="submit"]');
+        const importForm = document.getElementById('importForm');
+        const progressIndicator = document.getElementById('importProgress');
 
         function checkAtLeastOneSelected() {
-            if (!coursesCheckbox.checked && !studentsCheckbox.checked &&
-                !examsCheckbox.checked && !outcomesCheckbox.checked &&
+            if (!coursesCheckbox.checked && 
+                !studentsCheckbox.checked &&
+                !examsCheckbox.checked && 
+                !outcomesCheckbox.checked &&
+                !programOutcomesCheckbox.checked &&
                 !achievementLevelsCheckbox.checked) {
                 confirmCheckbox.disabled = true;
                 submitButton.disabled = true;
@@ -162,7 +194,7 @@
         }
 
         // Add event listeners
-        [coursesCheckbox, studentsCheckbox, examsCheckbox, outcomesCheckbox, achievementLevelsCheckbox].forEach(checkbox => {
+        [coursesCheckbox, studentsCheckbox, examsCheckbox, outcomesCheckbox, programOutcomesCheckbox, achievementLevelsCheckbox].forEach(checkbox => {
             checkbox.addEventListener('change', checkAtLeastOneSelected);
         });
 
@@ -171,6 +203,82 @@
                 submitButton.disabled = !this.checked;
             }
         });
+
+        // Show progress indicator when form is submitted
+        importForm.addEventListener('submit', function() {
+            if (this.checkValidity()) {
+                submitButton.disabled = true;
+                progressIndicator.style.display = 'block';
+            }
+        });
+        
+        // Handle file validation
+        const validateButton = document.getElementById('validateButton');
+        const validationResult = document.getElementById('validationResult');
+        
+        validateButton.addEventListener('click', function() {
+            const fileInput = document.getElementById('backup_file');
+            
+            if (!fileInput.files || fileInput.files.length === 0) {
+                showValidationMessage("Please select a file first", "danger");
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            
+            // Show loading indicator
+            showValidationMessage("Validating file...", "info");
+            
+            // Create form data for validation request
+            const formData = new FormData();
+            formData.append('backup_file', file);
+            
+            // Send AJAX request to validate file
+            fetch('{{ url_for("utility.validate_backup_file") }}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showValidationMessage(data.message, "success");
+                    
+                    // If file contains stats, show them
+                    if (data.stats) {
+                        let statsHtml = "<ul class='list-group mt-2'>";
+                        for (const [key, value] of Object.entries(data.stats)) {
+                            statsHtml += `<li class='list-group-item d-flex justify-content-between align-items-center'>
+                                ${key.replace(/_/g, ' ')}
+                                <span class='badge bg-primary rounded-pill'>${value}</span>
+                            </li>`;
+                        }
+                        statsHtml += "</ul>";
+                        validationResult.innerHTML += statsHtml;
+                    }
+                } else {
+                    showValidationMessage(data.message, "danger");
+                    
+                    // If there are validation errors, show them
+                    if (data.errors && data.errors.length > 0) {
+                        let errorsHtml = "<ul class='list-group mt-2'>";
+                        data.errors.forEach(error => {
+                            errorsHtml += `<li class='list-group-item list-group-item-danger'>${error}</li>`;
+                        });
+                        errorsHtml += "</ul>";
+                        validationResult.innerHTML += errorsHtml;
+                    }
+                }
+            })
+            .catch(error => {
+                showValidationMessage("An error occurred during validation", "danger");
+                console.error('Error:', error);
+            });
+        });
+        
+        function showValidationMessage(message, type) {
+            validationResult.style.display = 'block';
+            validationResult.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+        }
     });
 </script>
 {% endblock %} 

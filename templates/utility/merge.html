@@ -26,6 +26,7 @@
             <li>Course outcomes</li>
         </ul>
         <p>Merging is useful for combining data from different sections of the same course or for consolidating historical data.</p>
+        <p><strong>Important:</strong> The merge operation will create a database backup automatically to ensure you can restore your data if needed.</p>
     </div>
     
     <div class="card">
@@ -33,7 +34,7 @@
             <h5 class="mb-0">Select Courses to Merge</h5>
         </div>
         <div class="card-body">
-            <form method="POST" action="{{ url_for('utility.merge_courses') }}">
+            <form method="POST" action="{{ url_for('utility.merge_courses') }}" id="mergeForm">
                 <div class="mb-4">
                     <label for="destination_course" class="form-label">Destination Course <span class="text-danger">*</span></label>
                     <select class="form-select" id="destination_course" name="destination_course" required>
@@ -75,7 +76,7 @@
                         <div class="card-body">
                             <div class="mb-3">
                                 <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="merge_students" name="merge_students" checked>
+                                    <input class="form-check-input merge-option" type="checkbox" id="merge_students" name="merge_students" checked>
                                     <label class="form-check-label" for="merge_students">Merge Students and Scores</label>
                                 </div>
                                 <div class="form-text">Import students and their scores from source courses.</div>
@@ -83,7 +84,7 @@
                             
                             <div class="mb-3">
                                 <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="merge_exams" name="merge_exams" checked>
+                                    <input class="form-check-input merge-option" type="checkbox" id="merge_exams" name="merge_exams" checked>
                                     <label class="form-check-label" for="merge_exams">Merge Exams and Questions</label>
                                 </div>
                                 <div class="form-text">Import exams and questions from source courses.</div>
@@ -91,7 +92,7 @@
                             
                             <div class="mb-3">
                                 <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="merge_outcomes" name="merge_outcomes" checked>
+                                    <input class="form-check-input merge-option" type="checkbox" id="merge_outcomes" name="merge_outcomes" checked>
                                     <label class="form-check-label" for="merge_outcomes">Merge Course Outcomes</label>
                                 </div>
                                 <div class="form-text">Import course outcomes and their program outcome associations.</div>
@@ -99,12 +100,29 @@
                             
                             <div class="mb-3">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="create_backup" name="create_backup" checked>
+                                    <input class="form-check-input" type="checkbox" id="create_backup" name="create_backup" checked disabled>
                                     <label class="form-check-label" for="create_backup">
                                         Create a backup before merging
                                     </label>
                                 </div>
-                                <div class="form-text">Recommended: Create a database backup before performing the merge operation.</div>
+                                <div class="form-text"><strong>Note:</strong> A backup will always be created automatically for safety.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Preview Container - Initially Hidden -->
+                <div id="previewContainer" class="mb-4" style="display: none;">
+                    <h5>Merge Preview</h5>
+                    <div class="card">
+                        <div class="card-body">
+                            <div id="previewContent" class="mb-3">
+                                <div class="text-center">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p>Analyzing selected courses...</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -120,6 +138,9 @@
                 </div>
                 
                 <div class="d-flex justify-content-end">
+                    <button type="button" class="btn btn-outline-primary me-2" id="previewButton">
+                        <i class="fas fa-eye"></i> Preview Merge
+                    </button>
                     <button type="submit" class="btn btn-primary" id="mergeButton" disabled>
                         <i class="fas fa-object-group"></i> Merge Courses
                     </button>
@@ -135,6 +156,10 @@
         const sourceCheckboxes = document.querySelectorAll('.source-course-check');
         const confirmCheckbox = document.getElementById('confirm_merge');
         const mergeButton = document.getElementById('mergeButton');
+        const previewButton = document.getElementById('previewButton');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewContent = document.getElementById('previewContent');
+        const mergeOptions = document.querySelectorAll('.merge-option');
         
         // Disable destination course in source list when selected
         destinationSelect.addEventListener('change', function() {
@@ -161,8 +186,441 @@
         sourceCheckboxes.forEach(checkbox => {
             checkbox.addEventListener('change', function() {
                 validateForm();
+                // Hide preview when selection changes
+                previewContainer.style.display = 'none';
             });
         });
+        
+        // Validate form when merge options are changed
+        mergeOptions.forEach(option => {
+            option.addEventListener('change', function() {
+                // Hide preview when options change
+                previewContainer.style.display = 'none';
+                validateForm();
+            });
+        });
+        
+        // Preview button click handler
+        previewButton.addEventListener('click', function() {
+            // Show preview container with loading spinner
+            previewContainer.style.display = 'block';
+            previewContent.innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p>Analyzing selected courses...</p>
+                </div>
+            `;
+            
+            // Get form data for preview
+            const destCourseId = destinationSelect.value;
+            
+            // Get selected source courses
+            const selectedSources = [];
+            sourceCheckboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    selectedSources.push(checkbox.value);
+                }
+            });
+            
+            // Get selected merge options
+            const options = {
+                destination_course: destCourseId,
+                source_courses: selectedSources,
+                merge_students: document.getElementById('merge_students').checked,
+                merge_exams: document.getElementById('merge_exams').checked,
+                merge_outcomes: document.getElementById('merge_outcomes').checked
+            };
+            
+            // Call the server-side preview endpoint
+            fetch('{{ url_for("utility.preview_merge") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(options)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayPreviewResults(data.preview);
+                } else {
+                    displayPreviewError(data.message);
+                }
+            })
+            .catch(error => {
+                displayPreviewError('Failed to generate preview: ' + error);
+            });
+        });
+        
+        function displayPreviewResults(preview) {
+            let html = '';
+            
+            // Create preview summary
+            html += `
+                <h6>Destination Course: ${preview.destination.code} - ${preview.destination.name}</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="mt-3">Current State</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>Students:</strong> ${preview.destination.students_count}</li>
+                            <li><strong>Exams:</strong> ${preview.destination.exams_count}</li>
+                            <li><strong>Course Outcomes:</strong> ${preview.destination.outcomes_count}</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="mt-3">Source Courses (${preview.sources.length})</h6>
+                        <ul class="list-unstyled small">
+                            ${preview.sources.map(source => 
+                                `<li>${source.code} - ${source.name} (${source.students_count} students, ${source.exams_count} exams)</li>`
+                            ).join('')}
+                        </ul>
+                    </div>
+                </div>
+                
+                <h6 class="mt-3">Merge Analysis</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Type</th>
+                                <th>Total Items</th>
+                                <th>New Items</th>
+                                <th>Existing Items</th>
+                                <th>Potential Conflicts</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Students</td>
+                                <td>${preview.merge_preview.students.total}</td>
+                                <td class="text-success">${preview.merge_preview.students.new}</td>
+                                <td>${preview.merge_preview.students.existing}</td>
+                                <td>
+                                    ${preview.merge_preview.students.conflicts.length > 0 ? 
+                                        `<span class="badge bg-warning text-dark">${preview.merge_preview.students.conflicts.length}</span>` : 
+                                        '<span class="text-success">None</span>'}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Exams</td>
+                                <td>${preview.merge_preview.exams.total}</td>
+                                <td class="text-success">${preview.merge_preview.exams.new}</td>
+                                <td>${preview.merge_preview.exams.existing}</td>
+                                <td>
+                                    ${preview.merge_preview.exams.conflicts.length > 0 ? 
+                                        `<span class="badge bg-warning text-dark">${preview.merge_preview.exams.conflicts.length}</span>` : 
+                                        '<span class="text-success">None</span>'}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Course Outcomes</td>
+                                <td>${preview.merge_preview.outcomes.total}</td>
+                                <td class="text-success">${preview.merge_preview.outcomes.new}</td>
+                                <td>${preview.merge_preview.outcomes.existing}</td>
+                                <td>
+                                    ${preview.merge_preview.outcomes.conflicts.length > 0 ? 
+                                        `<span class="badge bg-warning text-dark">${preview.merge_preview.outcomes.conflicts.length}</span>` : 
+                                        '<span class="text-success">None</span>'}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Exam Weights</td>
+                                <td>${preview.merge_preview.weights.total}</td>
+                                <td class="text-success">${preview.merge_preview.weights.new}</td>
+                                <td>${preview.merge_preview.weights.existing}</td>
+                                <td>
+                                    ${preview.merge_preview.weights.conflicts && preview.merge_preview.weights.conflicts.length > 0 ? 
+                                        `<span class="badge bg-warning text-dark">${preview.merge_preview.weights.conflicts.length}</span>` : 
+                                        '<span class="text-success">None</span>'}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Attendance Records</td>
+                                <td>${preview.merge_preview.attendances.total}</td>
+                                <td class="text-success">${preview.merge_preview.attendances.new}</td>
+                                <td>-</td>
+                                <td><span class="text-success">None</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            // Add conflict details if any
+            let hasConflicts = (
+                preview.merge_preview.students.conflicts.length > 0 || 
+                preview.merge_preview.exams.conflicts.length > 0 || 
+                preview.merge_preview.outcomes.conflicts.length > 0 ||
+                (preview.merge_preview.weights.conflicts && preview.merge_preview.weights.conflicts.length > 0)
+            );
+            
+            if (hasConflicts) {
+                html += `
+                    <div class="alert alert-warning mt-3">
+                        <h6><i class="fas fa-exclamation-triangle"></i> Potential Conflicts</h6>
+                        <p class="small">The following conflicts were detected. They won't prevent merging, but you should review them.</p>
+                `;
+                
+                // Student name conflicts
+                if (preview.merge_preview.students.conflicts.length > 0) {
+                    html += `
+                        <h6 class="mt-3 small">Student Name Conflicts (${preview.merge_preview.students.conflicts.length})</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Student ID</th>
+                                        <th>Source Name</th>
+                                        <th>Destination Name</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${preview.merge_preview.students.conflicts.map(conflict => `
+                                        <tr>
+                                            <td>${conflict.student_id}</td>
+                                            <td>${conflict.source_name}</td>
+                                            <td>${conflict.dest_name}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+                
+                // Exam question conflicts
+                if (preview.merge_preview.exams.conflicts.length > 0) {
+                    html += `
+                        <h6 class="mt-3 small">Exam Question Conflicts (${preview.merge_preview.exams.conflicts.length})</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Exam</th>
+                                        <th>Question #</th>
+                                        <th>Source Max Score</th>
+                                        <th>Destination Max Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${preview.merge_preview.exams.conflicts.map(conflict => `
+                                        <tr>
+                                            <td>${conflict.exam_name}</td>
+                                            <td>${conflict.question_number}</td>
+                                            <td>${conflict.source_max_score}</td>
+                                            <td>${conflict.dest_max_score}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+                
+                // Outcome description conflicts
+                if (preview.merge_preview.outcomes.conflicts.length > 0) {
+                    html += `
+                        <h6 class="mt-3 small">Course Outcome Description Conflicts (${preview.merge_preview.outcomes.conflicts.length})</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Code</th>
+                                        <th>Source Description</th>
+                                        <th>Destination Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${preview.merge_preview.outcomes.conflicts.map(conflict => `
+                                        <tr>
+                                            <td>${conflict.code}</td>
+                                            <td>${conflict.source_description}</td>
+                                            <td>${conflict.dest_description}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+                
+                // Exam weight conflicts
+                if (preview.merge_preview.weights.conflicts && preview.merge_preview.weights.conflicts.length > 0) {
+                    html += `
+                        <h6 class="mt-3 small">Exam Weight Conflicts (${preview.merge_preview.weights.conflicts.length})</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Exam</th>
+                                        <th>Source Weight</th>
+                                        <th>Destination Weight</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${preview.merge_preview.weights.conflicts.map(conflict => `
+                                        <tr>
+                                            <td>${conflict.exam_name}</td>
+                                            <td>${conflict.source_weight}</td>
+                                            <td>${conflict.dest_weight}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+                
+                html += `</div>`;
+            }
+            
+            // Summary
+            html += `
+                <div class="alert alert-info mt-3">
+                    <p><strong>Summary:</strong> This merge will add ${preview.merge_preview.students.new} students, 
+                    ${preview.merge_preview.exams.new} exams, ${preview.merge_preview.outcomes.new} course outcomes,
+                    ${preview.merge_preview.weights.new} exam weights, and ${preview.merge_preview.attendances.new} attendance records to the destination course.</p>
+                    
+                    ${hasConflicts ? '<p class="mb-0"><strong>Note:</strong> Some conflicts were detected. The merge will still proceed, but existing items will be preserved.</p>' : ''}
+                </div>
+            `;
+            
+            // Update the preview content
+            previewContent.innerHTML = html;
+        }
+        
+        function displayPreviewError(message) {
+            // Students section
+            if (document.getElementById('merge_students').checked) {
+                const studentData = mergeData.students;
+                html += `
+                    <div class="mb-2">
+                        <p><i class="fas fa-check text-success"></i> <strong>Students and Scores</strong></p>
+                        <div class="ps-3">
+                            <p>${studentData.new} new students will be added. ${studentData.existing} already exist.</p>
+                `;
+                
+                // Show student conflicts if any
+                if (studentData.conflicts.length > 0) {
+                    html += `
+                        <div class="alert alert-warning">
+                            <p><i class="fas fa-exclamation-triangle"></i> <strong>${studentData.conflicts.length} potential conflicts detected:</strong></p>
+                            <ul class="mb-0">
+                    `;
+                    
+                    // Show up to 5 conflicts
+                    const maxConflicts = Math.min(5, studentData.conflicts.length);
+                    for (let i = 0; i < maxConflicts; i++) {
+                        const conflict = studentData.conflicts[i];
+                        html += `<li>Student ID ${conflict.student_id} has different names: "${conflict.source_name}" vs "${conflict.dest_name}"</li>`;
+                    }
+                    
+                    if (studentData.conflicts.length > 5) {
+                        html += `<li>...and ${studentData.conflicts.length - 5} more conflicts</li>`;
+                    }
+                    
+                    html += `</ul></div>`;
+                }
+                
+                html += `</div></div>`;
+            } else {
+                html += `<p><i class="fas fa-times text-danger"></i> <strong>Students and Scores</strong> will NOT be merged</p>`;
+            }
+            
+            // Exams section
+            if (document.getElementById('merge_exams').checked) {
+                const examData = mergeData.exams;
+                html += `
+                    <div class="mb-2">
+                        <p><i class="fas fa-check text-success"></i> <strong>Exams and Questions</strong></p>
+                        <div class="ps-3">
+                            <p>${examData.new} new exams will be added. ${examData.existing} already exist.</p>
+                `;
+                
+                // Show exam conflicts if any
+                if (examData.conflicts.length > 0) {
+                    html += `
+                        <div class="alert alert-warning">
+                            <p><i class="fas fa-exclamation-triangle"></i> <strong>${examData.conflicts.length} potential conflicts detected:</strong></p>
+                            <ul class="mb-0">
+                    `;
+                    
+                    // Show up to 5 conflicts
+                    const maxConflicts = Math.min(5, examData.conflicts.length);
+                    for (let i = 0; i < maxConflicts; i++) {
+                        const conflict = examData.conflicts[i];
+                        html += `<li>Exam "${conflict.exam_name}" Question #${conflict.question_number} has different max scores: ${conflict.source_max_score} vs ${conflict.dest_max_score}</li>`;
+                    }
+                    
+                    if (examData.conflicts.length > 5) {
+                        html += `<li>...and ${examData.conflicts.length - 5} more conflicts</li>`;
+                    }
+                    
+                    html += `</ul></div>`;
+                }
+                
+                html += `</div></div>`;
+            } else {
+                html += `<p><i class="fas fa-times text-danger"></i> <strong>Exams and Questions</strong> will NOT be merged</p>`;
+            }
+            
+            // Outcomes section
+            if (document.getElementById('merge_outcomes').checked) {
+                const outcomeData = mergeData.outcomes;
+                html += `
+                    <div class="mb-2">
+                        <p><i class="fas fa-check text-success"></i> <strong>Course Outcomes</strong></p>
+                        <div class="ps-3">
+                            <p>${outcomeData.new} new outcomes will be added. ${outcomeData.existing} already exist.</p>
+                `;
+                
+                // Show outcome conflicts if any
+                if (outcomeData.conflicts.length > 0) {
+                    html += `
+                        <div class="alert alert-warning">
+                            <p><i class="fas fa-exclamation-triangle"></i> <strong>${outcomeData.conflicts.length} potential conflicts detected:</strong></p>
+                            <ul class="mb-0">
+                    `;
+                    
+                    // Show up to 5 conflicts
+                    const maxConflicts = Math.min(5, outcomeData.conflicts.length);
+                    for (let i = 0; i < maxConflicts; i++) {
+                        const conflict = outcomeData.conflicts[i];
+                        html += `<li>Outcome "${conflict.code}" has different descriptions</li>`;
+                    }
+                    
+                    if (outcomeData.conflicts.length > 5) {
+                        html += `<li>...and ${outcomeData.conflicts.length - 5} more conflicts</li>`;
+                    }
+                    
+                    html += `</ul></div>`;
+                }
+                
+                html += `</div></div>`;
+            } else {
+                html += `<p><i class="fas fa-times text-danger"></i> <strong>Course Outcomes</strong> will NOT be merged</p>`;
+            }
+            
+            html += `</div>
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle"></i> <strong>Note:</strong> Existing items will be preserved in the destination course.
+                    The merge process will intelligently handle conflicts. A backup will be created automatically before merging.
+                </div>
+            `;
+            
+            previewContent.innerHTML = html;
+        }
+        
+        function displayPreviewError(message) {
+            previewContent.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle"></i> <strong>Error:</strong> ${message}
+                </div>
+                <p>Please check your selections and try again.</p>
+            `;
+        }
         
         function validateForm() {
             const destinationSelected = destinationSelect.value !== '';
@@ -174,7 +632,19 @@
                 }
             });
             
-            mergeButton.disabled = !(destinationSelected && sourceSelected && confirmCheckbox.checked);
+            // Check if at least one merge option is selected
+            let optionSelected = false;
+            mergeOptions.forEach(option => {
+                if (option.checked) {
+                    optionSelected = true;
+                }
+            });
+            
+            // Enable/disable preview button
+            previewButton.disabled = !(destinationSelected && sourceSelected && optionSelected);
+            
+            // Enable/disable merge button
+            mergeButton.disabled = !(destinationSelected && sourceSelected && optionSelected && confirmCheckbox.checked);
         }
     });
 </script>

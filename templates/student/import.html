@@ -38,7 +38,22 @@
                             <label for="student_data" class="form-label">Or Paste Student Data</label>
                             <textarea class="form-control" id="student_data" name="student_data" rows="10"
                                       placeholder="Paste your student data here, one student per line..."></textarea>
-                            <div class="form-text">Paste student data directly. Each line should contain one student's information.</div>
+                            <div class="form-text">
+                                Paste student data directly. Each line should contain one student's information.<br>
+                                <strong>Supported formats:</strong>
+                                <ul>
+                                    <li>Student_ID;Full Name</li>
+                                    <li>Student_ID;Last Name, First Name</li>
+                                    <li>Student_ID;First Name;Last Name</li>
+                                    <li>Student_ID   Full Name (tab or multiple spaces)</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4 form-check">
+                            <input type="checkbox" class="form-check-input" id="continue_on_errors" name="continue_on_errors">
+                            <label class="form-check-label" for="continue_on_errors">Continue import even if some entries have errors</label>
+                            <div class="form-text">If checked, the system will import valid entries and skip any with errors.</div>
                         </div>
 
                         <div class="d-flex justify-content-between">

@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from app import db
-from models import Course, Exam, Question, CourseOutcome, ExamWeight, Log, Score, Student
+from models import Course, Exam, Question, CourseOutcome, ExamWeight, Log, Score, Student, AchievementLevel
 from datetime import datetime
 import logging
 import io
@@ -442,9 +442,16 @@ def export_exams(course_id):
     # Create a mapping of exam IDs to exam names
     exam_id_to_name = {exam.id: exam.name for exam in exams}
     
+    # Get exam weights
+    weights = {}
+    for exam in exams:
+        weight = ExamWeight.query.filter_by(exam_id=exam.id).first()
+        if weight:
+            weights[exam.id] = weight.weight
+    
     # Prepare data for export
     data = []
-    headers = ['Exam Name', 'Max Score', 'Date', 'Question Count', 'Is Makeup', 'Makeup For']
+    headers = ['Exam Name', 'Max Score', 'Date', 'Question Count', 'Is Makeup', 'Makeup For', 'Weight (%)']
     
     for exam in exams:
         question_count = Question.query.filter_by(exam_id=exam.id).count()
@@ -462,14 +469,111 @@ def export_exams(course_id):
             'Date': exam.exam_date.strftime('%m/%d/%Y') if exam.exam_date else 'N/A',
             'Question Count': question_count,
             'Is Makeup': 'Yes' if exam.is_makeup else 'No',
-            'Makeup For': makeup_for
+            'Makeup For': makeup_for,
+            'Weight (%)': float(weights.get(exam.id, 0)) * 100 if exam.id in weights else 'N/A'
         }
         
         data.append(exam_data)
     
+    # Get achievement levels
+    achievement_levels = AchievementLevel.query.filter_by(course_id=course_id).order_by(AchievementLevel.min_score.desc()).all()
+    
+    # If no achievement levels exist, add default ones
+    if not achievement_levels:
+        # Add default achievement levels
+        default_levels = [
+            {"name": "Excellent", "min_score": 90.00, "max_score": 100.00, "color": "success"},
+            {"name": "Better", "min_score": 70.00, "max_score": 89.99, "color": "info"},
+            {"name": "Good", "min_score": 60.00, "max_score": 69.99, "color": "primary"},
+            {"name": "Need Improvements", "min_score": 50.00, "max_score": 59.99, "color": "warning"},
+            {"name": "Failure", "min_score": 0.01, "max_score": 49.99, "color": "danger"}
+        ]
+        
+        for level_data in default_levels:
+            level = AchievementLevel(
+                course_id=course_id,
+                name=level_data["name"],
+                min_score=level_data["min_score"],
+                max_score=level_data["max_score"],
+                color=level_data["color"]
+            )
+            db.session.add(level)
+        
+        # Log action
+        log = Log(action="ADD_DEFAULT_ACHIEVEMENT_LEVELS", 
+                 description=f"Added default achievement levels to course: {course.code}")
+        db.session.add(log)
+        db.session.commit()
+        
+        # Refresh achievement levels
+        achievement_levels = AchievementLevel.query.filter_by(course_id=course_id).order_by(AchievementLevel.min_score.desc()).all()
+    
+    # Add a blank row as a separator
+    data.append({key: "" for key in headers})
+    
+    # Add a header row for Achievement Levels
+    achievement_header = {
+        'Exam Name': 'ACHIEVEMENT LEVELS',
+        'Max Score': '',
+        'Date': '',
+        'Question Count': '',
+        'Is Makeup': '',
+        'Makeup For': '',
+        'Weight (%)': ''
+    }
+    data.append(achievement_header)
+    
+    # Add each achievement level
+    for level in achievement_levels:
+        level_data = {
+            'Exam Name': level.name,
+            'Max Score': f"{float(level.min_score)}% - {float(level.max_score)}%",
+            'Date': level.color,
+            'Question Count': '',
+            'Is Makeup': '',
+            'Makeup For': '',
+            'Weight (%)': ''
+        }
+        data.append(level_data)
+    
+    # Get course outcomes
+    course_outcomes = CourseOutcome.query.filter_by(course_id=course_id).order_by(CourseOutcome.code).all()
+    
+    # Add a blank row as a separator
+    data.append({key: "" for key in headers})
+    
+    # Add a header row for Course Outcomes
+    outcomes_header = {
+        'Exam Name': 'COURSE OUTCOMES',
+        'Max Score': '',
+        'Date': '',
+        'Question Count': '',
+        'Is Makeup': '',
+        'Makeup For': '',
+        'Weight (%)': ''
+    }
+    data.append(outcomes_header)
+    
+    # Add each course outcome
+    for outcome in course_outcomes:
+        # Get associated program outcomes
+        po_codes = [po.code for po in outcome.program_outcomes]
+        po_text = ', '.join(po_codes) if po_codes else 'None'
+        
+        outcome_data = {
+            'Exam Name': outcome.code,
+            'Max Score': outcome.description,
+            'Date': po_text,
+            'Question Count': '',
+            'Is Makeup': '',
+            'Makeup For': '',
+            'Weight (%)': ''
+        }
+        data.append(outcome_data)
+    
     # Log export action
     log = Log(action="EXPORT_EXAMS", 
-             description=f"Exported exam details for course: {course.code}")
+             description=f"Exported exam details, achievement levels, and course outcomes for course: {course.code}")
     db.session.add(log)
     db.session.commit()
     

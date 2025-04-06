@@ -1322,11 +1322,22 @@
                                         <li>Select the <strong>Destination Course</strong> (where data will be merged *into*).</li>
                                         <li>Select one or more <strong>Source Courses</strong> (where data will be copied *from*). The destination cannot be a source.</li>
                                         <li>Choose what to merge: Students, Exams, Course Outcomes. Merging exams may also involve merging related questions and scores intelligently.</li>
-                                        <li>Optionally create a `pre_merge_backup` before proceeding.</li>
-                                        <li>Click "Merge Courses".</li>
+                                        <li>Click <strong>Preview Merge</strong> to see a detailed analysis of what will be merged, including potential conflicts.</li>
+                                        <li>Review the preview information, paying special attention to any conflicts that might exist.</li>
+                                        <li>Check the confirmation box acknowledging that the operation cannot be automatically undone.</li>
+                                        <li>Click "Merge Courses" to perform the merge.</li>
                                     </ol>
                                 </li>
-                                <li><strong>Conflict Handling:</strong> The system attempts to avoid duplicates. E.g., if a student ID already exists in the destination, it might skip adding the student but still merge their scores for non-conflicting exams/questions. Exact behavior might vary. Review the results carefully.</li>
+                                <li><strong>Backup:</strong> A database backup is automatically created before any merge operation to ensure data can be restored if needed.</li>
+                                <li><strong>Conflict Handling:</strong> The system intelligently identifies and manages conflicts:
+                                    <ul>
+                                        <li><strong>Students:</strong> If a student ID already exists in the destination course, their information is preserved but scores from non-conflicting exams may still be merged.</li>
+                                        <li><strong>Exams:</strong> Exams with the same name are considered duplicates. The system preserves makeup exam relationships between exams.</li>
+                                        <li><strong>Questions:</strong> Questions with the same number in duplicate exams are matched. The system warns if they have different maximum scores.</li>
+                                        <li><strong>Course Outcomes:</strong> Outcomes with the same code are considered duplicates. The system warns if they have different descriptions.</li>
+                                    </ul>
+                                </li>
+                                <li><strong>Post-Merge:</strong> After merging, any conflicts encountered during the merge process will be displayed as warnings. These are also logged for future reference.</li>
                             </ul>
 
 

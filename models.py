@@ -49,7 +49,7 @@ class Exam(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     is_makeup = db.Column(db.Boolean, default=False, nullable=False, index=True)
     is_final = db.Column(db.Boolean, default=False, nullable=False, index=True)
-    makeup_for = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=True, index=True)
+    makeup_for = db.Column(db.Integer, db.ForeignKey('exam.id', ondelete='SET NULL'), nullable=True, index=True)
     is_mandatory = db.Column(db.Boolean, default=False, nullable=False, index=True)
     
     # Relationships

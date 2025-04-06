@@ -3,7 +3,7 @@ from models import Question, CourseOutcome, Log, Student, Exam, Score, Course, A
 from app import db
 import logging
 from decimal import Decimal
-from routes.calculation_routes import get_achievement_level
+from routes.calculation_routes import get_achievement_level, calculate_student_exam_score_optimized, calculate_course_outcome_score_optimized
 import re
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -66,110 +66,40 @@ def get_student_abet_scores(student_id):
     for weight in weights:
         exam_weights[weight.exam_id] = weight.weight
     
-    # Initialize outcome scores
-    outcome_scores = {}
-    for outcome in course_outcomes:
-        outcome_scores[outcome.id] = {
-            'id': outcome.id,
-            'code': outcome.code,
-            'description': outcome.description,
-            'total_weighted_score': 0,
-            'total_weight': 0
-        }
+    # Create a map of exams to their questions
+    questions_by_exam = {}
+    all_exams = regular_exams + makeup_exams
+    for exam in all_exams:
+        questions_by_exam[exam.id] = exam.questions
+    
+    # Create a map of course outcomes to their related questions
+    outcome_questions = {}
+    for co in course_outcomes:
+        outcome_questions[co.id] = co.questions
     
     # Get all scores for this student in this course
     all_scores = Score.query.filter_by(student_id=student_id).all()
-    exam_scores = {}
-    question_scores = {}
+    scores_dict = {}
     
     for score in all_scores:
-        # Group scores by exam
-        if score.exam_id not in exam_scores:
-            exam_scores[score.exam_id] = []
-        exam_scores[score.exam_id].append(score)
-        
-        # Also create a dict for easy question lookup
-        question_scores[(score.exam_id, score.question_id)] = score.score
+        scores_dict[(score.student_id, score.question_id, score.exam_id)] = score.score
     
     # Get attendance records for this student
     attendance_records = StudentExamAttendance.query.filter_by(student_id=student_id).all()
     attendance_dict = {}
     for record in attendance_records:
-        attendance_dict[record.exam_id] = record.attended
+        attendance_dict[(record.student_id, record.exam_id)] = record.attended
     
-    # For each regular exam, calculate student scores per outcome
-    for exam in regular_exams:
-        # Check if there's a makeup exam and if the student took it
-        makeup_exam_id = makeup_map.get(exam.id)
-        use_makeup = False
-        
-        if makeup_exam_id and makeup_exam_id in exam_scores:
-            # Student has taken the makeup exam, use it instead
-            use_makeup = True
-            actual_exam_id = makeup_exam_id
-        else:
-            # Use the original exam
-            actual_exam_id = exam.id
-            
-        # Skip if exam has no weight
-        weight = exam_weights.get(exam.id, 0)
-        if weight == 0:
-            continue
-        
-        # Check if student attended the exam
-        if actual_exam_id in attendance_dict and not attendance_dict[actual_exam_id]:
-            continue  # Student didn't attend this exam, skip it
-            
-        # Get questions for this exam
-        if use_makeup:
-            questions = Question.query.filter_by(exam_id=actual_exam_id).all()
-        else:
-            questions = Question.query.filter_by(exam_id=exam.id).all()
-            
-        if not questions:
-            continue
-            
-        # Check if student has any scores for this exam
-        if actual_exam_id not in exam_scores:
-            continue
-            
-        # Calculate outcome scores for this exam
-        outcome_question_scores = {}
-        outcome_question_totals = {}
-        
-        for question in questions:
-            # Get course outcomes associated with this question
-            for outcome in question.course_outcomes:
-                outcome_id = outcome.id
-                if outcome_id not in outcome_scores:
-                    continue
-                    
-                # Initialize if not already
-                if outcome_id not in outcome_question_scores:
-                    outcome_question_scores[outcome_id] = 0
-                    outcome_question_totals[outcome_id] = 0
-                
-                # Add score if available
-                score = question_scores.get((actual_exam_id, question.id), 0)
-                outcome_question_scores[outcome_id] += score
-                outcome_question_totals[outcome_id] += question.max_score
-        
-        # Calculate outcome percentages for this exam
-        for outcome_id, total_score in outcome_question_scores.items():
-            total_points = outcome_question_totals[outcome_id]
-            if total_points > 0:
-                # Calculate percentage for this outcome in this exam
-                percentage = (total_score / total_points) * 100
-                
-                # Add weighted score to outcome
-                outcome_scores[outcome_id]['total_weighted_score'] += percentage * weight
-                outcome_scores[outcome_id]['total_weight'] += weight
-    
-    # Calculate final percentages and build result
+    # Calculate outcome scores using helper functions
     result = []
-    for outcome_id, data in outcome_scores.items():
-        if data['total_weight'] > 0:
-            percentage = data['total_weighted_score'] / data['total_weight']
+    for outcome in course_outcomes:
+        # Use calculate_course_outcome_score_optimized to get consistent results
+        outcome_score = calculate_course_outcome_score_optimized(
+            student_id, outcome.id, scores_dict, outcome_questions
+        )
+        
+        if outcome_score is not None:
+            percentage = float(outcome_score)
         else:
             percentage = 0
             
@@ -177,9 +107,9 @@ def get_student_abet_scores(student_id):
         achievement_level = get_achievement_level(percentage, achievement_levels)
             
         result.append({
-            'outcome_id': outcome_id,
-            'code': data['code'],
-            'description': data['description'],
+            'outcome_id': outcome.id,
+            'code': outcome.code,
+            'description': outcome.description,
             'percentage': percentage,
             'achievement_level': achievement_level
         })

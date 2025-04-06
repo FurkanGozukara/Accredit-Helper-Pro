@@ -15,6 +15,8 @@ import json
 from sqlalchemy import and_, or_
 from werkzeug.utils import secure_filename
 import os
+from chardet import detect
+import traceback
 
 student_bp = Blueprint('student', __name__, url_prefix='/student')
 
@@ -37,16 +39,48 @@ def import_students(course_id):
         if 'student_file' in request.files and request.files['student_file'].filename:
             file = request.files['student_file']
             try:
-                student_data = file.read().decode('utf-8')
-            except UnicodeDecodeError:
-                try:
-                    # Try another common encoding
-                    student_data = file.read().decode('latin-1')
-                except:
-                    flash('Could not decode the file. Please ensure it is a text file.', 'error')
-                    return render_template('student/import.html', 
+                # Try to detect encoding with enhanced safety
+                raw_data = file.read()
+                if not raw_data:
+                    flash('Empty file uploaded', 'error')
+                    return render_template('student/import.html',
                                          course=course,
                                          active_page='courses')
+                
+                encoding_result = detect(raw_data)
+                file.seek(0)  # Reset file position
+                
+                # Use detected encoding with high confidence or try multiple fallbacks
+                if encoding_result and encoding_result['confidence'] > 0.7:
+                    encoding = encoding_result['encoding']
+                else:
+                    # Try common encodings in order
+                    encodings_to_try = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1', 'utf-16']
+                    for enc in encodings_to_try:
+                        try:
+                            student_data = raw_data.decode(enc)
+                            logging.info(f"Successfully decoded file with {enc} encoding")
+                            break
+                        except UnicodeDecodeError:
+                            continue
+                    
+                # If we haven't set student_data yet, use the first detected encoding
+                if not student_data and encoding_result:
+                    try:
+                        student_data = raw_data.decode(encoding_result['encoding'])
+                    except UnicodeDecodeError:
+                        # Last resort: use latin-1 which should never fail
+                        student_data = raw_data.decode('latin-1', errors='replace')
+                        logging.warning("Decoded file with latin-1 and error replacement - some characters may be incorrect")
+                
+                if not student_data:
+                    raise UnicodeDecodeError("Could not decode with any common encoding")
+                    
+            except Exception as e:
+                flash(f'Could not decode the file: {str(e)}. Please ensure it is a text file.', 'error')
+                return render_template('student/import.html', 
+                                     course=course,
+                                     active_page='courses')
         else:
             student_data = request.form.get('student_data', '')
         
@@ -56,14 +90,34 @@ def import_students(course_id):
                                  course=course,
                                  active_page='courses')
         
+        # Determine the delimiter used in the data
+        def detect_delimiter(data):
+            # Count occurrences of common delimiters
+            delimiters = {
+                '\t': data.count('\t'),
+                ';': data.count(';'),
+                ',': data.count(',')
+            }
+            # Return the most commonly used delimiter, with fallback to tab
+            return max(delimiters.items(), key=lambda x: x[1])[0] if any(delimiters.values()) else '\t'
+        
+        delimiter = detect_delimiter(student_data)
+        logging.info(f"Detected delimiter: {repr(delimiter)}")
+        
         # Process the data
         lines = student_data.strip().split('\n')
-        students_added = 0
+        students_to_add = []
         errors = []
+        warnings = []
         
         # Keep track of student IDs for uniqueness validation during import
         imported_student_ids = set()
         
+        # Get existing student IDs in this course for validation
+        existing_students = Student.query.filter_by(course_id=course_id).all()
+        existing_student_ids = {student.student_id for student in existing_students}
+        
+        # First pass: validate all lines and prepare student objects
         for i, line in enumerate(lines, 1):
             # Skip empty lines
             if not line.strip():
@@ -71,9 +125,23 @@ def import_students(course_id):
             
             # Try to parse the line
             try:
-                # Split by tab, semicolon, or multiple spaces
-                parts = re.split(r'[\t;]|\s{2,}', line.strip())
-                parts = [p.strip() for p in parts if p.strip()]
+                # First try to split by detected delimiter
+                parts = [p.strip() for p in line.split(delimiter) if p.strip()]
+                
+                # If that didn't work well, try alternative parsing
+                if len(parts) < 2:
+                    # Try other common delimiters or multiple spaces
+                    for alt_delimiter in ['\t', ';', ',', '|']:
+                        if alt_delimiter != delimiter and alt_delimiter in line:
+                            temp_parts = [p.strip() for p in line.split(alt_delimiter) if p.strip()]
+                            if len(temp_parts) >= 2:
+                                parts = temp_parts
+                                break
+                    
+                    # If still not enough parts, try splitting by multiple spaces
+                    if len(parts) < 2:
+                        parts = re.split(r'\s{2,}', line.strip())
+                        parts = [p.strip() for p in parts if p.strip()]
                 
                 if len(parts) < 2:
                     errors.append(f"Line {i}: Not enough data (expected at least student ID and name)")
@@ -81,25 +149,21 @@ def import_students(course_id):
                 
                 student_id = parts[0]
                 
-                # Handle different name formats
-                if len(parts) == 2:
-                    # Only one name field, treat as full name
-                    full_name = parts[1]
-                    name_parts = full_name.split()
-                    if len(name_parts) == 1:
-                        first_name = name_parts[0]
-                        last_name = ""
-                    else:
-                        first_name = " ".join(name_parts[:-1])
-                        last_name = name_parts[-1]
-                else:
-                    # Multiple name fields
-                    first_name = parts[1]
-                    last_name = " ".join(parts[2:])
+                # Sanitize student ID - remove any unsafe characters
+                student_id = re.sub(r'[^\w\-]', '', student_id)
+                
+                # Validate student ID format (broader pattern allowing more formats)
+                if not re.match(r'^[\w\-]+$', student_id):
+                    errors.append(f"Line {i}: Invalid student ID format: {student_id} (only alphanumeric, underscore, and hyphen allowed)")
+                    continue
+                
+                # Check for length constraints
+                if len(student_id) > 20:  # Based on model definition
+                    student_id = student_id[:20]
+                    warnings.append(f"Line {i}: Student ID truncated to 20 characters: {student_id}")
                 
                 # Check if student already exists in this course
-                existing_student = Student.query.filter_by(student_id=student_id, course_id=course_id).first()
-                if existing_student:
+                if student_id in existing_student_ids:
                     errors.append(f"Line {i}: Student with ID {student_id} already exists in this course")
                     continue
                 
@@ -108,57 +172,211 @@ def import_students(course_id):
                     errors.append(f"Line {i}: Duplicate student ID {student_id} in import data")
                     continue
                 
+                # Enhanced name parsing logic
+                first_name = ""
+                last_name = ""
+                
+                # Determine name format mode from form or use auto-detection
+                name_format = request.form.get('name_format', 'auto')
+                
+                if len(parts) == 2:  # Only have ID and full name
+                    full_name = parts[1]
+                    
+                    if name_format == 'eastern':
+                        # Eastern format: Last name first, no comma (e.g., "Kim Minjun")
+                        name_parts = full_name.split()
+                        if len(name_parts) > 1:
+                            last_name = name_parts[0]
+                            first_name = " ".join(name_parts[1:])
+                        else:
+                            last_name = full_name
+                            first_name = ""
+                    elif name_format == 'western':
+                        # Western format: First name first (e.g., "John Smith")
+                        name_parts = full_name.split()
+                        if len(name_parts) > 1:
+                            first_name = " ".join(name_parts[:-1])
+                            last_name = name_parts[-1]
+                        else:
+                            first_name = full_name
+                            last_name = ""
+                    elif name_format == 'comma':
+                        # Comma format: "Last, First"
+                        if ',' in full_name:
+                            name_components = full_name.split(',', 1)
+                            last_name = name_components[0].strip()
+                            first_name = name_components[1].strip() if len(name_components) > 1 else ""
+                        else:
+                            # Fallback if comma format specified but no comma found
+                            name_parts = full_name.split()
+                            if len(name_parts) > 1:
+                                first_name = " ".join(name_parts[:-1])
+                                last_name = name_parts[-1]
+                            else:
+                                first_name = full_name
+                                last_name = ""
+                    else:  # Auto-detect
+                        # Check for comma-separated format: "LastName, FirstName"
+                        if ',' in full_name:
+                            name_components = full_name.split(',', 1)
+                            last_name = name_components[0].strip()
+                            first_name = name_components[1].strip() if len(name_components) > 1 else ""
+                        else:
+                            # Default to Western format (FirstName LastName)
+                            name_parts = full_name.split()
+                            if len(name_parts) > 1:
+                                first_name = " ".join(name_parts[:-1])
+                                last_name = name_parts[-1]
+                            else:
+                                first_name = full_name
+                                last_name = ""
+                else:
+                    # Multiple fields - assume second field is first name, third is last name
+                    if len(parts) >= 3:
+                        first_name = parts[1]
+                        last_name = parts[2]
+                    else:
+                        first_name = parts[1]
+                        last_name = ""
+                
+                # Sanitize names
+                first_name = first_name[:50].strip()  # Limit to model field size
+                last_name = last_name[:50].strip()    # Limit to model field size
+                
+                # Final validation
+                if not first_name and not last_name:
+                    errors.append(f"Line {i}: Unable to parse name properly")
+                    continue
+                
                 imported_student_ids.add(student_id)
                 
-                # Create new student
-                new_student = Student(
-                    student_id=student_id,
-                    first_name=first_name,
-                    last_name=last_name,
-                    course_id=course_id
-                )
-                
-                db.session.add(new_student)
-                students_added += 1
+                # Create student data dictionary to add later
+                students_to_add.append({
+                    'student_id': student_id,
+                    'first_name': first_name,
+                    'last_name': last_name,
+                    'course_id': course_id,
+                    'line_number': i  # Keep track of line number for error reporting
+                })
                 
             except Exception as e:
                 errors.append(f"Line {i}: Error processing line - {str(e)}")
+                logging.error(f"Error processing student import line {i}: {str(e)}\n{traceback.format_exc()}")
         
-        if students_added > 0:
+        # Second pass: if no errors or continue_on_errors is selected, add students
+        continue_on_errors = request.form.get('continue_on_errors') == 'on'
+        
+        if (not errors or continue_on_errors) and students_to_add:
             try:
-                # Log action
-                log = Log(action="IMPORT_STUDENTS", 
-                         description=f"Imported {students_added} students to course: {course.code}")
-                db.session.add(log)
+                # Use a session transaction with savepoints for better recovery
+                db.session.begin_nested()
                 
-                db.session.commit()
-                flash(f'Successfully imported {students_added} students', 'success')
+                students_added = 0
+                add_errors = []
                 
-                if errors:
-                    flash(f'There were {len(errors)} errors during import. See details below.', 'warning')
+                # Use batch processing for better performance
+                batch_size = 50
+                for i in range(0, len(students_to_add), batch_size):
+                    batch = students_to_add[i:i+batch_size]
+                    
+                    # Create a savepoint for this batch
+                    if i > 0:
+                        db.session.begin_nested()
+                    
+                    batch_success = True
+                    for student_data in batch:
+                        line_number = student_data.pop('line_number')  # Remove from data before creating model
+                        
+                        try:
+                            new_student = Student(**student_data)
+                            db.session.add(new_student)
+                        except Exception as e:
+                            add_errors.append(f"Line {line_number}: Database error - {str(e)}")
+                            batch_success = False
+                            break
+                    
+                    try:
+                        # Validate the entire batch
+                        db.session.flush()
+                        students_added += len(batch)
+                    except IntegrityError as e:
+                        # Handle database constraint errors
+                        db.session.rollback()
+                        batch_success = False
+                        error_msg = str(e)
+                        if "UNIQUE constraint failed" in error_msg:
+                            # Extract student ID from error message if possible
+                            match = re.search(r"student_id\s*=\s*['\"]([^'\"]+)['\"]", error_msg)
+                            student_id = match.group(1) if match else "unknown"
+                            add_errors.append(f"Line {line_number}: Student ID '{student_id}' already exists in this course")
+                        else:
+                            add_errors.append(f"Line {line_number}: Database error - {error_msg}")
+                    except Exception as e:
+                        db.session.rollback()
+                        batch_success = False
+                        add_errors.append(f"Line {line_number}: Database error - {str(e)}")
                 
-                return render_template('student/import_result.html', 
-                                     course=course,
-                                     students_added=students_added,
-                                     errors=errors,
-                                     active_page='courses')
+                if add_errors:
+                    if continue_on_errors:
+                        # Log errors but continue
+                        for error in add_errors:
+                            logging.warning(f"Student import warning: {error}")
+                    else:
+                        # Rollback if there are errors and not continuing
+                        db.session.rollback()
+                        errors.extend(add_errors)
+                        return render_template('student/import_result.html', 
+                                             course=course,
+                                             students_added=0,
+                                             errors=errors,
+                                             warnings=warnings,
+                                             active_page='courses')
+                
+                if students_added > 0:
+                    # Log action
+                    log = Log(action="IMPORT_STUDENTS", 
+                             description=f"Imported {students_added} students to course: {course.code}")
+                    db.session.add(log)
+                    
+                    db.session.commit()
+                    flash(f'Successfully imported {students_added} students', 'success')
+                    
+                    if errors or add_errors:
+                        flash(f'There were {len(errors) + len(add_errors)} warnings during import. See details below.', 'warning')
+                    
+                    return render_template('student/import_result.html', 
+                                         course=course,
+                                         students_added=students_added,
+                                         errors=errors + add_errors,
+                                         warnings=warnings,
+                                         active_page='courses')
+                else:
+                    db.session.rollback()
+                    flash('No students were imported. Please check the errors below.', 'error')
             except Exception as e:
                 db.session.rollback()
-                logging.error(f"Error committing student import: {str(e)}")
-                flash('An error occurred while importing students', 'error')
+                logging.error(f"Error committing student import: {str(e)}\n{traceback.format_exc()}")
+                flash(f'An error occurred while importing students: {str(e)}', 'error')
                 return render_template('student/import.html', 
                                      course=course,
                                      active_page='courses')
         else:
-            flash('No students were imported. Please check the errors below.', 'error')
-            return render_template('student/import_result.html', 
+            if errors:
+                flash(f'{len(errors)} errors found. Please correct them and try again.', 'error')
+                # Only show first 10 errors to avoid overwhelming the user
+                for error in errors[:10]:
+                    flash(error, 'warning')
+                if len(errors) > 10:
+                    flash(f'... and {len(errors) - 10} more errors', 'warning')
+            else:
+                flash('No valid student data found for import.', 'error')
+            
+            return render_template('student/import.html',
                                  course=course,
-                                 students_added=0,
                                  errors=errors,
                                  active_page='courses')
     
-    # GET request
-    return render_template('student/import.html', 
+    return render_template('student/import.html',
                          course=course,
                          active_page='courses')
 
@@ -401,13 +619,44 @@ def import_scores(exam_id):
     if 'scores_file' in request.files and request.files['scores_file'].filename:
         file = request.files['scores_file']
         try:
-            scores_data = file.read().decode('utf-8')
-        except UnicodeDecodeError:
-            try:
-                scores_data = file.read().decode('latin-1')
-            except:
-                flash('Could not decode the file. Please ensure it is a text file.', 'error')
+            # Try to detect encoding
+            raw_data = file.read()
+            if not raw_data:
+                flash('Empty file uploaded', 'error')
                 return redirect(url_for('student.manage_scores', exam_id=exam_id))
+                
+            encoding_result = detect(raw_data)
+            file.seek(0)  # Reset file position
+            
+            # Use detected encoding with high confidence or try multiple fallbacks
+            if encoding_result and encoding_result['confidence'] > 0.7:
+                encoding = encoding_result['encoding']
+            else:
+                # Try common encodings in order
+                encodings_to_try = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1', 'utf-16']
+                for enc in encodings_to_try:
+                    try:
+                        scores_data = raw_data.decode(enc)
+                        logging.info(f"Successfully decoded file with {enc} encoding")
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                
+            # If we haven't set scores_data yet, use the first detected encoding
+            if not scores_data and encoding_result:
+                try:
+                    scores_data = raw_data.decode(encoding_result['encoding'])
+                except UnicodeDecodeError:
+                    # Last resort: use latin-1 which should never fail
+                    scores_data = raw_data.decode('latin-1', errors='replace')
+                    logging.warning("Decoded file with latin-1 and error replacement - some characters may be incorrect")
+            
+            if not scores_data:
+                raise UnicodeDecodeError("Could not decode with any common encoding")
+                
+        except Exception as e:
+            flash(f'Could not decode the file: {str(e)}. Please ensure it is a text file.', 'error')
+            return redirect(url_for('student.manage_scores', exam_id=exam_id))
     else:
         scores_data = request.form.get('scores_data', '')
     
@@ -415,158 +664,482 @@ def import_scores(exam_id):
         flash('No score data provided', 'error')
         return redirect(url_for('student.manage_scores', exam_id=exam_id))
     
+    # Determine the delimiter used in the data
+    def detect_delimiter(data):
+        # Count occurrences of common delimiters
+        delimiters = {
+            '\t': data.count('\t'),
+            ';': data.count(';'),
+            ',': data.count(',')
+        }
+        # Return the most commonly used delimiter, with fallback to tab
+        return max(delimiters.items(), key=lambda x: x[1])[0] if any(delimiters.values()) else '\t'
+    
+    delimiter = detect_delimiter(scores_data)
+    logging.info(f"Detected delimiter: {repr(delimiter)}")
+    
     # Process data
     lines = scores_data.strip().split('\n')
-    scores_added = 0
-    students_added = 0
+    scores_to_add = []
+    students_to_create = []  # Students that need to be created
     errors = []
+    warnings = []
     
-    for i, line in enumerate(lines, 1):
+    # Flag to determine if we should create missing students automatically
+    create_students = request.form.get('create_missing_students') == 'on'
+    
+    # Process the header row if present to determine question numbers (optional)
+    header_mapping = {}
+    header_row = request.form.get('has_header') == 'on'
+    
+    if header_row and lines:
+        try:
+            header = lines[0]
+            header_parts = [p.strip() for p in header.split(delimiter)]
+            
+            # Map column indices to question numbers
+            for i, part in enumerate(header_parts):
+                if i < 2:  # Skip student ID and name columns
+                    continue
+                
+                # Try to extract question number from header
+                q_match = re.search(r'q(?:uestion)?\s*(\d+)', part.lower())
+                if q_match:
+                    q_num = int(q_match.group(1))
+                    if q_num in questions:
+                        header_mapping[i] = q_num
+                    else:
+                        warnings.append(f"Header column '{part}' refers to question {q_num} which doesn't exist")
+            
+            # Remove header from lines to process
+            lines = lines[1:]
+            logging.info(f"Processed header row, found mappings: {header_mapping}")
+        except Exception as e:
+            logging.warning(f"Error processing header row: {str(e)}")
+            warnings.append(f"Error processing header row: {str(e)}")
+            # If header processing fails, assume no header
+            header_row = False
+    
+    # First pass: validate and prepare objects
+    for i, line in enumerate(lines, 1 if not header_row else 2):  # Adjust line number if we have a header
         # Skip empty lines
         if not line.strip():
             continue
         
         # Try to parse the line
         try:
-            # Split by semicolons
-            parts = [p.strip() for p in line.split(';') if p.strip()]
+            # Split by detected delimiter
+            parts = [p.strip() for p in line.split(delimiter)]
             
             if len(parts) < 3:  # Need at least student_id, name, and one score
                 errors.append(f"Line {i}: Not enough data (expected at least student ID, name, and one score)")
                 continue
             
-            student_id = parts[0]
-            full_name = parts[1]
+            student_id = parts[0].strip()
+            full_name = parts[1].strip()
             
-            # Find or create the student
-            student = None
-            if student_id in students_dict:
-                student = students_dict[student_id]
-            else:
-                # Create a new student
-                name_parts = full_name.split()
-                if len(name_parts) == 1:
-                    first_name = name_parts[0]
-                    last_name = ""
-                else:
-                    first_name = " ".join(name_parts[:-1])
-                    last_name = name_parts[-1]
-                
-                try:
-                    new_student = Student(
-                        student_id=student_id,
-                        first_name=first_name,
-                        last_name=last_name,
-                        course_id=course.id,
-                        created_at=datetime.now(),
-                        updated_at=datetime.now()
-                    )
-                    db.session.add(new_student)
-                    db.session.flush()  # Get the ID without committing
-                    student = new_student
-                    students_dict[student_id] = student  # Add to dictionary for future lookups
-                    students_added += 1
-                except Exception as e:
-                    errors.append(f"Line {i}: Error creating student - {str(e)}")
-                    continue
+            # Sanitize student ID - remove any unsafe characters
+            student_id = re.sub(r'[^\w\-]', '', student_id)
             
-            # Process scores (format q1:score1;q2:score2;...)
-            for score_data in parts[2:]:
-                # Skip empty scores
-                if not score_data:
-                    continue
+            # Validate student ID format
+            if not re.match(r'^[\w\-]+$', student_id):
+                errors.append(f"Line {i}: Invalid student ID format: {student_id} (only alphanumeric, underscore, and hyphen allowed)")
+                continue
+            
+            # Find the student
+            student = students_dict.get(student_id)
+            
+            # Handle creation of new students if needed
+            if student is None and create_students:
+                # Parse the name
+                name_format = request.form.get('name_format', 'auto')
                 
-                # Parse the question number and score
-                try:
-                    if ':' in score_data:
-                        q_part, score_part = score_data.split(':', 1)
-                        # Extract the question number (remove 'q' or 'Q' prefix)
-                        q_num = int(q_part.lower().replace('q', ''))
-                        score_str = score_part
+                if name_format == 'eastern':
+                    # Eastern format: Last name first
+                    name_parts = full_name.split()
+                    if len(name_parts) > 1:
+                        last_name = name_parts[0]
+                        first_name = " ".join(name_parts[1:])
                     else:
-                        # If no question number, use position in list
-                        q_num = len(scores_added) + 1
-                        score_str = score_data
-                    
-                    # Convert score to Decimal
-                    score_value = Decimal(score_str)
-                    
-                    # Check if question exists
-                    if q_num not in questions:
-                        errors.append(f"Line {i}: Question {q_num} does not exist for this exam")
+                        last_name = full_name
+                        first_name = ""
+                elif name_format == 'western':
+                    # Western format: First name first
+                    name_parts = full_name.split()
+                    if len(name_parts) > 1:
+                        first_name = " ".join(name_parts[:-1])
+                        last_name = name_parts[-1]
+                    else:
+                        first_name = full_name
+                        last_name = ""
+                elif name_format == 'comma':
+                    # Comma format: "Last, First"
+                    if ',' in full_name:
+                        name_components = full_name.split(',', 1)
+                        last_name = name_components[0].strip()
+                        first_name = name_components[1].strip() if len(name_components) > 1 else ""
+                    else:
+                        # Fallback if comma format specified but no comma found
+                        name_parts = full_name.split()
+                        if len(name_parts) > 1:
+                            first_name = " ".join(name_parts[:-1])
+                            last_name = name_parts[-1]
+                        else:
+                            first_name = full_name
+                            last_name = ""
+                else:  # Auto-detect
+                    # Check for comma-separated format: "LastName, FirstName"
+                    if ',' in full_name:
+                        name_components = full_name.split(',', 1)
+                        last_name = name_components[0].strip()
+                        first_name = name_components[1].strip() if len(name_components) > 1 else ""
+                    else:
+                        # Default to Western format (FirstName LastName)
+                        name_parts = full_name.split()
+                        if len(name_parts) > 1:
+                            first_name = " ".join(name_parts[:-1])
+                            last_name = name_parts[-1]
+                        else:
+                            first_name = full_name
+                            last_name = ""
+                
+                # Validate and limit name lengths
+                first_name = first_name[:50].strip()
+                last_name = last_name[:50].strip()
+                
+                # Check for duplicate student ID in pending creation list
+                if any(s['student_id'] == student_id for s in students_to_create):
+                    errors.append(f"Line {i}: Duplicate student ID {student_id} in import data")
+                    continue
+                
+                # Add student to creation list
+                new_student_data = {
+                    'student_id': student_id,
+                    'first_name': first_name,
+                    'last_name': last_name,
+                    'course_id': course.id,
+                    'line_number': i  # Keep track for error reporting
+                }
+                students_to_create.append(new_student_data)
+                
+                # For now, use the student ID as an identifier
+                student_identifier = f"NEW:{student_id}"
+            elif student is None:
+                errors.append(f"Line {i}: Student ID {student_id} not found in this course")
+                continue
+            else:
+                # Use the internal student ID
+                student_identifier = student.id
+            
+            # Process scores for this line
+            line_scores = []
+            
+            # Method 1: Use header mapping if available
+            if header_mapping:
+                for col_idx, q_num in header_mapping.items():
+                    if col_idx < len(parts):
+                        score_str = parts[col_idx].strip()
+                        
+                        # Skip empty scores
+                        if not score_str:
+                            continue
+                        
+                        # Validate and convert score
+                        try:
+                            score_value = Decimal(score_str.replace(',', '.'))  # Handle European decimal format
+                        except (ValueError, InvalidOperation):
+                            errors.append(f"Line {i}: Invalid score value '{score_str}' for question {q_num}")
+                            continue
+                        
+                        question = questions[q_num]
+                        
+                        # Always validate score is within range
+                        if score_value < 0:
+                            errors.append(f"Line {i}: Score {score_value} is negative for question {q_num}")
+                            continue
+                        elif score_value > question.max_score:
+                            errors.append(f"Line {i}: Score {score_value} exceeds max score {question.max_score} for question {q_num}")
+                            continue
+                        
+                        line_scores.append({
+                            'student_id': student_identifier,
+                            'student_ext_id': student_id,  # Keep original ID for reference
+                            'question_id': question.id,
+                            'question_num': q_num,
+                            'exam_id': exam_id,
+                            'score': score_value,
+                            'line_number': i
+                        })
+            else:
+                # Method 2: Parse the remaining columns as q:score format
+                for score_data in parts[2:]:
+                    # Skip empty scores
+                    if not score_data.strip():
                         continue
                     
-                    question = questions[q_num]
-                    
-                    # Validate score is within range
-                    if score_value < 0:
-                        score_value = Decimal('0')
-                    elif score_value > question.max_score:
-                        score_value = question.max_score
+                    # Parse the question number and score
+                    try:
+                        if ':' in score_data:
+                            # Format: q1:10, 1:10, Q1:10, etc.
+                            q_part, score_part = score_data.split(':', 1)
+                            # Extract the question number (remove 'q' or 'Q' prefix)
+                            q_num = int(re.sub(r'^[qQ]', '', q_part.strip()))
+                            score_str = score_part.strip()
+                        else:
+                            # If no question number format is found, assign sequentially
+                            q_num = len(line_scores) + 1
+                            score_str = score_data.strip()
                         
-                    # Update or create score
-                    score = Score.query.filter_by(
-                        student_id=student.id,
-                        question_id=question.id,
-                        exam_id=exam_id
-                    ).first()
-                    
-                    if score:
-                        score.score = score_value
-                    else:
-                        score = Score(
-                            score=score_value,
-                            student_id=student.id,
-                            question_id=question.id,
-                            exam_id=exam_id
-                        )
-                        db.session.add(score)
-                    
-                    scores_added += 1
-                    
-                except ValueError as e:
-                    errors.append(f"Line {i}: Error processing score '{score_data}' - {str(e)}")
-                    continue
-                except Exception as e:
-                    errors.append(f"Line {i}: Error processing score '{score_data}' - {str(e)}")
-                    continue
-        
+                        # Check if question exists
+                        if q_num not in questions:
+                            errors.append(f"Line {i}: Question {q_num} does not exist for this exam")
+                            continue
+                        
+                        # Validate and convert score to Decimal
+                        try:
+                            score_value = Decimal(score_str.replace(',', '.'))  # Handle European decimal format
+                        except (ValueError, InvalidOperation):
+                            errors.append(f"Line {i}: Invalid score value '{score_str}' for question {q_num}")
+                            continue
+                        
+                        question = questions[q_num]
+                        
+                        # Always validate score is within range
+                        if score_value < 0:
+                            errors.append(f"Line {i}: Score {score_value} is negative for question {q_num}")
+                            continue
+                        elif score_value > question.max_score:
+                            errors.append(f"Line {i}: Score {score_value} exceeds max score {question.max_score} for question {q_num}")
+                            continue
+                        
+                        line_scores.append({
+                            'student_id': student_identifier,
+                            'student_ext_id': student_id,  # Keep original ID for reference
+                            'question_id': question.id,
+                            'question_num': q_num,
+                            'exam_id': exam_id,
+                            'score': score_value,
+                            'line_number': i
+                        })
+                    except ValueError as e:
+                        errors.append(f"Line {i}: Error processing score '{score_data}' - {str(e)}")
+                        continue
+                    except Exception as e:
+                        errors.append(f"Line {i}: Error processing score '{score_data}' - {str(e)}")
+                        continue
+            
+            if line_scores:
+                scores_to_add.extend(line_scores)
+            else:
+                errors.append(f"Line {i}: No valid scores found for student {student_id}")
+                
         except Exception as e:
             errors.append(f"Line {i}: Error processing line - {str(e)}")
+            logging.error(f"Error processing score import line {i}: {str(e)}\n{traceback.format_exc()}")
     
-    if scores_added > 0 or students_added > 0:
+    # SECOND PASS: Start database operations
+    continue_on_errors = request.form.get('continue_on_errors') == 'on'
+    
+    if (not errors or continue_on_errors) and (scores_to_add or students_to_create):
         try:
-            # Log action
-            log = Log(action="IMPORT_SCORES", 
-                     description=f"Imported {scores_added} scores and {students_added} new students for exam: {exam.name} in course: {course.code}")
-            db.session.add(log)
+            # Begin nested transaction
+            savepoint = db.session.begin_nested()
             
-            db.session.commit()
+            # First, create any new students needed
+            student_id_map = {}  # Map from "NEW:student_id" to database ID
             
-            if students_added > 0:
-                flash(f'Successfully added {students_added} new students', 'success')
+            if students_to_create:
+                logging.info(f"Creating {len(students_to_create)} new students")
+                
+                try:
+                    # Process students in batches for better performance
+                    batch_size = 50
+                    for i in range(0, len(students_to_create), batch_size):
+                        batch = students_to_create[i:i+batch_size]
+                        
+                        # Create savepoint for this batch
+                        if i > 0:
+                            db.session.begin_nested()
+                        
+                        for student_data in batch:
+                            line_number = student_data.pop('line_number')
+                            student_ext_id = student_data['student_id']
+                            
+                            try:
+                                new_student = Student(**student_data)
+                                db.session.add(new_student)
+                                db.session.flush()  # Get the ID assigned by the database
+                                
+                                # Add to mapping
+                                student_id_map[f"NEW:{student_ext_id}"] = new_student.id
+                                # Add to students_dict for lookup in case of multiple occurrences
+                                students_dict[student_ext_id] = new_student
+                                
+                            except IntegrityError as e:
+                                if "UNIQUE constraint failed" in str(e):
+                                    # Another student with this ID might exist now (race condition)
+                                    db.session.rollback()
+                                    
+                                    # Try to find the student again (might have been added by another process)
+                                    existing_student = Student.query.filter_by(student_id=student_ext_id, course_id=course.id).first()
+                                    if existing_student:
+                                        student_id_map[f"NEW:{student_ext_id}"] = existing_student.id
+                                        students_dict[student_ext_id] = existing_student
+                                    else:
+                                        errors.append(f"Line {line_number}: Could not create student {student_ext_id} - unique constraint error")
+                                else:
+                                    errors.append(f"Line {line_number}: Database error creating student {student_ext_id} - {str(e)}")
+                            except Exception as e:
+                                errors.append(f"Line {line_number}: Database error creating student {student_ext_id} - {str(e)}")
+                    
+                    logging.info(f"Created {len(student_id_map)} new students")
+                except Exception as e:
+                    if not continue_on_errors:
+                        db.session.rollback()
+                        flash(f"Error creating students: {str(e)}", "error")
+                        return redirect(url_for('student.manage_scores', exam_id=exam_id))
+                    else:
+                        logging.error(f"Error creating students: {str(e)}")
+                        warnings.append(f"Error creating students: {str(e)}")
             
-            flash(f'Successfully imported {scores_added} scores', 'success')
-            
-            if errors:
-                flash(f'There were {len(errors)} errors during import. See details below.', 'warning')
-                for error in errors[:10]:  # Show first 10 errors
-                    flash(error, 'warning')
-                if len(errors) > 10:
-                    flash(f'... and {len(errors) - 10} more errors', 'warning')
-            
+            # Now process scores
+            if scores_to_add:
+                scores_added = 0
+                score_errors = []
+                
+                # Get existing scores to avoid duplicates
+                existing_scores = set()
+                for score in Score.query.filter_by(exam_id=exam_id).all():
+                    existing_scores.add((score.student_id, score.question_id))
+                
+                # Process scores in batches
+                batch_size = 100
+                for i in range(0, len(scores_to_add), batch_size):
+                    batch = scores_to_add[i:i+batch_size]
+                    
+                    # Create savepoint for this batch
+                    if i > 0:
+                        db.session.begin_nested()
+                    
+                    batch_error = False
+                    for score_data in batch:
+                        try:
+                            line_number = score_data.pop('line_number')
+                            student_ext_id = score_data.pop('student_ext_id')
+                            
+                            # Resolve student ID
+                            student_id_key = score_data['student_id']
+                            if isinstance(student_id_key, str) and student_id_key.startswith('NEW:'):
+                                # This is a newly created student
+                                if student_id_key in student_id_map:
+                                    score_data['student_id'] = student_id_map[student_id_key]
+                                else:
+                                    score_errors.append(f"Line {line_number}: Could not find newly created student {student_ext_id}")
+                                    continue
+                            
+                            # Check for duplicates
+                            score_key = (score_data['student_id'], score_data['question_id'])
+                            if score_key in existing_scores:
+                                # Update existing score instead of creating new one
+                                existing_score = Score.query.filter_by(
+                                    student_id=score_data['student_id'],
+                                    question_id=score_data['question_id'],
+                                    exam_id=score_data['exam_id']
+                                ).first()
+                                
+                                if existing_score:
+                                    existing_score.score = score_data['score']
+                                    existing_score.updated_at = datetime.now()
+                                    scores_added += 1
+                                    continue
+                            
+                            # Create new score
+                            new_score = Score(
+                                student_id=score_data['student_id'],
+                                question_id=score_data['question_id'], 
+                                exam_id=score_data['exam_id'],
+                                score=score_data['score']
+                            )
+                            db.session.add(new_score)
+                            
+                            # Add to existing set to avoid duplicates in same import
+                            existing_scores.add(score_key)
+                            scores_added += 1
+                            
+                        except Exception as e:
+                            batch_error = True
+                            score_errors.append(f"Line {line_number}: Error adding score - {str(e)}")
+                    
+                    # Flush this batch if no errors
+                    if not batch_error:
+                        try:
+                            db.session.flush()
+                        except Exception as e:
+                            db.session.rollback()
+                            score_errors.append(f"Database error in batch {i//batch_size + 1}: {str(e)}")
+                
+                # Handle score errors
+                if score_errors:
+                    if continue_on_errors:
+                        # Log errors but continue
+                        for error in score_errors:
+                            logging.warning(f"Score import warning: {error}")
+                            warnings.append(error)
+                    else:
+                        # Rollback if there are errors and not continuing
+                        db.session.rollback()
+                        errors.extend(score_errors)
+                        flash(f"Failed to import scores: {len(score_errors)} errors", "error")
+                        return redirect(url_for('student.manage_scores', exam_id=exam_id))
+                
+                if scores_added > 0:
+                    # Log the action
+                    log = Log(action="IMPORT_SCORES", 
+                             description=f"Imported {scores_added} scores for {exam.name}")
+                    db.session.add(log)
+                    
+                    db.session.commit()
+                    
+                    flash(f'Successfully imported {scores_added} scores', 'success')
+                    if len(student_id_map) > 0:
+                        flash(f'Created {len(student_id_map)} new students', 'info')
+                    
+                    if warnings:
+                        flash(f'There were {len(warnings)} warnings during import.', 'warning')
+                        for warning in warnings[:5]:  # Show only first 5 warnings
+                            flash(warning, 'warning')
+                        if len(warnings) > 5:
+                            flash(f'... and {len(warnings) - 5} more warnings', 'warning')
+                        
+                    return redirect(url_for('student.manage_scores', exam_id=exam_id))
+                else:
+                    db.session.rollback()
+                    flash('No scores were imported. Please check the errors below.', 'error')
+                    return redirect(url_for('student.manage_scores', exam_id=exam_id))
+            else:
+                db.session.commit()  # Commit any student creations but no scores
+                flash('No valid scores were found to import.', 'warning')
+                if len(student_id_map) > 0:
+                    flash(f'Created {len(student_id_map)} new students', 'info')
+                return redirect(url_for('student.manage_scores', exam_id=exam_id))
+                
         except Exception as e:
             db.session.rollback()
-            logging.error(f"Error committing score import: {str(e)}")
+            logging.error(f"Error during score import: {str(e)}\n{traceback.format_exc()}")
             flash(f'An error occurred while importing scores: {str(e)}', 'error')
+            return redirect(url_for('student.manage_scores', exam_id=exam_id))
     else:
-        flash('No scores were imported. Please check the data format and try again.', 'error')
-        for error in errors[:10]:  # Show first 10 errors
-            flash(error, 'warning')
-        if len(errors) > 10:
-            flash(f'... and {len(errors) - 10} more errors', 'warning')
-    
-    return redirect(url_for('student.manage_scores', exam_id=exam_id))
+        if errors:
+            flash(f'{len(errors)} errors found in import data. Please correct them and try again.', 'error')
+            # Only show first 10 errors to avoid overwhelming the user
+            for error in errors[:10]:
+                flash(error, 'warning')
+            if len(errors) > 10:
+                flash(f'... and {len(errors) - 10} more errors', 'warning')
+        else:
+            flash('No valid score data found for import.', 'error')
+        
+        return redirect(url_for('student.manage_scores', exam_id=exam_id))
 
 @student_bp.route('/course/<int:course_id>/export')
 def export_students(course_id):
@@ -576,14 +1149,15 @@ def export_students(course_id):
     
     # Prepare data for export
     data = []
-    headers = ['Student ID', 'First Name', 'Last Name', 'Full Name']
+    headers = ['Student ID', 'First Name', 'Last Name', 'Full Name', 'Excluded']
     
     for student in students:
         data.append({
             'Student ID': student.student_id,
             'First Name': student.first_name,
             'Last Name': student.last_name,
-            'Full Name': f"{student.first_name} {student.last_name}".strip()
+            'Full Name': f"{student.first_name} {student.last_name}".strip(),
+            'Excluded': 'Yes' if student.excluded else 'No'
         })
     
     # Export data using utility function
@@ -899,62 +1473,213 @@ def import_attendance(exam_id):
         # Process data from form
         attendance_data = request.form.get('attendance_data', '')
         
-        if attendance_data:
-            lines = attendance_data.strip().split('\n')
-            imported_count = 0
-            
-            for line in lines:
-                parts = line.strip().split(';')
-                if len(parts) < 2:
-                    continue
-                
-                student_id = parts[0].strip()
-                attended_str = parts[1].strip().lower()
-                
-                # Skip if student not found
-                if student_id not in student_map:
-                    continue
-                    
-                internal_id = student_map[student_id]
-                
-                # Determine if attended (y, yes, 1, true = attended)
-                attended = attended_str in ['y', 'yes', '1', 'true', 'attended']
-                
-                # Update or create attendance record
-                record = StudentExamAttendance.query.filter_by(
-                    student_id=internal_id,
-                    exam_id=exam_id
-                ).first()
-                
-                if record:
-                    # Update existing record
-                    record.attended = attended
-                else:
-                    # Create new record
-                    record = StudentExamAttendance(
-                        student_id=internal_id,
-                        exam_id=exam_id,
-                        attended=attended
-                    )
-                    db.session.add(record)
-                
-                imported_count += 1
-            
-            # Log the action
-            log = Log(
-                action="IMPORT_EXAM_ATTENDANCE",
-                description=f"Imported attendance for {imported_count} students in {exam.name}"
-            )
-            db.session.add(log)
-            db.session.commit()
-            
-            flash(f'Successfully imported attendance for {imported_count} students.', 'success')
-        else:
+        if not attendance_data.strip():
             flash('No attendance data provided.', 'warning')
+            return redirect(url_for('student.manage_attendance', exam_id=exam_id))
+        
+        # Determine the delimiter used in the data
+        def detect_delimiter(data):
+            # Count occurrences of common delimiters
+            delimiters = {
+                '\t': data.count('\t'),
+                ';': data.count(';'),
+                ',': data.count(',')
+            }
+            # Return the most commonly used delimiter, with fallback to tab
+            return max(delimiters.items(), key=lambda x: x[1])[0] if any(delimiters.values()) else ';'
+        
+        delimiter = detect_delimiter(attendance_data)
+        logging.info(f"Detected delimiter for attendance import: {repr(delimiter)}")
+        
+        # Process the data
+        lines = attendance_data.strip().split('\n')
+        attendance_to_add = []
+        errors = []
+        warnings = []
+        not_found_ids = []
+        
+        # Define valid attendance values
+        attended_values = {'y', 'yes', '1', 'true', 'attended', 'present', 'p', 't'}
+        absent_values = {'n', 'no', '0', 'false', 'absent', 'missing', 'a', 'f'}
+        
+        # Process header row if present
+        header_row = request.form.get('has_header') == 'on'
+        if header_row and lines:
+            lines = lines[1:]  # Skip the header row
+        
+        # First pass: validate all lines and prepare objects
+        for i, line in enumerate(lines, 1 if not header_row else 2):
+            # Skip empty lines
+            if not line.strip():
+                continue
+            
+            parts = [p.strip() for p in line.split(delimiter)]
+            if len(parts) < 2:
+                # Try alternative delimiters if the detected one didn't work
+                for alt_delimiter in ['\t', ';', ',']:
+                    if alt_delimiter != delimiter and alt_delimiter in line:
+                        temp_parts = [p.strip() for p in line.split(alt_delimiter)]
+                        if len(temp_parts) >= 2:
+                            parts = temp_parts
+                            break
+                
+                if len(parts) < 2:
+                    errors.append(f"Line {i}: Not enough data (expected format: student_id{delimiter}attendance_status)")
+                    continue
+            
+            student_id = parts[0].strip()
+            attended_str = parts[1].strip().lower()
+            
+            # Sanitize student ID - remove any unsafe characters
+            student_id = re.sub(r'[^\w\-]', '', student_id)
+            
+            # Validate student ID format
+            if not re.match(r'^[\w\-]+$', student_id):
+                errors.append(f"Line {i}: Invalid student ID format: {student_id} (only alphanumeric, underscore, and hyphen allowed)")
+                continue
+            
+            # Check if student exists
+            if student_id not in student_map:
+                not_found_ids.append(student_id)
+                errors.append(f"Line {i}: Student ID {student_id} not found in this course")
+                continue
+                
+            internal_id = student_map[student_id]
+            
+            # Enhanced attendance status determination
+            if attended_str in attended_values:
+                attended = True
+            elif attended_str in absent_values:
+                attended = False
+            else:
+                # Attempt numeric conversion if it's not in known values
+                try:
+                    # Try to interpret as numeric (non-zero = attended)
+                    attended = bool(float(attended_str))
+                    warnings.append(f"Line {i}: Ambiguous attendance value '{attended_str}', interpreted as {'present' if attended else 'absent'}")
+                except ValueError:
+                    errors.append(f"Line {i}: Invalid attendance value '{attended_str}'. Use 'yes'/'no', 'true'/'false', etc.")
+                    continue
+            
+            # Add to attendance records to process
+            attendance_to_add.append({
+                'student_id': internal_id,
+                'exam_id': exam_id,
+                'attended': attended,
+                'line_number': i,
+                'student_ext_id': student_id  # Keep original ID for reference
+            })
+        
+        # Second pass: process if no errors or if continue_on_errors is selected
+        continue_on_errors = request.form.get('continue_on_errors') == 'on'
+        
+        if (not errors or continue_on_errors) and attendance_to_add:
+            imported_count = 0
+            add_errors = []
+            
+            # Start transaction with savepoint
+            db.session.begin_nested()
+            
+            # Get existing attendance records to optimize database operations
+            existing_attendance = {}
+            for record in StudentExamAttendance.query.filter_by(exam_id=exam_id).all():
+                existing_attendance[record.student_id] = record
+            
+            # Process in batches for better performance
+            batch_size = 50
+            for i in range(0, len(attendance_to_add), batch_size):
+                batch = attendance_to_add[i:i+batch_size]
+                
+                # Create savepoint for this batch
+                if i > 0:
+                    db.session.begin_nested()
+                
+                batch_errors = False
+                for attendance_data in batch:
+                    try:
+                        line_number = attendance_data.pop('line_number')
+                        student_ext_id = attendance_data.pop('student_ext_id')
+                        student_id = attendance_data['student_id']
+                        
+                        # Check if record exists
+                        if student_id in existing_attendance:
+                            # Update existing record
+                            record = existing_attendance[student_id]
+                            record.attended = attendance_data['attended']
+                            record.updated_at = datetime.now()
+                        else:
+                            # Create new record
+                            record = StudentExamAttendance(**attendance_data)
+                            db.session.add(record)
+                        
+                        imported_count += 1
+                    except Exception as e:
+                        batch_errors = True
+                        add_errors.append(f"Line {line_number}: Error processing attendance for student {student_ext_id} - {str(e)}")
+                
+                # Try to flush the batch
+                if not batch_errors:
+                    try:
+                        db.session.flush()
+                    except Exception as e:
+                        db.session.rollback()
+                        add_errors.append(f"Database error in batch {i//batch_size + 1}: {str(e)}")
+            
+            if add_errors and not continue_on_errors:
+                # Rollback if there are errors and not continuing
+                db.session.rollback()
+                errors.extend(add_errors)
+                for error in errors[:10]:  # Show first 10 errors
+                    flash(error, 'warning')
+                if len(errors) > 10:
+                    flash(f'... and {len(errors) - 10} more errors', 'warning')
+                return redirect(url_for('student.manage_attendance', exam_id=exam_id))
+            
+            if imported_count > 0:
+                # Log the action
+                log = Log(
+                    action="IMPORT_EXAM_ATTENDANCE",
+                    description=f"Imported attendance for {imported_count} students in {exam.name}"
+                )
+                db.session.add(log)
+                
+                try:
+                    db.session.commit()
+                    flash(f'Successfully imported attendance for {imported_count} students.', 'success')
+                    
+                    if errors or add_errors:
+                        flash(f'There were {len(errors) + len(add_errors)} warnings during import.', 'warning')
+                        for error in (errors + add_errors)[:10]:
+                            flash(error, 'warning')
+                        if len(errors) + len(add_errors) > 10:
+                            flash(f'... and {len(errors) + len(add_errors) - 10} more warnings', 'warning')
+                except Exception as e:
+                    db.session.rollback()
+                    logging.error(f"Error committing attendance data: {str(e)}")
+                    flash(f'Database error when saving attendance data: {str(e)}', 'error')
+            else:
+                db.session.rollback()
+                flash('No attendance records were imported.', 'warning')
+                
+                if not_found_ids:
+                    if len(not_found_ids) <= 10:
+                        flash(f"Student IDs not found: {', '.join(not_found_ids)}", 'warning')
+                    else:
+                        flash(f"{len(not_found_ids)} student IDs not found in this course", 'warning')
+        else:
+            if errors:
+                flash(f'No attendance records were imported due to {len(errors)} validation errors.', 'error')
+                for error in errors[:10]:  # Show first 10 errors
+                    flash(error, 'warning')
+                if len(errors) > 10:
+                    flash(f'... and {len(errors) - 10} more errors', 'warning')
+            else:
+                flash('No valid attendance data found for import.', 'error')
         
     except Exception as e:
         db.session.rollback()
         flash(f'Error importing attendance data: {str(e)}', 'error')
+        logging.error(f"Error in attendance import: {str(e)}\n{traceback.format_exc()}")
     
     return redirect(url_for('student.manage_attendance', exam_id=exam_id))
 

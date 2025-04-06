@@ -134,10 +134,19 @@
                     <label for="attendanceData" class="form-label">Paste attendance data (Format: student_id;attended)</label>
                     <textarea class="form-control font-monospace" id="attendanceData" name="attendance_data" rows="5" placeholder="12345;yes&#10;67890;no"></textarea>
                     <div class="form-text">
-                        Valid values for attendance: 'y', 'yes', '1', 'true', 'attended' (case-insensitive) = Attended<br>
-                        Any other value = Not Attended
+                        <strong>Valid values for attendance:</strong><br>
+                        - Attended: 'y', 'yes', '1', 'true', 'attended' (case-insensitive)<br>
+                        - Not Attended: 'n', 'no', '0', 'false', 'absent' (case-insensitive)<br>
+                        <strong>Format:</strong> One student per line, student_id;attendance_status
                     </div>
                 </div>
+                
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="continue_on_errors" name="continue_on_errors">
+                    <label class="form-check-label" for="continue_on_errors">Continue import even if some entries have errors</label>
+                    <div class="form-text">If checked, the system will import valid entries and skip any with errors.</div>
+                </div>
+                
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-upload"></i> Import Attendance
                 </button>
