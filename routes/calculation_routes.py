@@ -216,32 +216,22 @@ def course_calculations(course_id):
             if mandatory_exams:
                 skip_student = False
                 for exam in mandatory_exams:
-                    # Check if student attended the regular exam
+                    # Check if student attended the regular exam (default to True if no record)
                     regular_attended = attendance_dict.get((student_id, exam.id), True)
-                    regular_score = None
-                    if regular_attended:
-                        regular_score = calculate_student_exam_score_optimized(
-                            student_id, exam.id, scores_dict, questions_by_exam[exam.id], attendance_dict
-                        )
                     
                     # Check if there's a makeup exam for this mandatory exam
                     makeup_exam = next((m for m in makeup_exams if m.makeup_for == exam.id), None)
                     makeup_attended = False
-                    makeup_score = None
                     
                     if makeup_exam:
+                        # For makeup exams, only consider attended if explicitly marked (default is False)
                         makeup_attended = attendance_dict.get((student_id, makeup_exam.id), False)
-                        if makeup_attended:
-                            makeup_score = calculate_student_exam_score_optimized(
-                                student_id, makeup_exam.id, scores_dict, questions_by_exam[makeup_exam.id], attendance_dict
-                            )
                     
-                    # Skip student if they missed both the mandatory exam and its makeup (if exists)
+                    # Skip student if they didn't attend both the mandatory exam AND its makeup (if exists)
                     # A student is excluded if:
-                    # 1. They didn't attend the regular exam OR attended but got a None score (no data entered)
-                    # AND
-                    # 2. Either there's no makeup exam, or they didn't attend the makeup, or they attended but got a None score
-                    if (not regular_attended or regular_score is None) and (not makeup_exam or not makeup_attended or makeup_score is None):
+                    # 1. They didn't attend the regular exam AND
+                    # 2. Either there's no makeup exam, or they didn't attend the makeup
+                    if not regular_attended and (not makeup_exam or not makeup_attended):
                         skip_student = True
                         break
                 
@@ -269,8 +259,8 @@ def course_calculations(course_id):
             
             # For each regular exam, check if student took the makeup instead
             for exam in regular_exams:
-                # Get weight for this exam
-                weight = normalized_weights.get(exam.id, Decimal('0'))
+                # Get weight for this exam - use raw weight, not normalized
+                weight = exam_weights.get(exam.id, Decimal('0'))
                 if weight == Decimal('0'):
                     continue
                 
@@ -919,32 +909,22 @@ def all_courses_calculations():
             if mandatory_exams:
                 skip_student = False
                 for exam in mandatory_exams:
-                    # Check if student attended the regular exam
+                    # Check if student attended the regular exam (default to True if no record)
                     regular_attended = attendance_dict.get((student.id, exam.id), True)
-                    regular_score = None
-                    if regular_attended:
-                        regular_score = calculate_student_exam_score_optimized(
-                            student.id, exam.id, scores_dict, questions_by_exam[exam.id], attendance_dict
-                        )
                     
                     # Check if there's a makeup exam for this mandatory exam
                     makeup_exam = next((m for m in makeup_exams if m.makeup_for == exam.id), None)
                     makeup_attended = False
-                    makeup_score = None
                     
                     if makeup_exam:
+                        # For makeup exams, only consider attended if explicitly marked (default is False)
                         makeup_attended = attendance_dict.get((student.id, makeup_exam.id), False)
-                        if makeup_attended:
-                            makeup_score = calculate_student_exam_score_optimized(
-                                student.id, makeup_exam.id, scores_dict, questions_by_exam[makeup_exam.id], attendance_dict
-                            )
                     
-                    # Skip student if they missed both the mandatory exam and its makeup (if exists)
+                    # Skip student if they didn't attend both the mandatory exam AND its makeup (if exists)
                     # A student is excluded if:
-                    # 1. They didn't attend the regular exam OR attended but got a None score (no data entered)
-                    # AND
-                    # 2. Either there's no makeup exam, or they didn't attend the makeup, or they attended but got a None score
-                    if (not regular_attended or regular_score is None) and (not makeup_exam or not makeup_attended or makeup_score is None):
+                    # 1. They didn't attend the regular exam AND
+                    # 2. Either there's no makeup exam, or they didn't attend the makeup
+                    if not regular_attended and (not makeup_exam or not makeup_attended):
                         skip_student = True
                         break
                 
@@ -1022,6 +1002,7 @@ def all_courses_calculations():
         # Calculate average program outcome scores
         for outcome in program_outcomes:
             # Only include valid students in the scores calculation - those who haven't been marked to skip
+            # Ensure 0 values are included (they already are since 0 is not None)
             scores = [r['program_outcome_scores'][outcome.id] for r in student_results.values() 
                     if not r.get('skip') and r['program_outcome_scores'][outcome.id] is not None]
             
@@ -1127,6 +1108,7 @@ def all_courses_calculations():
 # Helper function to calculate average outcome score
 def calculate_avg_outcome_score(program_outcome_results):
     """Calculate the average program outcome score for a course"""
+    # Include 0 values in the calculation, but still exclude None values
     valid_scores = [float(po_data['percentage']) for po_code, po_data in program_outcome_results.items() 
                    if po_data['contributes'] and po_data['percentage'] is not None]
     
@@ -1320,13 +1302,8 @@ def export_all_courses():
             if mandatory_exams:
                 skip_student = False
                 for exam in mandatory_exams:
-                    # Check if student attended the regular exam
+                    # Check if student attended the regular exam (default to True if no record)
                     regular_attended = attendance_dict.get((student.id, exam.id), True)
-                    regular_score = None
-                    if regular_attended:
-                        regular_score = calculate_student_exam_score_optimized(
-                            student.id, exam.id, scores_dict, questions_by_exam[exam.id], attendance_dict
-                        )
                     
                     # Check if there's a makeup exam for this mandatory exam
                     makeup_exam = next((m for m in makeup_exams if m.makeup_for == exam.id), None)
@@ -1423,6 +1400,7 @@ def export_all_courses():
         # Calculate average program outcome scores
         for outcome in program_outcomes:
             # Only include valid students in the scores calculation - those who haven't been marked to skip
+            # Ensure 0 values are included (they already are since 0 is not None)
             scores = [r['program_outcome_scores'][outcome.id] for r in student_results.values() 
                     if not r.get('skip') and r['program_outcome_scores'][outcome.id] is not None]
             
@@ -1535,8 +1513,11 @@ def export_all_courses():
         
         for course_code, course_data in sorted_results.items():
             po_result = course_data['program_outcome_results'].get(po.code, {})
-            if po_result.get('contributes', False) and po_result.get('percentage') is not None:
-                valid_scores.append(float(po_result['percentage']))
+            # Include 0 values in the valid scores, only check if it contributes
+            if po_result.get('contributes', False):
+                percentage = po_result.get('percentage')
+                if percentage is not None:  # Still skip None values
+                    valid_scores.append(float(percentage))
         
         if valid_scores:
             summary_row[po_header] = round(sum(valid_scores) / len(valid_scores), 1)
@@ -1689,9 +1670,7 @@ def calculate_student_exam_score_optimized(student_id, exam_id, scores_dict, que
     total_score = Decimal('0')
     total_possible = Decimal('0')
 
-    # Even if a student is marked as attended, we need to check if there are any scores
-    # for this exam's questions. If there are no scores, and it's a mandatory exam,
-    # we should return None.
+    # Calculate score based on available data
     has_scores = False
     for question in questions:
         score_value = scores_dict.get((student_id, question.id, exam_id))
@@ -1701,13 +1680,14 @@ def calculate_student_exam_score_optimized(student_id, exam_id, scores_dict, que
             total_score += Decimal(str(score_value))
         total_possible += question.max_score
 
-    # If mandatory exam and no scores were found, exclude student
-    if is_mandatory and not has_scores:
-        return None
-    
-    # If non-mandatory exam and no scores were found, treat as 0%
-    if not is_mandatory and not has_scores:
-        return Decimal('0')
+    # If no scores were found, treat according to exam type
+    if not has_scores:
+        if is_mandatory:
+            # For mandatory exams without scores, return 0
+            return Decimal('0')
+        else:
+            # Non-mandatory exams without scores are treated as 0%
+            return Decimal('0')
 
     if total_possible == Decimal('0'):
         return None
@@ -1719,7 +1699,7 @@ def calculate_course_outcome_score_optimized(student_id, outcome_id, scores_dict
     questions = outcome_questions.get(outcome_id, [])
 
     if not questions:
-        return None # No questions linked to this outcome
+        return Decimal('0')  # Return 0 instead of None when no questions linked to this outcome
 
     # Group questions by exam to properly apply exam weights
     questions_by_exam = {}
@@ -1788,7 +1768,7 @@ def calculate_course_outcome_score_optimized(student_id, outcome_id, scores_dict
                 weights[exam_id] = equal_weight
             total_weight = Decimal('1')
         else:
-            return None
+            return Decimal('0')  # Return 0 instead of None when no valid exam weights found
     
     # Normalize weights
     normalized_weights = {}
@@ -1829,12 +1809,12 @@ def calculate_program_outcome_score_optimized(student_id, outcome_id, course_id,
     related_course_outcomes = program_to_course_outcomes.get(outcome_id, [])
     
     if not related_course_outcomes:
-        return None
+        return Decimal('0')  # Return 0 instead of None when no related course outcomes
     
     # Get course-specific settings for weighting
     course = Course.query.get(course_id)
     if not course:
-        return None
+        return Decimal('0')  # Return 0 instead of None when course not found
     
     # Initialize variables for weighted calculation
     total_weighted_score = Decimal('0')
@@ -1853,9 +1833,9 @@ def calculate_program_outcome_score_optimized(student_id, outcome_id, course_id,
             total_weighted_score += co_score * weight
             total_weight += weight
     
-    # Return None if no valid scores were calculated
+    # Return 0 if no valid scores were calculated (instead of None)
     if total_weight == Decimal('0'):
-        return None
+        return Decimal('0')
     
     # Return the weighted average
     return total_weighted_score / total_weight

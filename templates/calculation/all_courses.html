@@ -162,7 +162,7 @@
                             {% if not data.settings.excluded %}
                             {% set percentage = data.program_outcome_results.get(outcome.code, {}).get('percentage', 0)|float %}
                             {% set contributes = data.program_outcome_results.get(outcome.code, {}).get('contributes', False) %}
-                            {% if contributes and percentage > 0 %}
+                            {% if contributes %}
                             {% set total_percentage.value = total_percentage.value + percentage %}
                             {% set contributing_courses.count = contributing_courses.count + 1 %}
                             {% endif %}
