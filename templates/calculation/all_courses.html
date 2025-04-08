@@ -142,7 +142,7 @@
                                 {% if not contributes %}
                                 NA
                                 {% else %}
-                                {{ "%.1f"|format(percentage) }}%
+                                {{ "%.2f"|format(percentage) }}%
                                 {% endif %}
                             </td>
                             {% endfor %}
@@ -172,7 +172,7 @@
                             {% if contributing_courses.count > 0 %}
                             {% set average = total_percentage.value / contributing_courses.count %}
                             <td class="text-center {% if average >= 70 %}table-success{% elif average >= 50 %}table-warning{% else %}table-danger{% endif %}">
-                                {{ "%.1f"|format(average) }}%
+                                {{ "%.2f"|format(average) }}%
                             </td>
                             {% else %}
                             <td class="text-center table-secondary">NA</td>

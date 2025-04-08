@@ -1,107 +1,144 @@
 from app import create_app
 from models import AchievementLevel, Student
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 import math
 
 app = create_app()
 
-# Python code from get_achievement_level function in routes/calculation_routes.py
+# Updated Python code from get_achievement_level function in routes/calculation_routes.py
 def get_achievement_level_py(score, achievement_levels):
-    """Get the achievement level for a given score - Python version"""
-    # Round to 2 decimal places (0.01 precision) to ensure proper categorization
-    rounded_score = round(float(score), 2)
-    for level in achievement_levels:
-        if level.min_score <= rounded_score <= level.max_score:
-            return {
-                'name': level.name,
-                'color': level.color
-            }
-    return {
-        'name': 'Not Categorized',
-        'color': 'secondary'
-    }
+    """Get the achievement level for a given score - Python version with precise decimal handling"""
+    try:
+        # Ensure score is a Decimal for precision
+        if not isinstance(score, Decimal):
+            score_decimal = Decimal(str(score))
+        else:
+            score_decimal = score
+            
+        # Round to 2 decimal places using ROUND_HALF_UP
+        rounded_score = score_decimal.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        
+    except (InvalidOperation, TypeError, ValueError):
+        return {'name': 'Invalid Score', 'color': 'secondary'}
+    
+    # Sort levels by min_score descending
+    try:
+        sorted_levels = sorted(achievement_levels, key=lambda x: Decimal(str(x.min_score)), reverse=True)
+    except (InvalidOperation, TypeError, ValueError):
+        return {'name': 'Config Error', 'color': 'danger'}
+    
+    for level in sorted_levels:
+        try:
+            min_score = Decimal(str(level.min_score))
+            max_score = Decimal(str(level.max_score))
+            
+            # Check if score is within the inclusive range
+            if rounded_score >= min_score and rounded_score <= max_score:
+                return {
+                    'name': level.name,
+                    'color': level.color
+                }
+        except (InvalidOperation, TypeError, ValueError):
+            continue
+            
+    return {'name': 'Not Categorized', 'color': 'secondary'}
 
 # JavaScript equivalent from templates/calculation/results.html
 def get_achievement_level_js(percentage, achievement_levels):
-    """Get the achievement level for a given score - JavaScript version"""
-    # Round to 2 decimal places (0.01 precision) to ensure proper categorization
-    percentage = round(float(percentage) * 100) / 100
+    """Get the achievement level for a given score - JavaScript equivalent with precise handling"""
+    # Convert to float for JavaScript-like behavior
+    score = float(percentage)
     
-    for level in achievement_levels:
+    # Round to 2 decimal places as JavaScript would
+    rounded_score = round(score * 100) / 100
+    
+    # Sort levels by min_score descending
+    sorted_levels = sorted(achievement_levels, key=lambda x: float(x.min_score), reverse=True)
+    
+    for level in sorted_levels:
         min_score = float(level.min_score)
         max_score = float(level.max_score)
-        if percentage >= min_score and percentage <= max_score:
+        
+        # Check if score is within the inclusive range
+        if rounded_score >= min_score and rounded_score <= max_score:
             return {
                 'name': level.name,
                 'color': level.color
             }
     
-    return {
-        'name': 'N/A', 
-        'color': 'secondary'
-    }
+    return {'name': 'Not Categorized', 'color': 'secondary'}
 
-# Test scores to try
-test_scores = [
-    59.98, 59.99, 60.0, 60.00, 60.01, 60.1,
-    69.98, 69.99, 70.0, 70.00, 70.01, 70.1
-]
-
-def test_score_precision():
-    with app.app_context():
-        # Get achievement levels for course ID 3
-        achievement_levels = AchievementLevel.query.filter_by(course_id=3).all()
+# Test script
+with app.app_context():
+    # Get achievement levels for testing
+    levels = AchievementLevel.query.filter_by(course_id=3).order_by(AchievementLevel.min_score.desc()).all()
+    
+    if not levels:
+        print("No achievement levels found for testing.")
+        exit(1)
         
-        print("Achievement Levels in database:")
-        for level in achievement_levels:
-            print(f"  {level.name}: {float(level.min_score)}-{float(level.max_score)} ({level.color})")
-            print(f"    min_score type: {type(level.min_score)}, value: {level.min_score}")
-            print(f"    max_score type: {type(level.max_score)}, value: {level.max_score}")
+    # Print actual level definitions from DB
+    print("Achievement Level Definitions:")
+    for level in levels:
+        min_score = Decimal(str(level.min_score))
+        max_score = Decimal(str(level.max_score))
+        print(f"  {level.name}: {min_score}-{max_score} ({level.color})")
+    
+    # Test cases - focus on boundaries
+    test_cases = [
+        "59.99",   # Just below Good
+        "59.995",  # Should round to 60.00 and be Good
+        "60.00",   # Exact boundary - should be Good
+        "60.01",   # Just above boundary - should be Good
+        "69.99",   # Upper boundary of Good - should be Good
+        "70.00"    # Should be Better
+    ]
+    
+    print("\nTesting boundary cases with Python function:")
+    for test in test_cases:
+        score = Decimal(test)
+        result = get_achievement_level_py(score, levels)
+        print(f"Score {test} -> {result['name']} (Python decimal version)")
         
-        print("\nTesting various scores:")
-        print(f"{'Score':<10} | {'Python Method':<20} | {'JavaScript Method':<20}")
-        print("-" * 60)
+    print("\nTesting boundary cases with JavaScript equivalent:")
+    for test in test_cases:
+        score = float(test)
+        result = get_achievement_level_js(score, levels)
+        print(f"Score {test} -> {result['name']} (JavaScript simulation)")
         
-        for score in test_scores:
-            py_result = get_achievement_level_py(score, achievement_levels)
-            js_result = get_achievement_level_js(score, achievement_levels)
+    # Test with legacy float conversion to see problem
+    print("\nTesting with legacy float conversion (shows issues):")
+    for test in test_cases:
+        score = float(test) 
+        # The problematic way (float conversion)
+        if 60.0 <= score <= 69.99:
+            print(f"Score {test} -> Good (direct float comparison)")
+        else:
+            print(f"Score {test} -> Not Good (direct float comparison)")
+            # Show binary representation to see why
+            print(f"  Binary representation: {score.hex()}")
             
-            # Show the exact math calculations being done for score 60.0
-            if score == 60.0:
-                print("\nDetailed calculations for score 60.0:")
-                for level in achievement_levels:
-                    min_score = float(level.min_score)
-                    max_score = float(level.max_score)
-                    print(f"Comparing with {level.name}: {min_score} <= 60.0 <= {max_score}")
-                    print(f"  min comparison: {min_score} <= 60.0 = {min_score <= 60.0}")
-                    print(f"  max comparison: 60.0 <= {max_score} = {60.0 <= max_score}")
-                    print(f"  combined: {min_score <= 60.0 and 60.0 <= max_score}")
-                print()
-            
-            print(f"{score:<10} | {py_result['name']:<20} | {js_result['name']:<20}")
-        
-        # Try to find the student with score exactly 60.0
-        print("\nLooking for student with score 60.0 in the database:")
-        from routes.calculation_routes import calculate_single_course_results
-        
-        # Get course calculation results
-        results = calculate_single_course_results(3)
-        
-        # Check student scores
-        for student_id, student_data in results.get('student_results', {}).items():
-            overall_score = student_data.get('weighted_score', 0)
-            if 59.9 <= float(overall_score) <= 60.1:
-                student = Student.query.get(student_id)
-                py_result = get_achievement_level_py(overall_score, achievement_levels)
-                js_result = get_achievement_level_js(overall_score, achievement_levels)
-                print(f"Student {student.first_name} {student.last_name}: Score {float(overall_score)}")
-                print(f"  Python result: {py_result['name']}")
-                print(f"  JavaScript result: {js_result['name']}")
-                print(f"  Score type: {type(overall_score)}")
-                print(f"  Decimal representation: {overall_score}")
-                print(f"  Float representation: {float(overall_score)}")
-                print(f"  Repr: {repr(overall_score)}")
-                print(f"  Rounded 2 decimals: {round(float(overall_score), 2)}")
+    # Test specific score that might be problematic
+    problem_score = "60.00"
+    print(f"\nDetailed analysis of problematic score: {problem_score}")
+    
+    # As float
+    float_score = float(problem_score)
+    print(f"As float: {float_score}")
+    print(f"Float hex: {float_score.hex()}")
+    
+    # As Decimal
+    decimal_score = Decimal(problem_score)
+    print(f"As Decimal: {decimal_score}")
+    
+    # Python decimal comparison
+    for level in sorted(levels, key=lambda x: Decimal(str(x.min_score)), reverse=True):
+        min_score = Decimal(str(level.min_score))
+        max_score = Decimal(str(level.max_score))
+        print(f"Checking level {level.name}: {min_score} <= {decimal_score} <= {max_score}")
+        print(f"  Min check: {decimal_score >= min_score}")
+        print(f"  Max check: {decimal_score <= max_score}")
+        print(f"  Combined: {decimal_score >= min_score and decimal_score <= max_score}")
 
 if __name__ == "__main__":
-    test_score_precision() 
+    pass  # No need to call any function as the main code is already in the module level 

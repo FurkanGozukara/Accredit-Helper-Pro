@@ -8,7 +8,7 @@ import io
 import os
 from sqlalchemy import func
 from routes.utility_routes import export_to_excel_csv
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from flask import session
 import matplotlib
 matplotlib.use('Agg')
@@ -22,27 +22,59 @@ calculation_bp = Blueprint('calculation', __name__, url_prefix='/calculation')
 
 # Helper function for achievement levels
 def get_achievement_level(score, achievement_levels):
-    """Get the achievement level for a given score"""
-    # Use exact float representation for precision without rounding
-    exact_score = float(score)
-    
-    # Sort achievement levels by min_score in descending order for proper categorization
-    sorted_levels = sorted(achievement_levels, key=lambda x: float(x.min_score), reverse=True)
-    
-    # For each achievement level, if score is >= min_score, it belongs to that level
-    # This ensures scores at boundaries (like 60.0) are categorized at the higher level
+    """
+    Get the achievement level for a given score using precise Decimal comparisons.
+    Ensures boundaries are handled correctly (e.g., 60.00 falls into 60.00-69.99).
+    """
+    try:
+        # Ensure score is a Decimal for precision. Handle potential non-numeric input.
+        if not isinstance(score, Decimal):
+            score_decimal = Decimal(str(score))
+        else:
+            score_decimal = score
+
+        # Round the score to 2 decimal places using standard rounding (half up)
+        # This standardizes the value being compared against boundaries.
+        # Example: 59.995 -> 60.00, 59.994 -> 59.99
+        rounded_score = score_decimal.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    except (InvalidOperation, TypeError, ValueError):
+         # Handle cases where score might be None, NaN, infinity, or unconvertible string
+        return {'name': 'Invalid Score', 'color': 'secondary'}
+
+    # Ensure achievement_levels is a list and contains valid level objects
+    if not isinstance(achievement_levels, list):
+         return {'name': 'Config Error', 'color': 'danger'} # Should not happen if called correctly
+
+    # Sort levels by min_score descending to find the highest applicable level first.
+    # Use Decimal for sorting to ensure correct order (e.g., 90.00 > 89.99)
+    try:
+        sorted_levels = sorted(achievement_levels, key=lambda x: Decimal(str(x.min_score)), reverse=True)
+    except (InvalidOperation, TypeError, ValueError):
+         return {'name': 'Config Error', 'color': 'danger'} # Error in level data
+
     for level in sorted_levels:
-        if exact_score >= float(level.min_score):
-            return {
-                'name': level.name,
-                'color': level.color
-            }
-    
-    # If no level was found (shouldn't happen with proper level definitions)
-    return {
-        'name': 'Not Categorized',
-        'color': 'secondary'
-    }
+        try:
+            # Convert level boundaries to Decimal for precise comparison
+            min_score_decimal = Decimal(str(level.min_score))
+            max_score_decimal = Decimal(str(level.max_score))
+
+            # *** CRITICAL COMPARISON LOGIC ***
+            # Check if the rounded score is WITHIN the level's range (inclusive)
+            # rounded_score >= min_score AND rounded_score <= max_score
+            if rounded_score >= min_score_decimal and rounded_score <= max_score_decimal:
+                return {
+                    'name': level.name,
+                    'color': level.color
+                }
+        except (InvalidOperation, TypeError, ValueError):
+             # Skip level if its boundaries are invalid
+             print(f"Warning: Skipping achievement level '{level.name}' due to invalid boundary values.")
+             continue # Move to the next level
+
+    # If no category matches (e.g., score is 0.00 and lowest level starts at 0.01)
+    # Or if all levels had errors
+    return {'name': 'Not Categorized', 'color': 'secondary'}
 
 @calculation_bp.route('/course/<int:course_id>')
 def course_calculations(course_id):
@@ -349,6 +381,9 @@ def course_calculations(course_id):
             # Set overall percentage from weighted score
             student_result['overall_percentage'] = float(student_data.get('weighted_score', 0))
             
+            # Ensure 2 decimal places precision for display consistency
+            student_result['overall_percentage'] = round(student_result['overall_percentage'], 2)
+            
             # Add course outcome scores
             for co in course_outcomes:
                 co_score = student_data.get('course_outcomes', {}).get(co.id)
@@ -623,7 +658,7 @@ def export_results(course_id):
         # Calculate and add overall weighted score
         if total_weight_used > Decimal('0'):
             overall_percentage = weighted_score / total_weight_used
-            # Set overall percentage in the last column
+            # Set overall percentage in the last column with 2 decimal places precision
             student_row[-1] = round(float(overall_percentage), 2)
             # Store for potential sorting
             student_data = {
@@ -2531,8 +2566,8 @@ def export_student_results(course_id):
             overall_percentage = weighted_score / total_weight_used
             student_row['Overall Weighted Score (%)'] = round(float(overall_percentage), 2)
             
-            # Get overall achievement level
-            level = get_achievement_level(float(overall_percentage), achievement_levels)
+            # Get overall achievement level - ensure we're using the properly rounded value
+            level = get_achievement_level(round(float(overall_percentage), 2), achievement_levels)
             student_row['Overall Achievement Level'] = level['name']
         else:
             student_row['Overall Weighted Score (%)'] = "N/A"
