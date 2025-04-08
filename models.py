@@ -1,8 +1,17 @@
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 # Create a db instance to be initialized later
 db = SQLAlchemy()
+
+def init_db_session(app):
+    """Initialize SQLAlchemy with a scoped session to ensure the remove() method is available"""
+    with app.app_context():
+        engine = db.get_engine()
+        session_factory = sessionmaker(bind=engine)
+        db.session = scoped_session(session_factory)
+        return db.session
 
 # Association tables for many-to-many relationships
 course_outcome_program_outcome = db.Table(

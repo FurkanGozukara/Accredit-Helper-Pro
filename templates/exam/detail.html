@@ -89,7 +89,7 @@
                         <p class="mb-0">
                             <strong>Exam maximum: {{ exam.max_score }}</strong> |
                             <strong>Total question points: {{ total_question_score|round(1) }}</strong>
-                            {% if total_question_score != exam.max_score|float %}
+                            {% if total_question_score != exam.max_score|float and ((total_question_score - exam.max_score|float)|abs) > 0.001 %}
                             <span class="text-danger">
                                 <i class="fas fa-exclamation-triangle"></i>
                                 Mismatch (difference: {{ (total_question_score - exam.max_score|float)|round(1) }})

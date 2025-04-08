@@ -11,7 +11,7 @@ import shutil
 import webbrowser
 
 # Import db from models
-from models import db
+from models import db, init_db_session
 
 def create_app():
     app = Flask(__name__)
@@ -31,6 +31,7 @@ def create_app():
     
     # Initialize extensions with app
     db.init_app(app)
+    init_db_session(app)  # Initialize the scoped session
     migrate = Migrate(app, db)
     
     # Setup logging
@@ -209,19 +210,28 @@ def initialize_program_outcomes():
         db.session.commit()
         logging.info("Initialized default program outcomes")
 
-def open_browser():
-    """Open browser to the app URL"""
-    # Only open browser in the main process, not in the reloader
-    if not os.environ.get('WERKZEUG_RUN_MAIN'):
-        webbrowser.open('http://localhost:5000/')
-
 if __name__ == '__main__':
     app = create_app()
+    
+    # Get port from command line args or use default
+    import sys
+    port = 5000  # Default port
+    if len(sys.argv) > 1:
+        try:
+            port = int(sys.argv[1])
+        except ValueError:
+            print(f"Invalid port: {sys.argv[1]}. Using default port 5000.")
+    
     # Print the URL
     print("=" * 70)
-    print("Server started! Access the application at: http://localhost:5000")
+    print(f"Server started! Access the application at: http://localhost:{port}")
     print("=" * 70)
+    
     # Open browser after a slight delay to ensure server is up
     import threading
-    threading.Timer(1.0, open_browser).start()
-    app.run(debug=True) 
+    def open_browser_with_port():
+        if not os.environ.get('WERKZEUG_RUN_MAIN'):
+            webbrowser.open(f'http://localhost:{port}/')
+    
+    threading.Timer(1.0, open_browser_with_port).start()
+    app.run(debug=True, port=port) 

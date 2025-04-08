@@ -133,6 +133,7 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Setup confirmation modal behavior
         const confirmRestoreModal = document.getElementById('confirmRestoreModal');
         if (confirmRestoreModal) {
             confirmRestoreModal.addEventListener('show.bs.modal', function(event) {
@@ -158,6 +159,211 @@
                 restoreButton.disabled = !this.checked;
             });
         }
+        
+        // AJAX file upload restore
+        const fileRestoreForm = document.querySelector('form[action="{{ url_for("utility.restore_from_file") }}"]');
+        if (fileRestoreForm) {
+            fileRestoreForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Validate checkbox
+                const confirmCheckbox = document.getElementById('confirm_restore_file');
+                if (!confirmCheckbox || !confirmCheckbox.checked) {
+                    alert('You must confirm that you understand the restore process');
+                    return;
+                }
+                
+                // Show loading overlay
+                showLoadingOverlay('Restoring database from uploaded file...');
+                
+                // Submit form via AJAX
+                const formData = new FormData(this);
+                fetch("{{ url_for('utility.restore_from_file') }}", {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showSuccessMessage(data.message);
+                        
+                        // If restore was successful and refresh is needed
+                        if (data.refresh) {
+                            setTimeout(function() {
+                                // Force a complete reload to reset all connections
+                                window.location.href = "{{ url_for('index') }}";
+                                // If just reloading the page isn't enough, reload with cache busting
+                                if (data.force_reload) {
+                                    window.location.href = "{{ url_for('index') }}?reload=" + new Date().getTime();
+                                }
+                            }, 3000); // Refresh after 3 seconds
+                        }
+                    } else {
+                        hideLoadingOverlay();
+                        showErrorMessage(data.message);
+                    }
+                })
+                .catch(error => {
+                    hideLoadingOverlay();
+                    showErrorMessage('An error occurred during the restore process.');
+                    console.error('Error:', error);
+                });
+            });
+        }
+        
+        // AJAX backup restore
+        const restoreForm = document.getElementById('restoreForm');
+        if (restoreForm) {
+            restoreForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Only proceed if confirm checkbox is checked
+                const confirmCheckbox = document.getElementById('confirm_restore');
+                if (!confirmCheckbox || !confirmCheckbox.checked) {
+                    return;
+                }
+                
+                // Close the modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('confirmRestoreModal'));
+                if (modal) {
+                    modal.hide();
+                }
+                
+                // Show loading overlay
+                showLoadingOverlay('Restoring database from backup...');
+                
+                // Submit form via AJAX
+                fetch(this.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showSuccessMessage(data.message);
+                        
+                        // If restore was successful and refresh is needed
+                        if (data.refresh) {
+                            setTimeout(function() {
+                                // Force a complete reload to reset all connections
+                                window.location.href = "{{ url_for('index') }}";
+                                // If just reloading the page isn't enough, reload with cache busting
+                                if (data.force_reload) {
+                                    window.location.href = "{{ url_for('index') }}?reload=" + new Date().getTime();
+                                }
+                            }, 3000); // Refresh after 3 seconds
+                        }
+                    } else {
+                        hideLoadingOverlay();
+                        showErrorMessage(data.message);
+                    }
+                })
+                .catch(error => {
+                    hideLoadingOverlay();
+                    showErrorMessage('An error occurred during the restore process.');
+                    console.error('Error:', error);
+                });
+            });
+        }
     });
+    
+    // Helper functions for UI feedback
+    function showLoadingOverlay(message) {
+        // Create loading overlay if it doesn't exist
+        let overlay = document.getElementById('loading-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'loading-overlay';
+            overlay.style.position = 'fixed';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100%';
+            overlay.style.height = '100%';
+            overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            overlay.style.zIndex = '9999';
+            overlay.style.display = 'flex';
+            overlay.style.justifyContent = 'center';
+            overlay.style.alignItems = 'center';
+            overlay.style.flexDirection = 'column';
+            overlay.style.color = 'white';
+            
+            const spinner = document.createElement('div');
+            spinner.className = 'spinner-border text-light mb-3';
+            spinner.setAttribute('role', 'status');
+            
+            const messageElem = document.createElement('h5');
+            messageElem.id = 'loading-message';
+            messageElem.textContent = message || 'Loading...';
+            
+            overlay.appendChild(spinner);
+            overlay.appendChild(messageElem);
+            document.body.appendChild(overlay);
+        } else {
+            document.getElementById('loading-message').textContent = message || 'Loading...';
+            overlay.style.display = 'flex';
+        }
+    }
+    
+    function hideLoadingOverlay() {
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }
+    
+    function showSuccessMessage(message) {
+        const loadingMessage = document.getElementById('loading-message');
+        if (loadingMessage) {
+            loadingMessage.textContent = message;
+            loadingMessage.style.color = '#28a745';
+            
+            // Replace spinner with check mark
+            const spinner = document.querySelector('#loading-overlay .spinner-border');
+            if (spinner) {
+                const checkIcon = document.createElement('i');
+                checkIcon.className = 'fas fa-check-circle fa-3x text-success mb-3';
+                spinner.parentNode.replaceChild(checkIcon, spinner);
+            }
+        }
+    }
+    
+    function showErrorMessage(message) {
+        // Create or show error message
+        let errorAlert = document.getElementById('restore-error-alert');
+        if (!errorAlert) {
+            errorAlert = document.createElement('div');
+            errorAlert.id = 'restore-error-alert';
+            errorAlert.className = 'alert alert-danger alert-dismissible fade show mt-3';
+            errorAlert.setAttribute('role', 'alert');
+            
+            const closeButton = document.createElement('button');
+            closeButton.type = 'button';
+            closeButton.className = 'btn-close';
+            closeButton.setAttribute('data-bs-dismiss', 'alert');
+            closeButton.setAttribute('aria-label', 'Close');
+            
+            errorAlert.appendChild(document.createTextNode(message));
+            errorAlert.appendChild(closeButton);
+            
+            // Insert at the top of the content
+            const container = document.querySelector('.container');
+            container.insertBefore(errorAlert, container.firstChild);
+        } else {
+            errorAlert.textContent = message;
+            errorAlert.style.display = 'block';
+            
+            const closeButton = document.createElement('button');
+            closeButton.type = 'button';
+            closeButton.className = 'btn-close';
+            closeButton.setAttribute('data-bs-dismiss', 'alert');
+            closeButton.setAttribute('aria-label', 'Close');
+            errorAlert.appendChild(closeButton);
+        }
+    }
 </script>
 {% endblock %} 

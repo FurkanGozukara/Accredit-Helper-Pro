@@ -122,6 +122,15 @@
                 <a href="{{ url_for('exam.add_exam', course_id=course.id) }}" class="alert-link">Create an exam</a> first, then enter student scores.
             {% endif %}
         </div>
+    {% elif is_excluded is defined and is_excluded %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i> This course is currently excluded from calculations. 
+            <form action="{{ url_for('calculation.toggle_course_exclusion', course_id=course.id) }}" method="post" class="d-inline mt-2">
+                <button type="submit" class="btn btn-sm btn-success">
+                    <i class="fas fa-plus-circle"></i> Include in Calculations
+                </button>
+            </form>
+        </div>
     {% else %}
         {% if total_weight_percent != 100 %}
         <div class="alert alert-warning">
@@ -203,7 +212,7 @@
                                             <td>{{ po_data.description|truncate(120) }}</td>
                                             <td>
                                                 <div class="progress" style="height: 25px;">
-                                                    {% if po_data.contributes %}
+                                                    {% if po_data.percentage is defined and po_data.percentage is not none %}
                                                     <div class="progress-bar bg-{{ 
                                                         (get_achievement_level(po_data.percentage, achievement_levels))['color'] 
                                                     }}" 
@@ -222,7 +231,7 @@
                                                 </div>
                                             </td>
                                             <td>
-                                                {% for co_code in po_data.course_outcomes %}
+                                                {% for co_code in po_data.course_outcomes if po_data.course_outcomes is defined %}
                                                     <span class="badge bg-info">{{ co_code }}</span>
                                                 {% else %}
                                                     <span class="text-muted">None</span>
@@ -383,6 +392,7 @@
                                 </thead>
                                 <tbody>
                                     {% for student_id, student_data in student_results.items() %}
+                                        {% if not student_data.excluded %}
                                         <tr>
                                             <td>{{ student_data.student_id }}</td>
                                             <td>
@@ -472,7 +482,7 @@
                                                     <div class="row">
                                                         {% for exam_name, percentage in student_data.exam_scores.items() %}
                                                             <div class="col-md-6 mb-2">
-                                                                <small><strong>{{ exam_name }}:</strong></small>
+                                                                <small><strong><a href="{{ url_for('calculation.redirect_to_exam', course_id=course.id, exam_name=exam_name) }}" class="text-decoration-none">{{ exam_name }}</a>:</strong></small>
                                                                 <div class="progress" style="height: 15px;">
                                                                     <div class="progress-bar bg-{{ 
                                                                         (get_achievement_level(percentage, achievement_levels))['color'] 
@@ -491,6 +501,7 @@
                                                 </div>
                                             </td>
                                         </tr>
+                                        {% endif %}
                                     {% endfor %}
                                 </tbody>
                             </table>
@@ -582,7 +593,7 @@
         window.location.href = "{{ url_for('calculation.export_student_results', course_id=course.id) }}";
     }
     
-    // Helper function to show alerts
+    /* Function to show alerts */
     function showAlert(type, message) {
         var alertContainer = document.createElement('div');
         alertContainer.className = 'alert alert-' + type + ' alert-dismissible fade show position-fixed top-0 end-0 m-3';
@@ -597,7 +608,7 @@
         }, 3000);
     }
     
-    // Function to refresh the student achievement data section
+    /* Function to refresh the student achievement data section */
     function refreshStudentAchievementData() {
         // Get the course ID from the page URL
         var pathParts = window.location.pathname.split('/');
@@ -640,6 +651,11 @@
                 for (var studentId in data.student_results) {
                     var studentData = data.student_results[studentId];
                     
+                    // Skip excluded students in the main table completely - they belong in the excluded section
+                    if (studentData.excluded) {
+                        continue;
+                    }
+                    
                     // Create the main student row
                     var row = document.createElement('tr');
                     
@@ -648,12 +664,9 @@
                     idCell.textContent = studentData.student_id;
                     row.appendChild(idCell);
                     
-                    // Name cell with exclusion badge if needed
+                    // Name cell with exclusion badge if needed (shouldn't happen but keeping for safety)
                     var nameCell = document.createElement('td');
                     nameCell.textContent = studentData.name;
-                    if (studentData.excluded) {
-                        nameCell.innerHTML += ' <span class="badge bg-danger rounded-pill"><i class="fas fa-ban me-1"></i>Excluded from Calculations</span>';
-                    }
                     row.appendChild(nameCell);
                     
                     // Overall score cell
@@ -662,10 +675,7 @@
                         scoreCell.innerHTML = '<div class="alert alert-danger p-2 mb-0 d-flex align-items-center">' +
                             '<i class="fas fa-exclamation-triangle me-2"></i>' +
                             '<span>' +
-                            (studentData.excluded ? '<strong>Manually Excluded</strong>' +
-                                '<small class="d-block text-muted">' +
-                                '<i class="fas fa-info-circle me-1"></i>Score calculations may be inaccurate' +
-                                '</small>' : '<strong>Missed Mandatory Exam</strong>') +
+                            '<strong>Missed Mandatory Exam</strong>' +
                             '</span>' +
                             '</div>';
                     } else {
@@ -693,15 +703,15 @@
                         'Show Details' +
                         '</button>';
                     
-                    if (!studentData.excluded) {
-                        actionsCell.innerHTML += ' <button type="button" class="btn btn-sm btn-outline-warning exclude-btn" ' +
-                            'data-student-id="' + studentId + '" ' +
-                            'data-toggle-url="/student/' + studentId + '/toggle_exclusion" ' +
-                            'data-student-name="' + studentData.name + '" ' +
-                            'data-student-id-text="' + studentData.student_id + '">' +
-                            '<i class="bi bi-dash-circle"></i> Exclude' +
-                            '</button>';
-                    }
+                    // Only show exclude button for non-excluded students
+                    actionsCell.innerHTML += ' <button type="button" class="btn btn-sm btn-outline-warning exclude-btn" ' +
+                        'data-student-id="' + studentId + '" ' +
+                        'data-toggle-url="/student/' + studentId + '/toggle_exclusion" ' +
+                        'data-student-name="' + studentData.name + '" ' +
+                        'data-student-id-text="' + studentData.student_id + '">' +
+                        '<i class="bi bi-dash-circle"></i> Exclude' +
+                        '</button>';
+                    
                     row.appendChild(actionsCell);
                     
                     studentTableBody.appendChild(row);
@@ -752,7 +762,7 @@
                         var examAchievement = getAchievementLevel(percentage);
                         
                         coHtml += '<div class="col-md-6 mb-2">' +
-                            '<small><strong>' + examName + ':</strong></small>' +
+                            '<small><strong><a href="/calculation/course/' + courseId + '/exam/' + encodeURIComponent(examName) + '" class="text-decoration-none">' + examName + '</a>:</strong></small>' +
                             '<div class="progress" style="height: 15px;">' +
                             '<div class="progress-bar bg-' + examAchievement.color + '" ' +
                             'role="progressbar" ' +
@@ -812,9 +822,9 @@
                         var actionsCell = document.createElement('td');
                         actionsCell.innerHTML = '<form method="post" action="/student/' + studentId + '/toggle_exclusion" class="d-inline include-form">' +
                             '<button type="submit" class="btn btn-sm btn-success include-btn">' +
-                            '<i class="bi bi-plus-circle"></i> Include in Calculations' +
+                              '<i class="bi bi-plus-circle"></i> Include in Calculations' +
                             '</button>' +
-                            '</form>';
+                          '</form>';
                         row.appendChild(actionsCell);
                         
                         excludedTable.appendChild(row);
@@ -849,7 +859,7 @@
         });
     }
     
-    // Helper function to determine achievement level from percentage
+    /* Helper function to determine achievement level from percentage */
     function getAchievementLevel(percentage) {
         // Default values in case achievement_levels isn't available
         var achievementLevels = window.achievementLevels || [
@@ -883,14 +893,14 @@
         {% endfor %}
     ];
     
-    // Helper function to update charts if they exist
+    /* Helper function to update charts if they exist */
     function updateCharts(data) {
         // This would need to be expanded with the actual chart update code
         // based on Chart.js specifics and your existing chart initialization
         console.log('Charts would be updated with new data');
     }
     
-    // Function to handle exclude button clicks
+    /* Function to handle exclude button clicks */
     function handleExcludeButtonClick(e) {
         e.preventDefault();
         
@@ -918,24 +928,79 @@
         })
         .then(function(data) {
             if (data.success) {
-                // Find the parent row
-                var currentRow = thisButton.closest('tr');
+                // Find the student row to remove from the main table
+                var studentRow = thisButton.closest('tr');
+                var studentDetailsRow = document.getElementById('student' + studentId + 'Details');
                 
-                // Add the "Excluded from Calculations" badge to the name cell
-                var nameCell = currentRow.querySelector('td:nth-child(2)');
-                var nameText = nameCell.textContent.trim();
-                nameCell.innerHTML = nameText + 
-                    ' <span class="badge bg-danger rounded-pill"><i class="fas fa-ban me-1"></i>Excluded from Calculations</span>';
+                // Get the main student data needed for excluded table
+                var studentIdCell = studentRow.querySelector('td:first-child').textContent;
+                var studentNameCell = studentRow.querySelector('td:nth-child(2)').textContent;
                 
-                // Update the action cell - remove the exclude button
-                var actionCell = thisButton.closest('td');
-                actionCell.removeChild(thisButton);
+                // Remove the student from the main table
+                if (studentRow) studentRow.remove();
+                if (studentDetailsRow) studentDetailsRow.remove();
+                
+                // Add the student to the excluded students table
+                var excludedTable = document.querySelector('#excludedStudentsTable tbody');
+                if (excludedTable) {
+                    // Remove "No manually excluded students" row if it exists
+                    var emptyRow = excludedTable.querySelector('td[colspan="3"]');
+                    if (emptyRow) {
+                        emptyRow.closest('tr').remove();
+                    }
+                    
+                    // Create a new row for the excluded student
+                    var newRow = document.createElement('tr');
+                    newRow.className = 'newly-excluded'; // Add class for highlighting
+                    newRow.innerHTML = 
+                        '<td>' + studentIdCell + '</td>' +
+                        '<td>' + studentNameCell + '</td>' +
+                        '<td>' +
+                          '<form method="post" action="/student/' + studentId + '/toggle_exclusion" class="d-inline include-form">' +
+                            '<button type="submit" class="btn btn-sm btn-success include-btn">' +
+                              '<i class="bi bi-plus-circle"></i> Include in Calculations' +
+                            '</button>' +
+                          '</form>' +
+                        '</td>';
+                    
+                    // Add the row to the excluded table
+                    excludedTable.appendChild(newRow);
+                    
+                    // Attach event listener to the new include form
+                    var includeForm = newRow.querySelector('.include-form');
+                    if (includeForm) {
+                        includeForm.addEventListener('submit', handleIncludeFormSubmit);
+                    }
+                    
+                    // Scroll to the excluded students section
+                    var excludedStudentsTable = document.getElementById('excludedStudentsTable');
+                    if (excludedStudentsTable) {
+                        excludedStudentsTable.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        
+                        // Also highlight the header to draw attention
+                        var excludedHeader = excludedStudentsTable.closest('.card').querySelector('.card-header');
+                        if (excludedHeader) {
+                            var originalBackground = excludedHeader.style.backgroundColor;
+                            excludedHeader.style.backgroundColor = '#fff3cd'; // Bootstrap warning light color
+                            excludedHeader.style.transition = 'background-color 1s';
+                            
+                            setTimeout(function() {
+                                excludedHeader.style.backgroundColor = originalBackground;
+                            }, 2000);
+                        }
+                    }
+                    
+                    // Highlight the new row briefly
+                    setTimeout(function() {
+                        newRow.style.backgroundColor = '#fff3cd'; // Bootstrap warning light color
+                        setTimeout(function() {
+                            newRow.style.backgroundColor = '';
+                        }, 2000); // Remove highlight after 2 seconds
+                    }, 300);
+                }
                 
                 // Show success message
                 showAlert('success', data.message);
-                
-                // Refresh the student achievement data section
-                refreshStudentAchievementData();
             } else {
                 // Restore original button content on error
                 thisButton.innerHTML = originalContent;
@@ -955,7 +1020,7 @@
         });
     }
     
-    // Function to handle include form submissions
+    /* Function to handle include form submissions */
     function handleIncludeFormSubmit(e) {
         e.preventDefault();
         var form = this;
@@ -965,6 +1030,15 @@
         // Show a spinner while processing
         submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
         submitButton.disabled = true;
+        
+        // Get student information
+        var studentRow = form.closest('tr');
+        var studentIdCell = studentRow.querySelector('td:first-child').textContent;
+        var studentNameCell = studentRow.querySelector('td:nth-child(2)').textContent;
+        
+        // Extract student ID from form action URL
+        var actionUrl = form.action;
+        var studentId = actionUrl.split('/').slice(-2)[0];
         
         // Submit the form via AJAX
         fetch(form.action, {
@@ -979,23 +1053,85 @@
         })
         .then(function(data) {
             if (data.success) {
-                // Remove the row since the student is no longer excluded
-                var row = form.closest('tr');
-                row.remove();
+                // Remove the student from the excluded table
+                studentRow.remove();
+                
+                // Check if excluded table is now empty
+                var excludedTable = document.querySelector('#excludedStudentsTable tbody');
+                if (excludedTable && excludedTable.querySelectorAll('tr').length === 0) {
+                    // Add "No manually excluded students" message
+                    var emptyRow = document.createElement('tr');
+                    emptyRow.innerHTML = '<td colspan="3" class="text-center"><em>No manually excluded students</em></td>';
+                    excludedTable.appendChild(emptyRow);
+                }
+                
+                // Add the student back to the main table
+                var mainTable = document.querySelector('#studentResultsTable tbody');
+                if (mainTable) {
+                    // Create new row for main table
+                    var newRow = document.createElement('tr');
+                    
+                    // Create default overall score cell with appropriate styling
+                    var scoreCell = '<div class="progress" style="height: 25px;">' +
+                        '<div class="progress-bar bg-secondary" ' +
+                        'role="progressbar" ' +
+                        'style="width: 0%;" ' +
+                        'aria-valuenow="0" ' +
+                        'aria-valuemin="0" ' +
+                        'aria-valuemax="100">' +
+                        '0.0% (Not Categorized)' +
+                        '</div>' +
+                        '</div>';
+
+                    // Create student row
+                    newRow.innerHTML = 
+                        '<td>' + studentIdCell + '</td>' +
+                        '<td>' + studentNameCell + '</td>' +
+                        '<td>' + scoreCell + '</td>' +
+                        '<td>' +
+                          '<button class="btn btn-sm btn-outline-info" type="button" ' +
+                          'data-bs-toggle="collapse" ' +
+                          'data-bs-target="#student' + studentId + 'Details" ' +
+                          'aria-expanded="false" ' +
+                          'aria-controls="student' + studentId + 'Details">' +
+                          'Show Details' +
+                          '</button> ' +
+                          '<button type="button" class="btn btn-sm btn-outline-warning exclude-btn" ' +
+                          'data-student-id="' + studentId + '" ' +
+                          'data-toggle-url="/student/' + studentId + '/toggle_exclusion" ' +
+                          'data-student-name="' + studentNameCell + '" ' +
+                          'data-student-id-text="' + studentIdCell + '">' +
+                          '<i class="bi bi-dash-circle"></i> Exclude' +
+                          '</button>' +
+                        '</td>';
+
+                    // Add details row
+                    var detailsRow = document.createElement('tr');
+                    detailsRow.className = 'collapse';
+                    detailsRow.id = 'student' + studentId + 'Details';
+                    detailsRow.innerHTML = '<td colspan="4" class="p-0">' +
+                        '<div class="p-3 bg-light">' +
+                        '<h6>Course Outcome Achievement for ' + studentNameCell + '</h6>' +
+                        '<p class="text-muted">Refresh the page to view detailed achievement data.</p>' +
+                        '</div>' +
+                        '</td>';
+
+                    // Add to main table
+                    mainTable.appendChild(newRow);
+                    mainTable.appendChild(detailsRow);
+
+                    // Add event listener to the new exclude button
+                    var excludeButton = newRow.querySelector('.exclude-btn');
+                    if (excludeButton) {
+                        excludeButton.addEventListener('click', handleExcludeButtonClick);
+                    }
+                }
                 
                 // Show success message
                 showAlert('success', data.message);
                 
                 // Refresh the student achievement data section
                 refreshStudentAchievementData();
-                
-                // If there are no more excluded students, show the "No manually excluded students" message
-                var excludedTable = document.querySelector('#excludedStudentsTable tbody');
-                if (excludedTable && excludedTable.querySelectorAll('tr').length === 0) {
-                    var emptyRow = document.createElement('tr');
-                    emptyRow.innerHTML = '<td colspan="3" class="text-center"><em>No manually excluded students</em></td>';
-                    excludedTable.appendChild(emptyRow);
-                }
             } else {
                 // Show error message
                 showAlert('danger', 'Error: ' + data.message);
@@ -1013,7 +1149,7 @@
         });
     }
     
-    // Add event listeners when the DOM is loaded
+    /* Add event listeners when the DOM is loaded */
     document.addEventListener('DOMContentLoaded', function() {
         // Handle "Include in Calculations" forms via AJAX
         document.querySelectorAll('.include-form').forEach(function(form) {
@@ -1047,13 +1183,15 @@
                             backgroundColor: [
                                 {% for po_code, po_data in program_outcome_results.items() %}
                                 {% set percentage = po_data.percentage|float if po_data.percentage is not none else 0 %}
-                                '{% if po_data.achievement_level %}rgba({% if po_data.achievement_level.color == "primary" %}13, 110, 253{% elif po_data.achievement_level.color == "secondary" %}108, 117, 125{% elif po_data.achievement_level.color == "success" %}25, 135, 84{% elif po_data.achievement_level.color == "danger" %}220, 53, 69{% elif po_data.achievement_level.color == "warning" %}255, 193, 7{% elif po_data.achievement_level.color == "info" %}13, 202, 240{% elif po_data.achievement_level.color == "dark" %}33, 37, 41{% else %}108, 117, 125{% endif %}, 0.7){% else %}rgba(108, 117, 125, 0.7){% endif %}',
+                                {% set level = get_achievement_level(percentage, achievement_levels) %}
+                                '{% if level.color == "primary" %}rgba(13, 110, 253, 0.7){% elif level.color == "secondary" %}rgba(108, 117, 125, 0.7){% elif level.color == "success" %}rgba(25, 135, 84, 0.7){% elif level.color == "danger" %}rgba(220, 53, 69, 0.7){% elif level.color == "warning" %}rgba(255, 193, 7, 0.7){% elif level.color == "info" %}rgba(13, 202, 240, 0.7){% elif level.color == "dark" %}rgba(33, 37, 41, 0.7){% else %}rgba(108, 117, 125, 0.7){% endif %}',
                                 {% endfor %}
                             ],
                             borderColor: [
                                 {% for po_code, po_data in program_outcome_results.items() %}
                                 {% set percentage = po_data.percentage|float if po_data.percentage is not none else 0 %}
-                                '{% if po_data.achievement_level %}rgba({% if po_data.achievement_level.color == "primary" %}13, 110, 253{% elif po_data.achievement_level.color == "secondary" %}108, 117, 125{% elif po_data.achievement_level.color == "success" %}25, 135, 84{% elif po_data.achievement_level.color == "danger" %}220, 53, 69{% elif po_data.achievement_level.color == "warning" %}255, 193, 7{% elif po_data.achievement_level.color == "info" %}13, 202, 240{% elif po_data.achievement_level.color == "dark" %}33, 37, 41{% else %}108, 117, 125{% endif %}, 1){% else %}rgba(108, 117, 125, 1){% endif %}',
+                                {% set level = get_achievement_level(percentage, achievement_levels) %}
+                                '{% if level.color == "primary" %}rgba(13, 110, 253, 1){% elif level.color == "secondary" %}rgba(108, 117, 125, 1){% elif level.color == "success" %}rgba(25, 135, 84, 1){% elif level.color == "danger" %}rgba(220, 53, 69, 1){% elif level.color == "warning" %}rgba(255, 193, 7, 1){% elif level.color == "info" %}rgba(13, 202, 240, 1){% elif level.color == "dark" %}rgba(33, 37, 41, 1){% else %}rgba(108, 117, 125, 1){% endif %}',
                                 {% endfor %}
                             ],
                             borderWidth: 1
@@ -1099,31 +1237,70 @@
         const coChart = document.getElementById('courseOutcomesChart');
         if (coChart && typeof Chart !== 'undefined') {
             try {
+                // Extract course outcome data directly from the table
+                console.log("Extracting chart data from DOM...");
+                const coTable = document.querySelector('#course-outcomes table');
+                const rows = coTable ? Array.from(coTable.querySelectorAll('tbody tr')) : [];
+                
+                const chartData = {
+                    labels: [],
+                    data: [],
+                    colors: [],
+                    borderColors: []
+                };
+                
+                // Map Bootstrap color names to RGBA values
+                const colorMap = {
+                    'primary': ['rgba(13, 110, 253, 0.7)', 'rgba(13, 110, 253, 1)'],
+                    'secondary': ['rgba(108, 117, 125, 0.7)', 'rgba(108, 117, 125, 1)'],
+                    'success': ['rgba(25, 135, 84, 0.7)', 'rgba(25, 135, 84, 1)'],
+                    'danger': ['rgba(220, 53, 69, 0.7)', 'rgba(220, 53, 69, 1)'],
+                    'warning': ['rgba(255, 193, 7, 0.7)', 'rgba(255, 193, 7, 1)'],
+                    'info': ['rgba(13, 202, 240, 0.7)', 'rgba(13, 202, 240, 1)'],
+                    'dark': ['rgba(33, 37, 41, 0.7)', 'rgba(33, 37, 41, 1)']
+                };
+                
+                // Create manual dataset for debugging
+                let manualData = [];
+                
+                {% for co_code, co_data in course_outcome_results.items() %}
+                    manualData.push({
+                        code: "{{ co_code }}",
+                        percentage: {{ co_data.percentage|float if co_data.percentage is not none else 0 }},
+                        {% if co_data.achievement_level %}
+                        color: "{{ co_data.achievement_level.color }}"
+                        {% else %}
+                        color: "secondary"
+                        {% endif %}
+                    });
+                {% endfor %}
+                
+                console.log("Manual data extract:", manualData);
+                
+                // Process each course outcome
+                manualData.forEach(item => {
+                    chartData.labels.push(item.code);
+                    chartData.data.push(item.percentage);
+                    
+                    // Get the appropriate color based on the bootstrap color class
+                    const colorPair = colorMap[item.color] || colorMap.secondary;
+                    chartData.colors.push(colorPair[0]);
+                    chartData.borderColors.push(colorPair[1]);
+                });
+                
+                console.log("Chart data:", chartData);
+                
+                // Create the chart
                 const coCtx = coChart.getContext('2d');
                 new Chart(coCtx, {
                     type: 'bar',
                     data: {
-                        labels: [{% for co_code in course_outcome_results %}'{{ co_code }}',{% endfor %}],
+                        labels: chartData.labels,
                         datasets: [{
                             label: 'Achievement Level (%)',
-                            data: [
-                                {% for co_code, co_data in course_outcome_results.items() %}
-                                {% set percentage = co_data.percentage|float if co_data.percentage is not none else 0 %}
-                                {{ percentage }},
-                                {% endfor %}
-                            ],
-                            backgroundColor: [
-                                {% for co_code, co_data in course_outcome_results.items() %}
-                                {% set percentage = co_data.percentage|float if co_data.percentage is not none else 0 %}
-                                '{% if co_data.achievement_level %}rgba({% if co_data.achievement_level.color == "primary" %}13, 110, 253{% elif co_data.achievement_level.color == "secondary" %}108, 117, 125{% elif co_data.achievement_level.color == "success" %}25, 135, 84{% elif co_data.achievement_level.color == "danger" %}220, 53, 69{% elif co_data.achievement_level.color == "warning" %}255, 193, 7{% elif co_data.achievement_level.color == "info" %}13, 202, 240{% elif co_data.achievement_level.color == "dark" %}33, 37, 41{% else %}108, 117, 125{% endif %}, 0.7){% else %}rgba(108, 117, 125, 0.7){% endif %}',
-                                {% endfor %}
-                            ],
-                            borderColor: [
-                                {% for co_code, co_data in course_outcome_results.items() %}
-                                {% set percentage = co_data.percentage|float if co_data.percentage is not none else 0 %}
-                                '{% if co_data.achievement_level %}rgba({% if co_data.achievement_level.color == "primary" %}13, 110, 253{% elif co_data.achievement_level.color == "secondary" %}108, 117, 125{% elif co_data.achievement_level.color == "success" %}25, 135, 84{% elif co_data.achievement_level.color == "danger" %}220, 53, 69{% elif co_data.achievement_level.color == "warning" %}255, 193, 7{% elif co_data.achievement_level.color == "info" %}13, 202, 240{% elif co_data.achievement_level.color == "dark" %}33, 37, 41{% else %}108, 117, 125{% endif %}, 1){% else %}rgba(108, 117, 125, 1){% endif %}',
-                                {% endfor %}
-                            ],
+                            data: chartData.data,
+                            backgroundColor: chartData.colors,
+                            borderColor: chartData.borderColors,
                             borderWidth: 1
                         }]
                     },

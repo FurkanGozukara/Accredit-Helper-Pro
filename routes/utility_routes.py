@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, send_file, make_response
-from flask import current_app as app
+from flask import current_app
 from app import db
 from models import Log, Course, Student, Exam, CourseOutcome, Question, Score, ExamWeight, StudentExamAttendance, ProgramOutcome
 from datetime import datetime
@@ -13,6 +13,10 @@ import csv
 import tempfile
 import io
 import json
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+import time
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 utility_bp = Blueprint('utility', __name__, url_prefix='/utility')
 
@@ -120,7 +124,7 @@ def backup_database():
                     return redirect(url_for('utility.backup_database'))
                 
                 # Create backup directory if it doesn't exist
-                backup_dir = app.config['BACKUP_FOLDER']
+                backup_dir = current_app.config['BACKUP_FOLDER']
                 os.makedirs(backup_dir, exist_ok=True)
                 
                 # Create backup filename with timestamp
@@ -165,7 +169,7 @@ def backup_database():
                 flash(f'An error occurred while creating the backup: {str(e)}', 'error')
         
         # Get list of available backups
-        backup_dir = app.config['BACKUP_FOLDER']
+        backup_dir = current_app.config['BACKUP_FOLDER']
         backups = []
         
         # Load backup descriptions
@@ -231,61 +235,64 @@ def create_backup():
     """Alias for backup_database for backward compatibility"""
     return backup_database()
 
-@utility_bp.route('/backup/download/<filename>')
+@utility_bp.route('/backup/download/<filename>', methods=['GET'])
 def download_backup(filename):
-    """Download a database backup file"""
-    backup_dir = app.config['BACKUP_FOLDER']
-    backup_path = os.path.join(backup_dir, filename)
-    
-    if not os.path.exists(backup_path):
-        flash('Backup file not found', 'error')
+    """Download a backup file"""
+    try:
+        backup_dir = current_app.config['BACKUP_FOLDER']
+        backup_path = os.path.join(backup_dir, filename)
+        
+        if not os.path.exists(backup_path):
+            flash('Backup file not found', 'error')
+            return redirect(url_for('utility.backup_database'))
+        
+        # Log action
+        log = Log(action="DOWNLOAD_BACKUP", 
+                 description=f"Downloaded database backup: {filename}")
+        db.session.add(log)
+        db.session.commit()
+        
+        return send_file(backup_path, 
+                        as_attachment=True, 
+                        download_name=filename)
+    except Exception as e:
+        logging.error(f"Error downloading backup: {str(e)}")
+        flash(f'An error occurred while downloading the backup: {str(e)}', 'error')
         return redirect(url_for('utility.backup_database'))
-    
-    # Log action
-    log = Log(action="DOWNLOAD_BACKUP", 
-             description=f"Downloaded database backup: {filename}")
-    db.session.add(log)
-    db.session.commit()
-    
-    return send_file(backup_path, 
-                    as_attachment=True, 
-                    download_name=filename)
 
 @utility_bp.route('/backup/delete/<filename>', methods=['POST'])
 def delete_backup(filename):
-    """Delete a database backup file"""
-    backup_dir = app.config['BACKUP_FOLDER']
-    backup_path = os.path.join(backup_dir, filename)
-    
-    if not os.path.exists(backup_path):
-        flash('Backup file not found', 'error')
-        return redirect(url_for('utility.backup_database'))
-    
+    """Delete a database backup"""
     try:
-        # Delete the backup file
+        backup_dir = current_app.config['BACKUP_FOLDER']
+        backup_path = os.path.join(backup_dir, filename)
+        
+        if not os.path.exists(backup_path):
+            flash('Backup file not found', 'error')
+            return redirect(url_for('utility.backup_database'))
+        
+        # Delete backup file
         os.remove(backup_path)
         
-        # Also remove the description from the JSON file if it exists
+        # Also remove the entry from descriptions if it exists
         descriptions_file = os.path.join(backup_dir, 'backup_descriptions.json')
         if os.path.exists(descriptions_file):
             try:
                 with open(descriptions_file, 'r') as f:
                     descriptions = json.load(f)
                 
-                # Remove this backup's description if it exists
+                # Remove the description for this backup if it exists
                 if filename in descriptions:
                     del descriptions[filename]
-                    
-                    # Write the updated descriptions back to the file
-                    with open(descriptions_file, 'w') as f:
-                        json.dump(descriptions, f)
+                
+                # Write back to the file
+                with open(descriptions_file, 'w') as f:
+                    json.dump(descriptions, f)
             except Exception as e:
-                logging.error(f"Error updating backup descriptions file: {str(e)}")
-                # Continue even if this fails - main goal is to delete the backup file
+                logging.error(f"Error updating backup descriptions: {str(e)}")
         
         # Log action
-        log = Log(action="DELETE_BACKUP", 
-                 description=f"Deleted database backup: {filename}")
+        log = Log(action="DELETE_BACKUP", description=f"Deleted backup: {filename}")
         db.session.add(log)
         db.session.commit()
         
@@ -295,6 +302,42 @@ def delete_backup(filename):
         flash(f'An error occurred while deleting the backup: {str(e)}', 'error')
     
     return redirect(url_for('utility.backup_database'))
+
+def refresh_database_session():
+    """Refresh the database session after a database restore"""
+    try:
+        logging.info("Refreshing database session after restore")
+        
+        # Close any existing connections
+        db.session.close()
+        
+        # Get the engine and dispose of it to close all connections
+        try:
+            engine = db.get_engine()
+            engine.dispose()
+        except Exception as e:
+            logging.warning(f"Error disposing engine, continuing with refresh: {str(e)}")
+        
+        # Create a new scoped session
+        try:
+            from sqlalchemy.orm import scoped_session, sessionmaker
+            engine = db.get_engine(app=current_app)
+            session_factory = sessionmaker(bind=engine)
+            db.session = scoped_session(session_factory)
+            
+            # Test if it worked
+            if db.session.execute(text("SELECT 1")).scalar() == 1:
+                logging.info("Database session successfully refreshed")
+                return True
+            else:
+                logging.error("Failed to execute test query after session refresh")
+                return False
+        except Exception as e:
+            logging.error(f"Error refreshing database session: {str(e)}\n{traceback.format_exc()}")
+            return False
+    except Exception as e:
+        logging.error(f"Error refreshing database session: {str(e)}\n{traceback.format_exc()}")
+        return False
 
 @utility_bp.route('/restore', methods=['GET', 'POST'])
 def restore_database():
@@ -314,7 +357,7 @@ def restore_database():
             
             try:
                 # Create a temporary file for the uploaded backup
-                temp_path = os.path.join(app.config['BACKUP_FOLDER'], 'temp_restore.db')
+                temp_path = os.path.join(current_app.config['BACKUP_FOLDER'], 'temp_restore.db')
                 backup_file.save(temp_path)
                 
                 # Verify this is a valid SQLite database
@@ -331,7 +374,7 @@ def restore_database():
                 
                 # Create a backup of current database before restore
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                pre_restore_backup = os.path.join(app.config['BACKUP_FOLDER'], f"pre_restore_backup_{timestamp}.db")
+                pre_restore_backup = os.path.join(current_app.config['BACKUP_FOLDER'], f"pre_restore_backup_{timestamp}.db")
                 
                 if os.path.exists(db_path):
                     shutil.copy2(db_path, pre_restore_backup)
@@ -345,24 +388,36 @@ def restore_database():
                 # Remove temporary file
                 os.remove(temp_path)
                 
-                # Log action using a new connection
-                try:
+                # Refresh the database session
+                if refresh_database_session():
+                    # Log action using the refreshed session
+                    log = Log(
+                        action="RESTORE_DATABASE", 
+                        description=f"Restored database from uploaded backup: {backup_file.filename}",
+                        timestamp=datetime.now()
+                    )
+                    db.session.add(log)
+                    db.session.commit()
+                    
+                    flash('Database restored successfully. The database session has been refreshed.', 'success')
+                else:
+                    # Still log the action, but with a different connection since refresh failed
                     engine = db.get_engine()
                     connection = engine.connect()
-                    connection.execute("INSERT INTO log (action, description, timestamp) VALUES (?, ?, ?)",
-                                    ("RESTORE_DATABASE", f"Restored database from uploaded backup: {backup_file.filename}", datetime.now()))
+                    connection.execute(text("INSERT INTO log (action, description, timestamp) VALUES (:action, :description, :timestamp)"), 
+                                    {"action": "RESTORE_DATABASE", 
+                                     "description": f"Restored database from uploaded backup: {backup_file.filename}. Session refresh failed.", 
+                                     "timestamp": datetime.now()})
                     connection.commit()
                     connection.close()
-                except Exception as e:
-                    logging.error(f"Error logging restore action: {str(e)}")
-                
-                flash('Database restored successfully. Please restart the application for all changes to take effect.', 'success')
+                    
+                    flash('Database restored successfully, but session refresh failed. Please restart the application.', 'warning')
             except Exception as e:
                 logging.error(f"Error restoring database: {str(e)}\n{traceback.format_exc()}")
                 flash(f'An error occurred while restoring the database: {str(e)}', 'error')
         
         # Get list of available backups for restoration
-        backup_dir = app.config['BACKUP_FOLDER']
+        backup_dir = current_app.config['BACKUP_FOLDER']
         backups = []
         
         # Load backup descriptions
@@ -423,7 +478,7 @@ def restore_from_file():
     
     try:
         # Create a temporary file for the uploaded backup
-        temp_path = os.path.join(app.config['BACKUP_FOLDER'], 'temp_restore.db')
+        temp_path = os.path.join(current_app.config['BACKUP_FOLDER'], 'temp_restore.db')
         backup_file.save(temp_path)
         
         # Verify this is a valid SQLite database
@@ -440,33 +495,91 @@ def restore_from_file():
         
         # Create a backup of current database before restore
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        pre_restore_backup = os.path.join(app.config['BACKUP_FOLDER'], f"pre_restore_backup_{timestamp}.db")
+        pre_restore_backup = os.path.join(current_app.config['BACKUP_FOLDER'], f"pre_restore_backup_{timestamp}.db")
         
         if os.path.exists(db_path):
             shutil.copy2(db_path, pre_restore_backup)
             flash(f'Created backup of current database before restore: pre_restore_backup_{timestamp}.db', 'info')
         
-        # Close the current database connection
+        # Close all existing database connections to ensure clean restore
         db.session.close()
+        engine = db.get_engine()
+        engine.dispose()
         
         # Copy the backup file to the database location
-        shutil.copy2(temp_path, db_path)
-        
-        # Remove temporary file
-        os.remove(temp_path)
-        
-        # Log action using a new connection
-        engine = db.get_engine()
-        connection = engine.connect()
-        connection.execute("INSERT INTO log (action, description, timestamp) VALUES (?, ?, ?)",
-                         ("RESTORE_DATABASE", f"Restored database from uploaded file: {backup_file.filename}", datetime.now()))
-        connection.commit()
-        connection.close()
-        
-        flash('Database restored successfully from uploaded file. Please restart the application for all changes to take effect.', 'success')
+        try:
+            # Use direct file copy for better performance
+            shutil.copy2(temp_path, db_path)
+            
+            # Remove temporary file
+            os.remove(temp_path)
+            
+            # Refresh the database session
+            if refresh_database_session():
+                # Log action using the refreshed session
+                log = Log(
+                    action="RESTORE_DATABASE", 
+                    description=f"Restored database from uploaded file: {backup_file.filename}",
+                    timestamp=datetime.now()
+                )
+                db.session.add(log)
+                db.session.commit()
+                
+                # Reload all models to ensure they reflect the restored database schema
+                from importlib import reload
+                import models
+                reload(models)
+                
+                # Return JSON response for frontend to handle refresh
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({
+                        'success': True,
+                        'message': 'Database restored successfully. Please wait while the application refreshes.',
+                        'refresh': True,
+                        'force_reload': True
+                    })
+                
+                flash('Database restored successfully. The database session has been refreshed.', 'success')
+                # Add JavaScript to force page refresh after a short delay
+                return render_template('utility/restore_success.html', 
+                                      message='Database restored successfully. The page will refresh automatically.',
+                                      redirect_url=url_for('index'))
+            else:
+                # Still log the action, but with a different connection since refresh failed
+                engine = db.get_engine()
+                connection = engine.connect()
+                connection.execute(text("INSERT INTO log (action, description, timestamp) VALUES (:action, :description, :timestamp)"), 
+                                {"action": "RESTORE_DATABASE", 
+                                 "description": f"Restored database from uploaded file: {backup_file.filename}. Session refresh failed.", 
+                                 "timestamp": datetime.now()})
+                connection.commit()
+                connection.close()
+                
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({
+                        'success': True,
+                        'message': 'Database restored successfully, but session refresh failed. The application will now restart.',
+                        'refresh': True,
+                        'force_reload': True
+                    })
+                
+                flash('Database restored successfully, but session refresh failed. Please restart the application.', 'warning')
+        except Exception as e:
+            logging.error(f"Error copying backup file: {str(e)}")
+            flash(f'An error occurred while restoring the database: {str(e)}', 'error')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'success': False,
+                    'message': f'An error occurred while restoring the database: {str(e)}'
+                })
     except Exception as e:
         logging.error(f"Error restoring database from file: {str(e)}\n{traceback.format_exc()}")
         flash(f'An error occurred while restoring the database: {str(e)}', 'error')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': False,
+                'message': f'An error occurred while restoring the database: {str(e)}'
+            })
     
     return redirect(url_for('utility.restore_database'))
 
@@ -474,7 +587,7 @@ def restore_from_file():
 def restore_from_backup(filename):
     """Restore database from an existing backup"""
     try:
-        backup_dir = app.config['BACKUP_FOLDER']
+        backup_dir = current_app.config['BACKUP_FOLDER']
         backup_path = os.path.join(backup_dir, filename)
         
         if not os.path.exists(backup_path):
@@ -487,35 +600,86 @@ def restore_from_backup(filename):
         # Always create a backup of current database before restore
         if os.path.exists(db_path):
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            pre_restore_backup = os.path.join(app.config['BACKUP_FOLDER'], f"pre_restore_backup_{timestamp}.db")
+            pre_restore_backup = os.path.join(current_app.config['BACKUP_FOLDER'], f"pre_restore_backup_{timestamp}.db")
             shutil.copy2(db_path, pre_restore_backup)
             flash(f'Created automatic backup of current database before restore: pre_restore_backup_{timestamp}.db', 'info')
         
-        # Close the current database connection
+        # Close all existing database connections to ensure clean restore
         db.session.close()
+        engine = db.get_engine()
+        engine.dispose()
         
         # Copy the backup file to the database location
         try:
+            # Use direct file copy for better performance
             shutil.copy2(backup_path, db_path)
             
-            # Log action using a new connection
-            try:
+            # Refresh the database session
+            if refresh_database_session():
+                # Log action using the refreshed session
+                log = Log(
+                    action="RESTORE_DATABASE", 
+                    description=f"Restored database from backup: {filename}",
+                    timestamp=datetime.now()
+                )
+                db.session.add(log)
+                db.session.commit()
+                
+                # Reload all models to ensure they reflect the restored database schema
+                from importlib import reload
+                import models
+                reload(models)
+                
+                # Return JSON response for frontend to handle refresh
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({
+                        'success': True,
+                        'message': 'Database restored successfully. Please wait while the application refreshes.',
+                        'refresh': True,
+                        'force_reload': True
+                    })
+                
+                flash('Database restored successfully. The database session has been refreshed.', 'success')
+                # Add JavaScript to force page refresh after a short delay
+                return render_template('utility/restore_success.html', 
+                                      message='Database restored successfully. The page will refresh automatically.',
+                                      redirect_url=url_for('index'))
+            else:
+                # Still log the action, but with a different connection since refresh failed
                 engine = db.get_engine()
                 connection = engine.connect()
-                connection.execute("INSERT INTO log (action, description, timestamp) VALUES (?, ?, ?)",
-                                ("RESTORE_DATABASE", f"Restored database from backup: {filename}", datetime.now()))
+                connection.execute(text("INSERT INTO log (action, description, timestamp) VALUES (:action, :description, :timestamp)"), 
+                                {"action": "RESTORE_DATABASE", 
+                                 "description": f"Restored database from backup: {filename}. Session refresh failed.", 
+                                 "timestamp": datetime.now()})
                 connection.commit()
                 connection.close()
-            except Exception as e:
-                logging.error(f"Error logging restore action: {str(e)}")
-            
-            flash('Database restored successfully. Please restart the application for all changes to take effect.', 'success')
+                
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({
+                        'success': True,
+                        'message': 'Database restored successfully, but session refresh failed. The application will now restart.',
+                        'refresh': True,
+                        'force_reload': True
+                    })
+                
+                flash('Database restored successfully, but session refresh failed. Please restart the application.', 'warning')
         except Exception as e:
             logging.error(f"Error copying backup file: {str(e)}")
             flash(f'An error occurred while restoring the database: {str(e)}', 'error')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'success': False,
+                    'message': f'An error occurred while restoring the database: {str(e)}'
+                })
     except Exception as e:
         logging.error(f"Error in restore_from_backup: {str(e)}\n{traceback.format_exc()}")
         flash(f'An error occurred while restoring the database: {str(e)}', 'error')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': False,
+                'message': f'An error occurred while restoring the database: {str(e)}'
+            })
     
     return redirect(url_for('utility.restore_database'))
 
@@ -1091,7 +1255,7 @@ def backup_database_before_merge():
             return result
         
         # Create backup directory if it doesn't exist
-        backup_dir = app.config['BACKUP_FOLDER']
+        backup_dir = current_app.config['BACKUP_FOLDER']
         os.makedirs(backup_dir, exist_ok=True)
         
         # Create backup filename with timestamp
@@ -1266,7 +1430,7 @@ def submit_feedback():
 def list_backups():
     """List all available database backups"""
     # Get list of available backups
-    backup_dir = app.config['BACKUP_FOLDER']
+    backup_dir = current_app.config['BACKUP_FOLDER']
     backups = []
     
     # Load backup descriptions
@@ -1340,7 +1504,7 @@ def import_database():
             
             try:
                 # Create a temporary file for the uploaded backup
-                temp_path = os.path.join(app.config['BACKUP_FOLDER'], 'temp_import.db')
+                temp_path = os.path.join(current_app.config['BACKUP_FOLDER'], 'temp_import.db')
                 backup_file.save(temp_path)
                 
                 # Verify this is a valid SQLite database
@@ -1487,7 +1651,7 @@ def import_database():
                 
                 # Create a backup of current database before import
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                pre_import_backup = os.path.join(app.config['BACKUP_FOLDER'], f"pre_import_backup_{timestamp}.db")
+                pre_import_backup = os.path.join(current_app.config['BACKUP_FOLDER'], f"pre_import_backup_{timestamp}.db")
                 
                 if os.path.exists(db_path):
                     shutil.copy2(db_path, pre_import_backup)
@@ -2272,7 +2436,7 @@ def import_database():
                 flash(f'An error occurred while importing the database: {str(e)}', 'error')
         
         # Get list of available backups for reference
-        backup_dir = app.config['BACKUP_FOLDER']
+        backup_dir = current_app.config['BACKUP_FOLDER']
         backups = []
         
         if os.path.exists(backup_dir):
@@ -2716,7 +2880,7 @@ def validate_backup_file():
             })
         
         # Create a temporary file for the uploaded backup
-        temp_path = os.path.join(app.config['BACKUP_FOLDER'], 'temp_validate.db')
+        temp_path = os.path.join(current_app.config['BACKUP_FOLDER'], 'temp_validate.db')
         backup_file.save(temp_path)
         
         validation_errors = []

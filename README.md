@@ -52,6 +52,15 @@ Accredit Helper Pro is a comprehensive tool designed to streamline the accredita
 - **Batch Processing**: Calculate results across multiple courses simultaneously
 - **Statistical Analysis**: Generate means, medians, and distributions of achievement metrics
 
+## Recent Updates
+
+### Performance Improvements
+- **Optimized All-Courses Analysis**: Significantly reduced calculation time for multi-course analyses through shared core calculation logic
+- **Efficient Resource Utilization**: Minimized database queries by calculating each course's results once and reusing them
+- **Improved Makeup Exam Handling**: Enhanced consistency in how makeup exam weights are synchronized with their original exams
+- **Streamlined Workflow**: Centralized core calculation logic ensures consistency across single-course and all-courses views
+- **Consistent Student Exclusion**: Improved handling of student exclusions based on mandatory exam attendance
+
 ### Reporting and Exports
 - **Excel/CSV Exports**: Export calculation results, student lists, and outcome data
 - **Accreditation-Ready Reports**: Generate reports formatted specifically for accreditation submissions
@@ -171,128 +180,3 @@ The system can import student lists in the following formats:
 ```
 
 ```
-11220030102;Name1;Surname
-11220030126;Name1 Name2;Surname
-```
-
-```
-11220030102	Name1	Surname
-11220030126	Name1 Name2	Surname
-```
-
-## Technical Requirements
-
-### Prerequisites
-- Python 3.8 or higher
-- Web browser (Chrome, Firefox, Edge recommended)
-- 500MB+ available disk space for database growth
-
-### Installation Methods
-
-#### Option 1: Windows Installer (Recommended)
-1. Run the `Windows_Install.bat` file by double-clicking it
-2. Wait for the installation to complete
-3. Run the application using the provided shortcut or by running `python app.py` in the command prompt
-
-#### Option 2: Manual Installation
-1. Clone the repository or download the source code
-2. Create a virtual environment: `python -m venv venv`
-3. Activate the virtual environment:
-   - Windows: `venv\Scripts\activate`
-   - Unix/MacOS: `source venv/bin/activate`
-4. Install dependencies: `pip install -r requirements.txt`
-
-### Running the Application
-
-#### Using the PowerShell Script (Recommended)
-1. Right-click on `run_app.ps1` and select "Run with PowerShell" or
-2. Open PowerShell and run: `powershell -ExecutionPolicy Bypass -File run_app.ps1`
-3. Access the application in your browser at: `http://localhost:5000`
-
-#### Alternative Method
-1. Activate the virtual environment (if not already activated)
-2. Run `python app.py`
-3. Access the application in your browser at: `http://localhost:5000`
-
-## Troubleshooting Guide
-
-### Common Issues
-
-#### Application Won't Start
-- Ensure Python is installed correctly and added to PATH
-- Verify all dependencies are installed via `pip install -r requirements.txt`
-- Check if port 5000 is already in use by another application
-
-#### Database Errors
-- Verify file permissions in the application directory
-- Ensure the instance folder exists and is writable
-- Try restoring from a backup if the database is corrupted
-
-#### Import Problems
-- Confirm student data matches one of the supported formats
-- Check for special characters or formatting issues in your data
-- Verify the encoding of your import file (UTF-8 recommended)
-
-#### Calculation Discrepancies
-- Ensure all exam weights total 100%
-- Verify all questions are properly linked to course outcomes
-- Check for missing student scores or incomplete data
-
-#### Browser Display Issues
-- Clear browser cache and reload the page
-- Try a different modern browser (Chrome, Firefox, Edge)
-- Check if JavaScript is enabled in your browser
-
-## Frequently Asked Questions
-
-### General Questions
-
-**Q: Is my data shared with any third parties?**  
-A: No. All data remains local on your computer and is not transmitted to any external servers.
-
-**Q: How many courses can I manage in the system?**  
-A: There is no practical limit to the number of courses you can manage, though performance may vary with extremely large datasets.
-
-**Q: Can multiple instructors use the system simultaneously?**  
-A: The application is designed for single-user access. For multi-user scenarios, consider implementing a shared database with careful coordination.
-
-### Technical Questions
-
-**Q: Does this work on Mac/Linux?**  
-A: Yes, the application is cross-platform. Follow the manual installation instructions for Mac/Linux systems.
-
-**Q: Can I migrate data from other systems?**  
-A: The application supports importing student data from standard formats. Custom data migration would require manual preparation of compatible files.
-
-**Q: How large can the database grow?**  
-A: A typical course with 50 students, 5 exams, and 50 questions might use 2-5MB of storage. The system can handle hundreds of courses efficiently.
-
-## Benefits for Educational Institutions
-
-### For Instructors
-- Reduce manual calculation time for accreditation metrics
-- Track student achievement with precision
-- Generate ready-to-submit accreditation documentation
-- Identify areas where students may be struggling with specific outcomes
-
-### For Department Chairs
-- Aggregate outcome achievement across multiple courses
-- Identify trends in program outcome achievement
-- Support data-informed curriculum improvements
-- Streamline the accreditation reporting process
-
-### For Accreditation Coordinators
-- Ensure consistent assessment methodologies across courses
-- Generate standardized reports for accreditation bodies
-- Maintain historical achievement data for longitudinal studies
-- Demonstrate continuous improvement with concrete metrics
-
-## About the Project
-
-Accredit Helper Pro was developed specifically for engineering programs facing accreditation requirements, with a focus on the Turkish MÜDEK accreditation system, which is similar to ABET. While originally designed for engineering education, the principles and functionality can be applied to any educational program using outcome-based assessment.
-
-## License
-
-This software is provided for educational purposes only. Use at your own risk.
-
-For more information, support, or to purchase a license, visit [SE Courses on Patreon](https://www.patreon.com/c/SECourses). 

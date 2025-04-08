@@ -1747,11 +1747,14 @@ def toggle_exclusion(student_id):
         
         # Check if this is an AJAX request
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            # For AJAX requests, return a response that the client can use to update the UI
             return jsonify({
                 'success': True,
                 'message': message,
                 'student_id': student_id,
-                'excluded': student.excluded
+                'excluded': student.excluded,
+                'student_name': f"{student.first_name} {student.last_name}",
+                'student_id_text': student.student_id
             })
         
         flash(message, 'success')

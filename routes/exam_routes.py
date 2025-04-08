@@ -149,6 +149,10 @@ def edit_exam(exam_id):
                                          exam=exam,
                                          active_page='courses')
             
+            # Save the original state to track changes
+            was_makeup = exam.is_makeup
+            old_makeup_for = exam.makeup_for
+            
             # Update exam
             exam.name = name
             exam.max_score = max_score
@@ -157,11 +161,43 @@ def edit_exam(exam_id):
             exam.is_final = is_final
             exam.updated_at = datetime.now()
             
-            # Update makeup relationship
+            # Handle makeup relationship changes
             if is_makeup and makeup_for:
-                exam.makeup_for = int(makeup_for)
+                new_makeup_for = int(makeup_for)
+                exam.makeup_for = new_makeup_for
+                
+                # If this is a new makeup relationship, or makeup parent has changed,
+                # we need to sync the weight with the original exam
+                if not was_makeup or old_makeup_for != new_makeup_for:
+                    # Get original exam's weight
+                    original_weight = ExamWeight.query.filter_by(
+                        exam_id=new_makeup_for, 
+                        course_id=course.id
+                    ).first()
+                    
+                    if original_weight:
+                        # Update or create weight for this makeup exam
+                        makeup_weight = ExamWeight.query.filter_by(
+                            exam_id=exam_id,
+                            course_id=course.id
+                        ).first()
+                        
+                        if makeup_weight:
+                            makeup_weight.weight = original_weight.weight
+                        else:
+                            new_weight = ExamWeight(
+                                exam_id=exam_id,
+                                course_id=course.id,
+                                weight=original_weight.weight
+                            )
+                            db.session.add(new_weight)
             elif not is_makeup:
+                # If exam was a makeup but is no longer, remove the makeup relationship
                 exam.makeup_for = None
+                
+                # If we're removing a makeup relationship, we should reset the weight
+                # to a default (e.g., 0) or keep it as is
+                # Here, we choose to keep it as is, requiring manual adjustment through manage_weights
             
             # Log action
             log = Log(action="EDIT_EXAM", description=f"Edited exam: {name} in course: {course.code}")

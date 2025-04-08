@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Database Restore Successful{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-check-circle me-2"></i>Database Restore Successful</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success">
+                        <p>{{ message }}</p>
+                        <div class="mt-3">
+                            <div class="progress">
+                                <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-center mt-3">
+                        <a href="{{ redirect_url }}" class="btn btn-primary">
+                            <i class="fas fa-home me-1"></i> Return to Home
+                        </a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Auto-refresh the page after a delay
+    document.addEventListener('DOMContentLoaded', function() {
+        let progressBar = document.getElementById('progress-bar');
+        let timeLeft = 3; // 3 seconds countdown
+        let refreshInterval = 30; // Update progress every 30ms
+        let steps = 100 / (timeLeft * 1000 / refreshInterval);
+        let currentProgress = 0;
+        
+        // Update progress bar
+        let interval = setInterval(function() {
+            currentProgress += steps;
+            progressBar.style.width = currentProgress + '%';
+            
+            if (currentProgress >= 100) {
+                clearInterval(interval);
+                // Add cache-busting parameter to force a complete refresh
+                window.location.href = "{{ redirect_url }}?reload=" + new Date().getTime();
+            }
+        }, refreshInterval);
+    });
+</script>
+{% endblock %} 

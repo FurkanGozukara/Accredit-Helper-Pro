@@ -1211,11 +1211,36 @@
                 <!-- Accredit Calculations -->
                 <div class="tab-pane fade" id="calculation">
                     <div class="card shadow-sm">
-                        <div class="card-header bg-dark text-white">
-                            <h4 class="mb-0"><i class="fas fa-calculator me-2"></i>Accredit Calculations & Results</h4>
+                        <div class="card-header bg-info text-white">
+                            <h4 class="mb-0"><i class="fas fa-calculator me-2"></i>Accredit Calculations</h4>
                         </div>
                         <div class="card-body">
-                            <p>This is the core assessment functionality, calculating how well students are achieving the defined learning outcomes.</p>
+                            <div class="alert alert-primary">
+                                <i class="fas fa-info-circle me-2"></i><strong>What Are Accredit Calculations?</strong> These are automated analyses that determine how well students are achieving the defined learning outcomes at both the course level (COs) and program level (POs).
+                            </div>
+                            
+                            <h5 class="mt-4"><i class="fas fa-sync-alt me-2"></i>Recent Performance Improvements</h5>
+                            <div class="card mb-4 border-success">
+                                <div class="card-header bg-success text-white">
+                                    <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Optimized Calculation System</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p>The calculation system has been significantly enhanced to improve performance and consistency:</p>
+                                    <ul>
+                                        <li><strong>Efficient Multi-Course Analysis:</strong> The "All Courses" analysis now uses a centralized calculation function that computes each course's results once and reuses them for program-wide aggregation.</li>
+                                        <li><strong>Reduced Database Queries:</strong> Optimized data loading minimizes database hits, especially when processing large numbers of courses.</li>
+                                        <li><strong>Consistent Makeup Exam Handling:</strong> Improved synchronization of makeup exam weights with their original exams ensures calculation accuracy.</li>
+                                        <li><strong>Standardized Student Exclusion Logic:</strong> Enhanced handling of student exclusions based on mandatory exam attendance applies consistently across all calculation methods.</li>
+                                        <li><strong>Unified Calculation Core:</strong> Single-course and all-courses views now share the same core calculation logic, ensuring consistent results regardless of where you view the data.</li>
+                                    </ul>
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-lightbulb me-2"></i><strong>Benefit:</strong> These improvements provide faster performance, more consistent results, and better memory usage, especially when working with multiple courses or large datasets.
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h5><i class="fas fa-cogs me-2"></i>Calculation Methods</h5>
+                            <p>The system supports two primary calculation methods for outcome achievement:</p>
 
                             <h6>Running Calculations</h6>
                             <ol>
