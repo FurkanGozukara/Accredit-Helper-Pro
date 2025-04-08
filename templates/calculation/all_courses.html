@@ -85,6 +85,9 @@
                             Relative Success Rate (% of Students Above Threshold)
                         </label>
                     </div>
+                    <div class="mt-2 text-muted">
+                        <small><i class="bi bi-info-circle"></i> Program Outcome scores are weighted by course weight. Higher weight courses have more impact on overall averages.</small>
+                    </div>
                 </div>
             </div>
         </div>
@@ -112,6 +115,7 @@
                             <th rowspan="2" class="align-middle">Course Code</th>
                             <th rowspan="2" class="align-middle">Course Name</th>
                             <th rowspan="2" class="align-middle">Semester</th>
+                            <th rowspan="2" class="align-middle">Weight</th>
                             <th rowspan="2" class="align-middle text-center">Settings</th>
                             <th colspan="{{ program_outcomes|length }}" class="text-center">Program Outcomes</th>
                         </tr>
@@ -128,6 +132,7 @@
                             <td>{{ course_code }}</td>
                             <td>{{ data.course.name }}</td>
                             <td>{{ data.course.semester }}</td>
+                            <td>{{ data.course.course_weight }}</td>
                             <td class="text-center">
                                 <button type="button" class="btn btn-sm btn-outline-primary"
                                         data-bs-toggle="modal"
@@ -152,27 +157,28 @@
 
                         <!-- Average row for all courses -->
                         <tr class="program-outcome-averages">
-                            <td colspan="3">Program Outcome Averages</td>
+                            <td colspan="4">Program Outcome Averages</td>
                             <td></td>
                             {% for outcome in program_outcomes %}
-                            {% set total_percentage = namespace(value=0) %}
-                            {% set contributing_courses = namespace(count=0) %}
+                            {% set weighted_total = namespace(value=0) %}
+                            {% set weights_sum = namespace(value=0) %}
 
                             {% for course_code, data in all_results.items() %}
                             {% if not data.settings.excluded %}
                             {% set percentage = data.program_outcome_results.get(outcome.code, {}).get('percentage', 0)|float %}
                             {% set contributes = data.program_outcome_results.get(outcome.code, {}).get('contributes', False) %}
                             {% if contributes %}
-                            {% set total_percentage.value = total_percentage.value + percentage %}
-                            {% set contributing_courses.count = contributing_courses.count + 1 %}
+                                {% set course_weight = data.course.course_weight|float %}
+                                {% set weighted_total.value = weighted_total.value + (percentage * course_weight) %}
+                                {% set weights_sum.value = weights_sum.value + course_weight %}
                             {% endif %}
                             {% endif %}
                             {% endfor %}
 
-                            {% if contributing_courses.count > 0 %}
-                            {% set average = total_percentage.value / contributing_courses.count %}
-                            <td class="text-center {% if average >= 70 %}table-success{% elif average >= 50 %}table-warning{% else %}table-danger{% endif %}">
-                                {{ "%.2f"|format(average) }}%
+                            {% if weights_sum.value > 0 %}
+                            {% set weighted_average = weighted_total.value / weights_sum.value %}
+                            <td class="text-center {% if weighted_average >= 70 %}table-success{% elif weighted_average >= 50 %}table-warning{% else %}table-danger{% endif %}">
+                                {{ "%.2f"|format(weighted_average) }}%
                             </td>
                             {% else %}
                             <td class="text-center table-secondary">NA</td>

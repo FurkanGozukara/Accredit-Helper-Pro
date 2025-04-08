@@ -20,6 +20,7 @@ def add_course():
         code = request.form.get('code')
         name = request.form.get('name')
         semester = request.form.get('semester')
+        course_weight = request.form.get('course_weight', '1.0')
         
         # Basic validation
         if not code or not name or not semester:
@@ -31,27 +32,34 @@ def add_course():
         if existing_course:
             flash(f'A course with code {code} in semester {semester} already exists', 'error')
             return render_template('course/form.html', 
-                                  course={'code': code, 'name': name, 'semester': semester},
+                                  course={'code': code, 'name': name, 'semester': semester, 'course_weight': course_weight},
                                   active_page='courses')
         
         # Create new course
-        new_course = Course(code=code, name=name, semester=semester)
-        db.session.add(new_course)
-        
-        # Log action
-        log = Log(action="ADD_COURSE", description=f"Added course: {code} - {name}")
-        db.session.add(log)
-        
         try:
+            # Convert course_weight to Decimal
+            course_weight_decimal = float(course_weight)
+            new_course = Course(code=code, name=name, semester=semester, course_weight=course_weight_decimal)
+            db.session.add(new_course)
+            
+            # Log action
+            log = Log(action="ADD_COURSE", description=f"Added course: {code} - {name}")
+            db.session.add(log)
+            
             db.session.commit()
             flash(f'Course {code} - {name} added successfully', 'success')
             return redirect(url_for('course.list_courses'))
+        except ValueError:
+            flash('Course weight must be a valid number', 'error')
+            return render_template('course/form.html', 
+                                 course={'code': code, 'name': name, 'semester': semester, 'course_weight': course_weight},
+                                 active_page='courses')
         except Exception as e:
             db.session.rollback()
             logging.error(f"Error adding course: {str(e)}")
             flash('An error occurred while adding the course', 'error')
             return render_template('course/form.html', 
-                                 course={'code': code, 'name': name, 'semester': semester},
+                                 course={'code': code, 'name': name, 'semester': semester, 'course_weight': course_weight},
                                  active_page='courses')
     
     # GET request
@@ -66,6 +74,7 @@ def edit_course(course_id):
         code = request.form.get('code')
         name = request.form.get('name')
         semester = request.form.get('semester')
+        course_weight = request.form.get('course_weight', '1.0')
         
         # Basic validation
         if not code or not name or not semester:
@@ -78,20 +87,27 @@ def edit_course(course_id):
             flash(f'A course with code {code} in semester {semester} already exists', 'error')
             return render_template('course/form.html', course=course, active_page='courses')
         
-        # Update course
-        course.code = code
-        course.name = name
-        course.semester = semester
-        course.updated_at = datetime.now()
-        
-        # Log action
-        log = Log(action="EDIT_COURSE", description=f"Edited course: {code} - {name}")
-        db.session.add(log)
-        
         try:
+            # Convert course_weight to float
+            course_weight_decimal = float(course_weight)
+            
+            # Update course
+            course.code = code
+            course.name = name
+            course.semester = semester
+            course.course_weight = course_weight_decimal
+            course.updated_at = datetime.now()
+            
+            # Log action
+            log = Log(action="EDIT_COURSE", description=f"Edited course: {code} - {name}")
+            db.session.add(log)
+            
             db.session.commit()
             flash(f'Course {code} - {name} updated successfully', 'success')
             return redirect(url_for('course.list_courses'))
+        except ValueError:
+            flash('Course weight must be a valid number', 'error')
+            return render_template('course/form.html', course=course, active_page='courses')
         except Exception as e:
             db.session.rollback()
             logging.error(f"Error updating course: {str(e)}")

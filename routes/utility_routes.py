@@ -1779,13 +1779,14 @@ def import_database():
                                 # Insert new course
                                 cursor = current_db.execute(
                                     """
-                                    INSERT INTO course (code, name, semester, created_at, updated_at)
-                                    VALUES (?, ?, ?, ?, ?)
+                                    INSERT INTO course (code, name, semester, course_weight, created_at, updated_at)
+                                    VALUES (?, ?, ?, ?, ?, ?)
                                     """,
                                     (
                                         course_data['code'],
                                         course_data['name'],
                                         course_data['semester'],
+                                        course_data.get('course_weight', 1.0),  # Default to 1.0 if not present
                                         datetime.now(),
                                         datetime.now()
                                     )

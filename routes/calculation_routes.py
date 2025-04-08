@@ -777,7 +777,9 @@ def all_courses_calculations():
                     po_scores[po.id] = []
                     po_counts[po.id] = 0
                 
-                po_scores[po.id].append(po_score)
+                # Apply course weight to the score
+                weighted_score = po_score * Decimal(str(course.course_weight))
+                po_scores[po.id].append((weighted_score, Decimal(str(course.course_weight))))
                 po_counts[po.id] += 1
         
         # Calculate average outcome score for this course
@@ -796,7 +798,15 @@ def all_courses_calculations():
     po_averages = {}
     for po in program_outcomes:
         if po.id in po_scores and po_counts[po.id] > 0:
-            po_averages[po.code] = sum(po_scores[po.id]) / len(po_scores[po.id])
+            # Calculate weighted average: sum(weight * score) / sum(weights)
+            weighted_scores = po_scores[po.id]
+            sum_weighted_scores = sum(score * weight for score, weight in weighted_scores)
+            sum_weights = sum(weight for _, weight in weighted_scores)
+            
+            if sum_weights > 0:
+                po_averages[po.code] = sum_weighted_scores / sum_weights
+            else:
+                po_averages[po.code] = None
         else:
             po_averages[po.code] = None
     
@@ -955,7 +965,9 @@ def export_all_courses():
                     po_scores[po.id] = []
                     po_counts[po.id] = 0
                 
-                po_scores[po.id].append(po_score)
+                # Apply course weight to the score
+                weighted_score = po_score * Decimal(str(course.course_weight))
+                po_scores[po.id].append((weighted_score, Decimal(str(course.course_weight))))
                 po_counts[po.id] += 1
         
         # Calculate average outcome score for this course
@@ -973,7 +985,15 @@ def export_all_courses():
     po_averages = {}
     for po in program_outcomes:
         if po.id in po_scores and po_counts[po.id] > 0:
-            po_averages[po.code] = sum(po_scores[po.id]) / len(po_scores[po.id])
+            # Calculate weighted average: sum(weight * score) / sum(weights)
+            weighted_scores = po_scores[po.id]
+            sum_weighted_scores = sum(score * weight for score, weight in weighted_scores)
+            sum_weights = sum(weight for _, weight in weighted_scores)
+            
+            if sum_weights > 0:
+                po_averages[po.code] = sum_weighted_scores / sum_weights
+            else:
+                po_averages[po.code] = None
         else:
             po_averages[po.code] = None
     

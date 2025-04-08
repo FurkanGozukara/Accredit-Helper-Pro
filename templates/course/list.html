@@ -46,6 +46,7 @@
                             <th>Code</th>
                             <th>Name</th>
                             <th>Term</th>
+                            <th>Weight</th>
                             <th>Students</th>
                             <th>Exams</th>
                             <th class="text-center">Actions</th>
@@ -56,7 +57,8 @@
                         <tr>
                             <td><a href="{{ url_for('course.course_detail', course_id=course.id) }}">{{ course.code }}</a></td>
                             <td>{{ course.name }}</td>
-                            <td>{{ course.term }}</td>
+                            <td>{{ course.semester }}</td>
+                            <td>{{ course.course_weight }}</td>
                             <td>{{ course.students|length }}</td>
                             <td>{{ course.exams|length }}</td>
                             <td class="text-center">

@@ -34,6 +34,7 @@ class Course(db.Model):
     code = db.Column(db.String(20), nullable=False, index=True)
     name = db.Column(db.String(100), nullable=False)
     semester = db.Column(db.String(20), nullable=False, index=True)
+    course_weight = db.Column(db.Numeric(10, 2), nullable=False, default=1.0)
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     
