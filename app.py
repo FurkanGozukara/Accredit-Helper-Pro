@@ -9,6 +9,12 @@ import csv
 import json
 import shutil
 import webbrowser
+import argparse
+import subprocess
+import sys
+import threading
+import select
+import time
 
 # Import db from models
 from models import db, init_db_session
@@ -109,6 +115,12 @@ def create_app():
             # Get all courses first to perform custom semester sorting
             courses = query.all()
             
+            # Calculate student counts for each course
+            student_counts = {}
+            for course in courses:
+                # Count non-excluded students
+                student_counts[course.id] = Student.query.filter_by(course_id=course.id, excluded=False).count()
+            
             # Define a function to extract year and term for sorting
             def semester_sort_key(course):
                 semester = course.semester
@@ -131,10 +143,16 @@ def create_app():
             
             # Sort the courses
             courses.sort(key=semester_sort_key, reverse=(sort == 'semester_desc'))
-            return render_template('index.html', courses=courses, current_sort=sort, search=search)
+            return render_template('index.html', courses=courses, current_sort=sort, search=search, student_counts=student_counts)
         else:  # Default: semester_desc - duplicated here for safety
             # Get all courses for custom sorting
             courses = query.all()
+            
+            # Calculate student counts for each course
+            student_counts = {}
+            for course in courses:
+                # Count non-excluded students
+                student_counts[course.id] = Student.query.filter_by(course_id=course.id, excluded=False).count()
             
             # Define a function to extract year and term for sorting
             def semester_sort_key(course):
@@ -158,12 +176,18 @@ def create_app():
             
             # Sort the courses
             courses.sort(key=semester_sort_key, reverse=True)
-            return render_template('index.html', courses=courses, current_sort=sort, search=search)
+            return render_template('index.html', courses=courses, current_sort=sort, search=search, student_counts=student_counts)
             
         # Execute query for non-semester sorts
         courses = query.all()
+        
+        # Calculate student counts for each course
+        student_counts = {}
+        for course in courses:
+            # Count non-excluded students
+            student_counts[course.id] = Student.query.filter_by(course_id=course.id, excluded=False).count()
             
-        return render_template('index.html', courses=courses, current_sort=sort, search=search)
+        return render_template('index.html', courses=courses, current_sort=sort, search=search, student_counts=student_counts)
     
     # Error handlers
     @app.errorhandler(404)
@@ -210,28 +234,130 @@ def initialize_program_outcomes():
         db.session.commit()
         logging.info("Initialized default program outcomes")
 
+def check_cloudflared():
+    """Check if cloudflared is installed"""
+    try:
+        subprocess.run(['cloudflared', 'version'], capture_output=True, text=True, check=True)
+        return True
+    except (subprocess.SubprocessError, FileNotFoundError):
+        return False
+
+def start_cloudflared_tunnel(port):
+    """Start a cloudflared tunnel to expose the app publicly"""
+    if not check_cloudflared():
+        print("=" * 70)
+        print("Error: cloudflared is not installed!")
+        print("Please install cloudflared from: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation")
+        print("=" * 70)
+        return None
+    
+    try:
+        print("Starting cloudflared tunnel...")
+        
+        # Start the cloudflared process
+        process = subprocess.Popen(
+            ['cloudflared', 'tunnel', '--url', f'http://localhost:{port}'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
+        )
+        
+        # Look for the tunnel URL in the output
+        import re
+        tunnel_url = None
+        start_time = time.time()
+        timeout = 30  # 30 seconds
+        
+        while time.time() - start_time < timeout and tunnel_url is None:
+            line = process.stdout.readline()
+            if not line:
+                time.sleep(0.1)
+                continue
+                
+            # Look for the box that contains the tunnel URL
+            if "Your quick Tunnel has been created!" in line:
+                # Read the next line that should contain the URL
+                url_line = process.stdout.readline().strip()
+                
+                # Extract the URL using regex
+                match = re.search(r'https://[a-z0-9-]+\.trycloudflare\.com', url_line)
+                if match:
+                    tunnel_url = match.group(0)
+                    break
+            
+            # Alternative method: just find any line with a trycloudflare.com URL
+            elif "trycloudflare.com" in line:
+                match = re.search(r'(https://[a-z0-9-]+\.trycloudflare\.com)', line)
+                if match:
+                    tunnel_url = match.group(1)
+                    break
+        
+        # Create a thread to silently handle the remaining output
+        def silent_reader():
+            while True:
+                line = process.stdout.readline()
+                if not line:
+                    break
+                # We're not printing output, just consuming it
+        
+        # Start silent reader thread
+        output_thread = threading.Thread(target=silent_reader, daemon=True)
+        output_thread.start()
+        
+        if tunnel_url:
+            return {
+                'process': process,
+                'url': tunnel_url
+            }
+        else:
+            print("=" * 70)
+            print("Could not find cloudflared tunnel URL in output.")
+            print(f"Please run manually: cloudflared tunnel --url http://localhost:{port}")
+            print("=" * 70)
+            process.terminate()
+            return None
+            
+    except Exception as e:
+        logging.error(f"Error starting cloudflared: {str(e)}")
+        print(f"Error starting cloudflared: {str(e)}")
+        return None
+
 if __name__ == '__main__':
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Accredit Helper Pro')
+    parser.add_argument('port', nargs='?', type=int, default=5000, help='Port to run the application on')
+    parser.add_argument('--cloud', action='store_true', help='Expose the application using cloudflared')
+    args = parser.parse_args()
+    
     app = create_app()
+    port = args.port
     
-    # Get port from command line args or use default
-    import sys
-    port = 5000  # Default port
-    if len(sys.argv) > 1:
-        try:
-            port = int(sys.argv[1])
-        except ValueError:
-            print(f"Invalid port: {sys.argv[1]}. Using default port 5000.")
-    
-    # Print the URL
+    # Print the local URL
     print("=" * 70)
     print(f"Server started! Access the application at: http://localhost:{port}")
-    print("=" * 70)
+    
+    # Start cloudflared if requested
+    tunnel_info = None
+    if args.cloud:
+        tunnel_info = start_cloudflared_tunnel(port)
+        if tunnel_info and tunnel_info.get('url'):
+            print("=" * 70)
+            print(f"🌎 Remote access URL: {tunnel_info['url']}")
+            print("Share this URL to access the application remotely")
+            print("=" * 70)
+        elif tunnel_info:
+            print("Cloudflared tunnel is running but URL was not detected")
+        else:
+            print("Failed to start cloudflared tunnel")
     
     # Open browser after a slight delay to ensure server is up
-    import threading
     def open_browser_with_port():
         if not os.environ.get('WERKZEUG_RUN_MAIN'):
             webbrowser.open(f'http://localhost:{port}/')
     
-    threading.Timer(1.0, open_browser_with_port).start()
-    app.run(debug=True, port=port) 
+    if not tunnel_info:  # Only open browser automatically for local access
+        threading.Timer(1.0, open_browser_with_port).start()
+    
+    # Run the application
+    app.run(debug=True, port=port, host="0.0.0.0")  # Allow external connections 

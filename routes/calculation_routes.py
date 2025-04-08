@@ -799,7 +799,7 @@ def all_courses_calculations():
         if po.id in po_scores and po_counts[po.id] > 0:
             # Calculate weighted average: sum(weight * score) / sum(weights)
             weighted_scores = po_scores[po.id]
-            sum_weighted_scores = sum(score * weight for score, weight in weighted_scores)
+            sum_weighted_scores = sum(Decimal(str(score)) * weight for score, weight in weighted_scores)
             sum_weights = sum(weight for _, weight in weighted_scores)
             
             if sum_weights > 0:
@@ -985,7 +985,7 @@ def export_all_courses():
         if po.id in po_scores and po_counts[po.id] > 0:
             # Calculate weighted average: sum(weight * score) / sum(weights)
             weighted_scores = po_scores[po.id]
-            sum_weighted_scores = sum(score * weight for score, weight in weighted_scores)
+            sum_weighted_scores = sum(Decimal(str(score)) * weight for score, weight in weighted_scores)
             sum_weights = sum(weight for _, weight in weighted_scores)
             
             if sum_weights > 0:

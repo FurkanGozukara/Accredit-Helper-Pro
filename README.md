@@ -168,7 +168,26 @@ Accredit Helper Pro is a comprehensive tool designed to streamline the accredita
 ### Security Considerations
 - Local database storage ensures your data remains under your control
 - File operations include validation to prevent security issues
+- Remote access via cloudflared tunnel is secure and encrypted
 - Backup files are protected from unauthorized access
+
+## Remote Access with Cloudflared
+
+Accredit Helper Pro supports remote access via Cloudflare Tunnel, allowing you to:
+- Access the application from any device with an internet connection
+- Share the application with colleagues without complex network configuration
+- Keep your data secure with encrypted connections
+
+### Setup Instructions
+
+1. Download and install cloudflared from the [official Cloudflare website](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation)
+2. Start the application with the `--cloud` flag:
+   - Windows: Run `Windows_Start.bat --cloud`
+   - Command line: `python app.py --cloud`
+3. The application will display a public URL that you can share or access from any device
+4. No account or login required - simply install cloudflared and use the `--cloud` flag
+
+Note: The public URL changes each time you restart the application with the `--cloud` flag.
 
 ## Supported Import Formats
 
@@ -177,6 +196,4 @@ The system can import student lists in the following formats:
 ```
 11220030102  Name1  Surname
 11220030126  Name1 Name2  Surname
-```
-
 ```

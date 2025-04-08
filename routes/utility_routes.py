@@ -1298,6 +1298,11 @@ def help_page():
     """Display help and documentation"""
     return render_template('utility/help.html', active_page='help')
 
+@utility_bp.route('/cloud-help')
+def cloud_help_page():
+    """Display cloudflared remote access help"""
+    return render_template('utility/cloud_help.html', active_page='utilities')
+
 @utility_bp.route('/logs')
 def view_logs():
     """View system logs"""

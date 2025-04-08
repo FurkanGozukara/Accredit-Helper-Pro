@@ -52,8 +52,10 @@
                 <a class="list-group-item list-group-item-action" href="#students" data-bs-toggle="list"><i class="fas fa-user-graduate me-2"></i>Students & Scores</a>
                 <a class="list-group-item list-group-item-action" href="#calculation" data-bs-toggle="list"><i class="fas fa-calculator me-2"></i>Accredit Calculations</a>
                 <a class="list-group-item list-group-item-action" href="#utilities" data-bs-toggle="list"><i class="fas fa-tools me-2"></i>Utilities</a>
-                <a class="list-group-item list-group-item-action" href="#faq" data-bs-toggle="list"><i class="fas fa-question me-2"></i>FAQ</a>
+                <a class="list-group-item list-group-item-action" href="{{ url_for('utility.cloud_help_page') }}"><i class="fas fa-cloud me-2"></i>Remote Access</a>
                 <a class="list-group-item list-group-item-action" href="#troubleshooting" data-bs-toggle="list"><i class="fas fa-wrench me-2"></i>Troubleshooting</a>
+                <a class="list-group-item list-group-item-action" href="#privacy-policy" data-bs-toggle="list"><i class="fas fa-shield-alt me-2"></i>Privacy Policy</a>
+                <a class="list-group-item list-group-item-action" href="#terms-of-use" data-bs-toggle="list"><i class="fas fa-gavel me-2"></i>Terms of Use</a>
                 <a class="list-group-item list-group-item-action" href="#contact" data-bs-toggle="list"><i class="fas fa-envelope me-2"></i>Contact & Support</a>
             </div>
         </div>
@@ -67,7 +69,7 @@
                             <h4 class="mb-0"><i class="fas fa-info-circle me-2"></i>Accredit Helper Pro - Overview</h4>
                         </div>
                         <div class="card-body">
-                            <p class="lead">Welcome to Accredit Helper Pro, your comprehensive tool for managing course data, tracking student performance against learning outcomes, and streamlining the Accredit accreditation process.</p>
+                            <p class="lead">Welcome to Accredit Helper Pro, your comprehensive tool for managing course data, tracking student performance against learning outcomes, and streamlining the Accred accreditation process.</p>
 
                             <div class="alert alert-info">
                                 <i class="fas fa-lightbulb me-2"></i><strong>What is Accreditation?</strong> Accreditation is a quality assurance process through which educational institutions demonstrate they meet established standards in providing quality education. This application specifically aids in meeting assessment requirements for engineering accreditation processes by tracking student achievement of program outcomes.
@@ -114,7 +116,7 @@
                             </ul>
 
                             <div class="alert alert-success mt-3">
-                                <i class="fas fa-map-signs me-2"></i><strong>Navigation Tip:</strong> Use the menu on the left to explore detailed documentation for each feature. If you're new to the application, we recommend starting with the <a href="#getting-started" class="alert-link" data-bs-toggle="list">Getting Started</a> section.
+                                <i class="fas fa-map-signs me-2"></i><strong>Navigation Tip:</strong> Use the menu on the left to explore detailed documentation for each feature. If you're new to the application, we recommend starting with the <a href="#getting-started" class="tab-link">Getting Started</a> section.
                             </div>
                         </div>
                     </div>
@@ -133,7 +135,7 @@
 
                             <h5><i class="fas fa-sitemap me-2"></i>Understanding the Data Hierarchy</h5>
                             <p>Before diving into the workflow, understanding how data is organized in Accredit Helper Pro is crucial:</p>
-                            
+
                             <div class="card mb-4">
                                 <div class="card-body bg-light">
                                     <div class="text-center mb-3"><i class="fas fa-project-diagram fa-3x text-primary"></i></div>
@@ -163,25 +165,25 @@
                                     <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#workflowAccordion">
                                         <div class="accordion-body">
                                             <p>Program Outcomes are the foundation of your assessment system. They represent what graduates should know and be able to do by the time they complete your program.</p>
-                                            
+
                                             <ol>
                                                 <li>Navigate to <a href="{{ url_for('outcome.list_program_outcomes') }}">Utilities → Program Outcomes</a></li>
                                                 <li>Review the default Turkish engineering program outcomes that are pre-loaded</li>
                                                 <li>Edit existing outcomes or add new ones to match your program's specific requirements</li>
                                                 <li>Ensure each PO has a clear, unique code (e.g., PO1, PO2) and comprehensive description</li>
                                             </ol>
-                                            
+
                                             <div class="alert alert-success">
                                                 <i class="fas fa-lightbulb me-2"></i><strong>Tip:</strong> POs should align with accreditation requirements for your discipline and program. For engineering programs in Turkey, these typically correspond to MÜDEK criteria.
                                             </div>
-                                            
+
                                             <a href="{{ url_for('outcome.list_program_outcomes') }}" class="btn btn-primary">
                                                 <i class="fas fa-external-link-alt me-2"></i>Go to Program Outcomes
                                             </a>
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <!-- Step 2 -->
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingTwo">
@@ -192,7 +194,7 @@
                                     <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#workflowAccordion">
                                         <div class="accordion-body">
                                             <p>Each course instance represents a specific offering of a course in a particular semester or term.</p>
-                                            
+
                                             <ol>
                                                 <li>From the <a href="{{ url_for('index') }}">Homepage</a>, click the "Add Course" button</li>
                                                 <li>Enter a <strong>Course Code</strong> (e.g., "CENG301") - this should match your institutional code</li>
@@ -200,18 +202,18 @@
                                                 <li>Specify the <strong>Semester</strong> (e.g., "Fall 2023" or "2023-2024 Spring")</li>
                                                 <li>Click "Save Course" to create your course instance</li>
                                             </ol>
-                                            
+
                                             <div class="alert alert-warning">
                                                 <i class="fas fa-exclamation-triangle me-2"></i><strong>Important:</strong> Create a separate course instance for each semester or section you teach. For example, "CENG301 Fall 2023" and "CENG301 Spring 2024" would be distinct course instances.
                                             </div>
-                                            
+
                                             <a href="{{ url_for('course.add_course') }}" class="btn btn-primary">
                                                 <i class="fas fa-plus me-2"></i>Add New Course
                                             </a>
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <!-- Step 3 -->
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingThree">
@@ -222,7 +224,7 @@
                                     <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#workflowAccordion">
                                         <div class="accordion-body">
                                             <p>Course Outcomes are specific, measurable learning objectives for your course. Each CO must be linked to one or more Program Outcomes it supports.</p>
-                                            
+
                                             <ol>
                                                 <li>From your newly created course's detail page, find the "Course Outcomes" section</li>
                                                 <li>Click "Add Course Outcome"</li>
@@ -232,20 +234,20 @@
                                                 <li>Click "Save" to create the course outcome</li>
                                                 <li>Repeat for all course outcomes (typically 5-10 per course)</li>
                                             </ol>
-                                            
+
                                             <div class="alert alert-info">
                                                 <i class="fas fa-clipboard-list me-2"></i><strong>Example CO-PO Mapping:</strong><br>
                                                 CO1: "Apply software testing techniques to validate system requirements" → maps to PO2, PO3<br>
                                                 CO2: "Communicate technical information effectively in written reports" → maps to PO7
                                             </div>
-                                            
+
                                             <div class="alert alert-danger">
                                                 <i class="fas fa-exclamation-circle me-2"></i><strong>Critical:</strong> Each CO must be linked to at least one PO. These linkages are fundamental to the accreditation assessment process.
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <!-- Steps 4-8 -->
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingFour">
@@ -256,14 +258,15 @@
                                     <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#workflowAccordion">
                                         <div class="accordion-body">
                                             <p>Exams represent all assessed activities in your course, including traditional exams, quizzes, projects, and assignments.</p>
-                                            
+
                                             <ol>
                                                 <li>From the Course Detail page, find the "Exams" section</li>
                                                 <li>Click "Add Exam"</li>
                                                 <li>Enter a descriptive <strong>Name</strong> (e.g., "Midterm 1", "Final Project", "Quiz 3")</li>
                                                 <li>Set the <strong>Max Score</strong> (often 100, but can be any value)</li>
                                                 <li>Optionally set an <strong>Exam Date</strong></li>
-                                                <li>Check appropriate options if applicable:
+                                                <li>
+                                                    Check appropriate options if applicable:
                                                     <ul>
                                                         <li><strong>Is Final Exam?</strong> - Check for the final examination</li>
                                                         <li><strong>Is Mandatory?</strong> - Check if required for all students. When an exam is marked as mandatory, students who have a score of zero (or no score) for both the mandatory exam and its makeup exam (if any) will be excluded from all outcome calculations. This feature helps ensure that only students who participated in required assessments are included in the final outcome achievement calculations.</li>
@@ -273,7 +276,7 @@
                                                 <li>Save the exam</li>
                                                 <li>Repeat for all assessment activities in your course</li>
                                             </ol>
-                                            
+
                                             <h6 class="mt-3">Setting Exam Weights:</h6>
                                             <ol>
                                                 <li>After creating all exams, click "Manage Weights" in the Exams section</li>
@@ -281,14 +284,14 @@
                                                 <li><strong>Important:</strong> Weights must total exactly 100%</li>
                                                 <li>Click "Save Weights"</li>
                                             </ol>
-                                            
+
                                             <div class="alert alert-warning">
                                                 <i class="fas fa-balance-scale me-2"></i><strong>Note:</strong> Exam weights determine how each assessment contributes to the final course grade and outcome calculations. Makeup exams automatically inherit the weight of the original exam they replace.
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingFive">
                                         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFive" aria-expanded="false" aria-controls="collapseFive">
@@ -298,7 +301,7 @@
                                     <div id="collapseFive" class="accordion-collapse collapse" aria-labelledby="headingFive" data-bs-parent="#workflowAccordion">
                                         <div class="accordion-body">
                                             <p>Questions are the individual assessment items within each exam. This critical step links specific questions to the Course Outcomes they assess.</p>
-                                            
+
                                             <ol>
                                                 <li>From the Course Detail page, click on an exam's name to access its detail page</li>
                                                 <li>Click "Add Question"</li>
@@ -310,18 +313,18 @@
                                                 <li>Repeat for all questions in the exam</li>
                                                 <li>Repeat this process for all exams in the course</li>
                                             </ol>
-                                            
+
                                             <div class="alert alert-danger">
                                                 <i class="fas fa-link me-2"></i><strong>Critical Mapping:</strong> The link between questions and COs is the foundation of outcome assessment. Each question should be carefully mapped to the specific COs it measures. A question can assess multiple COs if appropriate.
                                             </div>
-                                            
+
                                             <div class="alert alert-info">
                                                 <i class="fas fa-lightbulb me-2"></i><strong>Tip:</strong> For complex assessments like projects, you might break down the grading rubric into multiple "questions" that each assess different COs.
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingSix">
                                         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSix" aria-expanded="false" aria-controls="collapseSix">
@@ -331,7 +334,7 @@
                                     <div id="collapseSix" class="accordion-collapse collapse" aria-labelledby="headingSix" data-bs-parent="#workflowAccordion">
                                         <div class="accordion-body">
                                             <p>Add all students enrolled in your course. The application offers multiple methods for adding students.</p>
-                                            
+
                                             <h6>Method 1: Manual Entry</h6>
                                             <ol>
                                                 <li>From the Course Detail page, go to the "Students" section</li>
@@ -340,11 +343,12 @@
                                                 <li>Click "Save Student"</li>
                                                 <li>Repeat for each student (recommended only for small classes)</li>
                                             </ol>
-                                            
+
                                             <h6>Method 2: Batch Import (Recommended)</h6>
                                             <ol>
                                                 <li>From the "Students" section, click "Import Students"</li>
-                                                <li>Choose one of the supported import formats:
+                                                <li>
+                                                    Choose one of the supported import formats:
                                                     <pre class="bg-light p-2 mt-2">
 11220030102  Name1  Surname
 11220030126  Name1 Name2  Surname</pre>
@@ -353,6 +357,8 @@
 11220030126;Name1 Name2;Surname</pre>
                                                     <pre class="bg-light p-2">
 11220030102	Name1	Surname
+11220030102	Name1	Surname
+
 11220030126	Name1 Name2	Surname</pre>
                                                 </li>
                                                 <li>Copy your student list from a spreadsheet or text file</li>
@@ -360,7 +366,7 @@
                                                 <li>Review the preview to ensure correct parsing</li>
                                                 <li>Click "Import Students"</li>
                                             </ol>
-                                            
+
                                             <h6>Method 3: CSV File Upload</h6>
                                             <ol>
                                                 <li>Prepare a CSV file with columns for student ID, first name, and last name</li>
@@ -370,14 +376,14 @@
                                                 <li>Map the columns if necessary</li>
                                                 <li>Click "Import"</li>
                                             </ol>
-                                            
+
                                             <div class="alert alert-info">
                                                 <i class="fas fa-file-export me-2"></i><strong>Student Export:</strong> You can export your student list at any time using the "Export Students" button. This creates a CSV file you can open in Excel or other spreadsheet applications.
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingSeven">
                                         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSeven" aria-expanded="false" aria-controls="collapseSeven">
@@ -387,9 +393,10 @@
                                     <div id="collapseSeven" class="accordion-collapse collapse" aria-labelledby="headingSeven" data-bs-parent="#workflowAccordion">
                                         <div class="accordion-body">
                                             <p>Record each student's performance on each question of every exam.</p>
-                                            
+
                                             <ol>
-                                                <li>Access the score entry grid in one of two ways:
+                                                <li>
+                                                    Access the score entry grid in one of two ways:
                                                     <ul>
                                                         <li>From Course Detail → "Students" section → "Enter/Edit Scores" (shows all exams)</li>
                                                         <li>From Exam Detail → "Enter Scores" (shows just that exam)</li>
@@ -400,7 +407,7 @@
                                                 <li>Scores can't exceed the Max Score defined for each question</li>
                                                 <li>Scores save automatically as you tab or click to the next cell</li>
                                             </ol>
-                                            
+
                                             <div class="alert alert-success">
                                                 <i class="fas fa-keyboard me-2"></i><strong>Efficiency Tip:</strong> Use keyboard navigation for faster data entry:
                                                 <ul class="mb-0">
@@ -410,14 +417,14 @@
                                                     <li>Enter: Save current cell and move down</li>
                                                 </ul>
                                             </div>
-                                            
+
                                             <div class="alert alert-warning">
                                                 <i class="fas fa-medkit me-2"></i><strong>Makeup Exam Scores:</strong> For makeup exams, only enter scores for students who took the makeup. Leave cells blank for students who took the original exam. The system automatically uses the appropriate score.
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingEight">
                                         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseEight" aria-expanded="false" aria-controls="collapseEight">
@@ -427,10 +434,11 @@
                                     <div id="collapseEight" class="accordion-collapse collapse" aria-labelledby="headingEight" data-bs-parent="#workflowAccordion">
                                         <div class="accordion-body">
                                             <p>The final step - calculate outcome achievement levels and generate reports for accreditation purposes.</p>
-                                            
+
                                             <ol>
                                                 <li>From the Course Detail page, click "Calculate Results"</li>
-                                                <li>The system processes all the data based on:
+                                                <li>
+                                                    The system processes all the data based on:
                                                     <ul>
                                                         <li>CO-PO relationships you defined</li>
                                                         <li>Question-CO mappings</li>
@@ -438,7 +446,8 @@
                                                         <li>Exam weights</li>
                                                     </ul>
                                                 </li>
-                                                <li>Review the comprehensive results page showing:
+                                                <li>
+                                                    Review the comprehensive results page showing:
                                                     <ul>
                                                         <li>Course Outcome (CO) achievement percentages</li>
                                                         <li>Program Outcome (PO) contributions from this course</li>
@@ -446,14 +455,15 @@
                                                         <li>Detailed breakdowns and visualizations</li>
                                                     </ul>
                                                 </li>
-                                                <li>Export the results in various formats:
+                                                <li>
+                                                    Export the results in various formats:
                                                     <ul>
                                                         <li><strong>PDF Report</strong> - Formatted for accreditation documentation</li>
                                                         <li><strong>CSV/Excel</strong> - Raw data for further analysis</li>
                                                     </ul>
                                                 </li>
                                             </ol>
-                                            
+
                                             <div class="alert alert-info">
                                                 <i class="fas fa-cog me-2"></i><strong>Optional Configuration:</strong> Before calculating, you can customize your course's assessment settings:
                                                 <ul class="mb-0">
@@ -463,7 +473,7 @@
                                                 </ul>
                                                 Access these settings from the Course Detail page → "Settings" button.
                                             </div>
-                                            
+
                                             <div class="alert alert-success">
                                                 <i class="fas fa-chart-line me-2"></i><strong>Continuous Improvement:</strong> Review these results regularly to identify strengths and areas for improvement in your course. The data provides valuable insights for enhancing teaching methods and course content.
                                             </div>
@@ -471,7 +481,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div class="card mt-4">
                                 <div class="card-header bg-light">
                                     <h5 class="mb-0"><i class="fas fa-graduation-cap me-2"></i>Quick Start for Returning Users</h5>
@@ -487,7 +497,7 @@
                                     </ol>
                                 </div>
                             </div>
-                            
+
                             <div class="text-center mt-4">
                                 <a href="{{ url_for('index') }}" class="btn btn-lg btn-success">
                                     <i class="fas fa-home me-2"></i>Return to Dashboard
@@ -523,7 +533,7 @@
                                         <i class="fas fa-info-circle me-2"></i><strong>Semester Format:</strong> While you can enter semesters in any format, using a consistent format helps with sorting. Including the year (e.g., "2023 Fall" or "Fall 2023") enables chronological sorting.
                                     </div>
                                     <a href="{{ url_for('course.add_course') }}" class="btn btn-sm btn-outline-primary mt-2 mb-3"><i class="fas fa-plus"></i> Add New Course</a>
-                                    
+
                                     <h6><i class="fas fa-edit me-2"></i>Editing a Course</h6>
                                     <ol>
                                         <li>Navigate to the Course Detail page by clicking on a course name from the homepage.</li>
@@ -531,7 +541,7 @@
                                         <li>Modify any of the course properties: Code, Name, or Semester.</li>
                                         <li>Click "Save Changes" to apply your modifications.</li>
                                     </ol>
-                                    
+
                                     <h6><i class="fas fa-trash-alt me-2"></i>Deleting a Course</h6>
                                     <ol>
                                         <li>Navigate to the Course Detail page.</li>
@@ -550,7 +560,7 @@
                                 </div>
                                 <div class="card-body">
                                     <p>The Course Detail page serves as a comprehensive dashboard for managing all aspects of your course:</p>
-                                    
+
                                     <div class="row">
                                         <div class="col-md-6">
                                             <div class="card mb-3">
@@ -611,7 +621,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     <div class="alert alert-info mt-3">
                                         <i class="fas fa-lightbulb me-2"></i><strong>Navigation Tip:</strong> The Course Detail page is your central hub for all course management. From here, you can access every feature related to your course, including outcome definition, exam creation, student management, and result calculation.
                                     </div>
@@ -624,7 +634,7 @@
                                 </div>
                                 <div class="card-body" id="exams-weights">
                                     <p>Exam weights define how different assessments contribute to the final course grade and outcome calculations:</p>
-                                    
+
                                     <ol>
                                         <li>Go to the Course Detail page.</li>
                                         <li>Find the "Exams" section and click the "Manage Weights" button.</li>
@@ -633,11 +643,11 @@
                                         <li><strong>Important:</strong> The sum of all weights MUST equal exactly 100%.</li>
                                         <li>Click "Save Weights".</li>
                                     </ol>
-                                    
+
                                     <div class="alert alert-warning mt-3">
                                         <i class="fas fa-exclamation-triangle me-2"></i><strong>Critical:</strong> Exam weights are essential for accurate outcome achievement calculations. The system uses these weights to determine each exam's contribution to the overall assessment.
                                     </div>
-                                    
+
                                     <div class="card bg-light mt-3">
                                         <div class="card-body">
                                             <h6><i class="fas fa-info-circle me-2"></i>How Weights Affect Calculations</h6>
@@ -675,7 +685,7 @@
                                             </table>
                                         </div>
                                     </div>
-                                    
+
                                     <div class="alert alert-info mt-3">
                                         <i class="fas fa-medkit me-2"></i><strong>Makeup Exams:</strong> Makeup exams automatically inherit the weight of their corresponding original exam. You don't need to set weights for makeup exams separately.
                                     </div>
@@ -688,7 +698,7 @@
                                 </div>
                                 <div class="card-body" id="course-settings">
                                     <p>Course Settings allow you to customize how success rates and achievement levels are calculated and displayed for your course:</p>
-                                    
+
                                     <h6><i class="fas fa-sliders-h me-2"></i>Accessing Course Settings</h6>
                                     <ol>
                                         <li>Navigate to the Course Detail page.</li>
@@ -696,7 +706,7 @@
                                         <li>Modify settings as needed.</li>
                                         <li>Click "Save Settings" to apply changes.</li>
                                     </ol>
-                                    
+
                                     <div class="card mt-3">
                                         <div class="card-header bg-light">
                                             <h6 class="mb-0">Available Settings</h6>
@@ -767,7 +777,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     <div class="alert alert-info mt-3">
                                         <i class="fas fa-lightbulb me-2"></i><strong>Achievement Level Tip:</strong> Achievement levels provide a more intuitive way to interpret raw percentages. They appear in calculation reports and visualizations, making it easier to identify strengths and weaknesses.
                                     </div>
@@ -780,19 +790,21 @@
                                 </div>
                                 <div class="card-body">
                                     <p>The Course Duplication feature allows you to quickly set up a new course instance based on an existing one. This is especially useful when teaching the same course in subsequent semesters.</p>
-                                    
+
                                     <h6><i class="fas fa-list-ol me-2"></i>Duplication Process</h6>
                                     <ol>
                                         <li>Navigate to the Course Detail page of the course you want to duplicate.</li>
                                         <li>Locate and click the "Duplicate Course" button.</li>
-                                        <li>In the duplication form, enter the details for the new course:
+                                        <li>
+                                            In the duplication form, enter the details for the new course:
                                             <ul>
                                                 <li><strong>New Course Code</strong> - Can be the same if it's the same course</li>
                                                 <li><strong>New Course Name</strong> - Can be the same or modified</li>
                                                 <li><strong>New Semester</strong> - Should be different (e.g., "Spring 2024" instead of "Fall 2023")</li>
                                             </ul>
                                         </li>
-                                        <li>Select which components to copy:
+                                        <li>
+                                            Select which components to copy:
                                             <div class="form-check ms-4 mt-2">
                                                 <input class="form-check-input" type="checkbox" checked disabled>
                                                 <label class="form-check-label">Course Outcomes (COs)</label>
@@ -816,11 +828,11 @@
                                         </li>
                                         <li>Click "Duplicate" to create the new course instance.</li>
                                     </ol>
-                                    
+
                                     <div class="alert alert-warning mt-3">
                                         <i class="fas fa-user-graduate me-2"></i><strong>Important:</strong> Student data and scores are <strong>never</strong> copied during duplication. You'll need to import a new student list for the duplicated course.
                                     </div>
-                                    
+
                                     <div class="alert alert-success mt-3">
                                         <i class="fas fa-clock me-2"></i><strong>Time-Saving:</strong> Course duplication can save hours of setup time, as all the complex relationships between COs, POs, exams, and questions are preserved. You only need to import new students and record new scores.
                                     </div>
@@ -830,9 +842,9 @@
                             <div class="alert alert-info mt-3">
                                 <i class="fas fa-link me-2"></i><strong>Related Sections:</strong>
                                 <ul class="mb-0">
-                                    <li>See <a href="#outcomes" data-bs-toggle="list">Outcomes</a> for more on defining Course Outcomes and linking them to Program Outcomes.</li>
-                                    <li>See <a href="#exams" data-bs-toggle="list">Exams & Questions</a> for more on creating assessments and linking questions to outcomes.</li>
-                                    <li>See <a href="#students" data-bs-toggle="list">Students & Scores</a> for more on student management and score entry.</li>
+                                    <li>See <a href="#outcomes" class="tab-link">Outcomes</a> for more on defining Course Outcomes and linking them to Program Outcomes.</li>
+                                    <li>See <a href="#exams" class="tab-link">Exams & Questions</a> for more on creating assessments and linking questions to outcomes.</li>
+                                    <li>See <a href="#students" class="tab-link">Students & Scores</a> for more on student management and score entry.</li>
                                 </ul>
                             </div>
                         </div>
@@ -856,7 +868,7 @@
                                 </div>
                                 <div class="card-body">
                                     <p>Program Outcomes (POs) are high-level competencies that students should achieve by the end of their educational program. In Turkish engineering programs, these are typically aligned with MÜDEK criteria.</p>
-                                    
+
                                     <div class="row">
                                         <div class="col-md-6">
                                             <h6><i class="fas fa-binoculars me-2"></i>Viewing Program Outcomes</h6>
@@ -865,7 +877,7 @@
                                                 <li>View the complete list of defined POs with their codes and descriptions</li>
                                                 <li>Click "View" on any PO to see details, including which Course Outcomes map to it (if implemented)</li>
                                             </ol>
-                                            
+
                                             <h6><i class="fas fa-plus me-2"></i>Adding a New Program Outcome</h6>
                                             <ol>
                                                 <li>Navigate to <a href="{{ url_for('outcome.list_program_outcomes') }}">Program Outcomes</a></li>
@@ -884,7 +896,7 @@
                                                 <li>Update the Code or Description as needed</li>
                                                 <li>Click "Save Changes"</li>
                                             </ol>
-                                            
+
                                             <h6><i class="fas fa-trash-alt me-2"></i>Deleting Program Outcomes</h6>
                                             <ol>
                                                 <li>Navigate to <a href="{{ url_for('outcome.list_program_outcomes') }}">Program Outcomes</a></li>
@@ -897,7 +909,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     <div class="card mt-3 bg-light">
                                         <div class="card-header">
                                             <h6 class="mb-0">Example Program Outcomes</h6>
@@ -927,11 +939,11 @@
                                             </table>
                                         </div>
                                     </div>
-                                    
+
                                     <div class="alert alert-info mt-3">
                                         <i class="fas fa-lightbulb me-2"></i><strong>Default POs:</strong> The application comes pre-loaded with default Program Outcomes based on common Turkish engineering accreditation criteria. You can use these as-is or modify them to match your specific program requirements.
                                     </div>
-                                    
+
                                     <a href="{{ url_for('outcome.list_program_outcomes') }}" class="btn btn-primary mt-3">
                                         <i class="fas fa-list me-2"></i>View & Manage Program Outcomes
                                     </a>
@@ -944,7 +956,7 @@
                                 </div>
                                 <div class="card-body">
                                     <p>Course Outcomes (COs) are specific, measurable learning objectives for a particular course. Each CO must be linked to one or more Program Outcomes (POs) it supports.</p>
-                                    
+
                                     <div class="row">
                                         <div class="col-md-6">
                                             <h6><i class="fas fa-plus me-2"></i>Adding Course Outcomes</h6>
@@ -957,7 +969,7 @@
                                                 <li><span class="text-danger"><strong>Critical Step:</strong></span> Select one or more Program Outcomes (POs) that this CO supports</li>
                                                 <li>Click "Save"</li>
                                             </ol>
-                                            
+
                                             <h6><i class="fas fa-eye me-2"></i>Viewing Course Outcomes</h6>
                                             <ul>
                                                 <li>All COs for a course are listed in the "Course Outcomes" section of the Course Detail page</li>
@@ -974,7 +986,7 @@
                                                 <li>Update the Code, Description, or PO mappings as needed</li>
                                                 <li>Click "Save Changes"</li>
                                             </ol>
-                                            
+
                                             <h6><i class="fas fa-trash-alt me-2"></i>Deleting Course Outcomes</h6>
                                             <ol>
                                                 <li>Navigate to the Course Detail page</li>
@@ -987,7 +999,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     <div class="card mt-3 bg-light">
                                         <div class="card-header">
                                             <h6 class="mb-0">Example Course Outcomes & PO Mappings</h6>
@@ -1028,7 +1040,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     <div class="alert alert-warning mt-3">
                                         <i class="fas fa-pencil-alt me-2"></i><strong>Writing Effective COs:</strong> Course Outcomes should be SMART: Specific, Measurable, Achievable, Relevant, and Time-bound. Always begin with an action verb that indicates the level of cognitive skill required (e.g., "analyze," "design," "evaluate," not "understand" or "learn").
                                     </div>
@@ -1041,7 +1053,7 @@
                                 </div>
                                 <div class="card-body">
                                     <p>The relationship between different components in the system is critical for accurate accreditation assessment:</p>
-                                    
+
                                     <div class="row align-items-center">
                                         <div class="col-md-8">
                                             <div class="card bg-light">
@@ -1083,7 +1095,7 @@
                                             </ul>
                                         </div>
                                     </div>
-                                    
+
                                     <div class="alert alert-danger mt-4">
                                         <i class="fas fa-exclamation-circle me-2"></i><strong>Critical for Accreditation:</strong> This hierarchical structure is fundamental to accreditation assessment. Ensure all connections are properly established:
                                         <ul class="mb-0">
@@ -1092,18 +1104,18 @@
                                             <li>All POs should be supported by multiple COs across different courses</li>
                                         </ul>
                                     </div>
-                                    
+
                                     <div class="alert alert-success mt-3">
                                         <i class="fas fa-check-circle me-2"></i><strong>Best Practice:</strong> When setting up a new course, define the Course Outcomes and their PO mappings first, before creating exams and questions. This ensures a clear assessment plan aligned with program goals.
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div class="alert alert-info mt-3">
                                 <i class="fas fa-link me-2"></i><strong>Related Sections:</strong>
                                 <ul class="mb-0">
-                                    <li>See <a href="#exams" data-bs-toggle="list">Exams & Questions</a> for details on linking questions to Course Outcomes.</li>
-                                    <li>See <a href="#calculation" data-bs-toggle="list">Calculations</a> to understand how CO achievement and PO contribution are calculated.</li>
+                                    <li>See <a href="#exams" class="tab-link">Exams & Questions</a> for details on linking questions to Course Outcomes.</li>
+                                    <li>See <a href="#calculation" class="tab-link">Calculations</a> to understand how CO achievement and PO contribution are calculated.</li>
                                 </ul>
                             </div>
                         </div>
@@ -1218,7 +1230,7 @@
                             <div class="alert alert-primary">
                                 <i class="fas fa-info-circle me-2"></i><strong>What Are Accredit Calculations?</strong> These are automated analyses that determine how well students are achieving the defined learning outcomes at both the course level (COs) and program level (POs).
                             </div>
-                            
+
                             <h5 class="mt-4"><i class="fas fa-sync-alt me-2"></i>Recent Performance Improvements</h5>
                             <div class="card mb-4 border-success">
                                 <div class="card-header bg-success text-white">
@@ -1238,7 +1250,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <h5><i class="fas fa-cogs me-2"></i>Calculation Methods</h5>
                             <p>The system supports two primary calculation methods for outcome achievement:</p>
 
@@ -1303,207 +1315,497 @@
                             <p>The Utilities section provides essential tools for managing your application data and accessing logs.</p>
                             <a href="{{ url_for('utility.index') }}" class="btn btn-sm btn-outline-primary mb-3"><i class="fas fa-cog"></i> Go to Utilities Index</a>
 
-                            <h6>Backup Database</h6>
+                            <h5 class="mt-4"><i class="fas fa-cloud me-2"></i>Remote Access with Cloudflared</h5>
+                            <p>Access your Accredit Helper Pro application from anywhere with our new cloudflared integration:</p>
+                            <ul>
+                                <li><strong>Share with Colleagues:</strong> Generate a secure public URL for collaboration</li>
+                                <li><strong>Remote Access:</strong> Use your application from any device with internet</li>
+                                <li><strong>Simple Setup:</strong> Just install cloudflared and run with the <code>--cloud</code> flag</li>
+                            </ul>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>For detailed instructions on setting up and using cloudflared,
+                                <a href="{{ url_for('utility.cloud_help_page') }}" class="alert-link">visit our dedicated Remote Access guide</a>.
+                            </div>
+
+                            <h5 class="mt-4"><i class="fas fa-download me-2"></i>Backup Database</h5>
                             <ul>
                                 <li><strong>Purpose:</strong> Create a safe copy of your entire application database (`accredit_data.db`).</li>
-                                <li><strong>Creating Manual Backups:</strong> Go to Utilities -> Backup. Optionally add a description (e.g., "End of Fall 2023 Data") and click "Create Backup".</li>
                                 <li>
-                                    <strong>Automatic Backups:</strong> The system automatically creates backups before critical operations:
+                                    <strong>Features:</strong>
                                     <ul>
-                                        <li><code>pre_restore_backup_*.db</code>: Before restoring from another file.</li>
-                                        <li><code>pre_merge_backup_*.db</code>: Before merging courses.</li>
-                                        <li><code>pre_import_backup_*.db</code>: Before importing data from another database file.</li>
+                                        <li>Add custom descriptions to backups</li>
+                                        <li>Automatic timestamps</li>
+                                        <li>View backup history</li>
+                                        <li>Download backup files</li>
                                     </ul>
                                 </li>
-                                <li><strong>Viewing/Downloading/Deleting:</strong> The Backup page lists all backups (manual and automatic). You can download any backup file or delete old/unnecessary ones. Backup descriptions help identify them.</li>
+                                <li><strong>When to Use:</strong> Before making significant changes, at the end of each term, or regularly to ensure data safety.</li>
+                                <li><strong>Access:</strong> Utilities → Backup Database</li>
                             </ul>
-                            <div class="alert alert-info mt-2"><i class="fas fa-save me-1"></i> Regularly creating manual backups with clear descriptions is highly recommended, especially before making major changes or imports.</div>
 
-
-                            <h6>Restore Database</h6>
+                            <h5 class="mt-4"><i class="fas fa-upload me-2"></i>Restore Database</h5>
                             <ul>
-                                <li><strong>Purpose:</strong> Replace the current application database with data from a backup file.</li>
-                                <li><strong>Warning:</strong> This action OVERWRITES the current database. The system creates a `pre_restore_backup` automatically, but ensure you are restoring the correct file.</li>
+                                <li><strong>Purpose:</strong> Recover your database from a previously created backup.</li>
                                 <li>
-                                    <strong>Methods:</strong>
-                                    <ol>
-                                        <li><strong>Restore from List:</strong> Go to Utilities -> Restore. Select a backup file from the list of available backups created previously and click "Restore".</li>
-                                        <li><strong>Restore from Upload:</strong> Upload a `.db` backup file (e.g., one you downloaded earlier or received from someone else) and click "Upload and Restore".</li>
-                                    </ol>
-                                </li>
-                                <li><strong>Confirmation:</strong> You will likely need to confirm the restore action.</li>
-                                <li><strong>Restart Required:</strong> After a successful restore, it's often necessary to restart the application server for changes to take full effect.</li>
-                            </ul>
-                            <div class="alert alert-danger mt-2"><i class="fas fa-exclamation-triangle me-1"></i> Restore completely replaces your current data. Double-check the backup file being used.</div>
-
-
-                            <h6>Merge Courses</h6>
-                            <ul>
-                                <li><strong>Purpose:</strong> Consolidate data from multiple source course instances into a single destination course instance. Useful for combining data from different sections of the same course taught in the same semester, or for creating a longitudinal view.</li>
-                                <li>
-                                    <strong>Process:</strong>
-                                    <ol>
-                                        <li>Go to Utilities -> Merge Courses.</li>
-                                        <li>Select the <strong>Destination Course</strong> (where data will be merged *into*).</li>
-                                        <li>Select one or more <strong>Source Courses</strong> (where data will be copied *from*). The destination cannot be a source.</li>
-                                        <li>Choose what to merge: Students, Exams, Course Outcomes. Merging exams may also involve merging related questions and scores intelligently.</li>
-                                        <li>Click <strong>Preview Merge</strong> to see a detailed analysis of what will be merged, including potential conflicts.</li>
-                                        <li>Review the preview information, paying special attention to any conflicts that might exist.</li>
-                                        <li>Check the confirmation box acknowledging that the operation cannot be automatically undone.</li>
-                                        <li>Click "Merge Courses" to perform the merge.</li>
-                                    </ol>
-                                </li>
-                                <li><strong>Backup:</strong> A database backup is automatically created before any merge operation to ensure data can be restored if needed.</li>
-                                <li><strong>Conflict Handling:</strong> The system intelligently identifies and manages conflicts:
+                                    <strong>Features:</strong>
                                     <ul>
-                                        <li><strong>Students:</strong> If a student ID already exists in the destination course, their information is preserved but scores from non-conflicting exams may still be merged.</li>
-                                        <li><strong>Exams:</strong> Exams with the same name are considered duplicates. The system preserves makeup exam relationships between exams.</li>
-                                        <li><strong>Questions:</strong> Questions with the same number in duplicate exams are matched. The system warns if they have different maximum scores.</li>
-                                        <li><strong>Course Outcomes:</strong> Outcomes with the same code are considered duplicates. The system warns if they have different descriptions.</li>
+                                        <li>View all available backups with timestamps and descriptions</li>
+                                        <li>Automatic backup of current database before restore (safety measure)</li>
+                                        <li>Full database restoration</li>
                                     </ul>
                                 </li>
-                                <li><strong>Post-Merge:</strong> After merging, any conflicts encountered during the merge process will be displayed as warnings. These are also logged for future reference.</li>
+                                <li><strong>When to Use:</strong> After accidental data deletion, when recovering from errors, or when rolling back to a previous state.</li>
+                                <li><strong>Access:</strong> Utilities → Restore Database</li>
                             </ul>
 
-
-                            <h6>Import Database</h6>
+                            <h5 class="mt-4"><i class="fas fa-object-group me-2"></i>Merge Courses</h5>
                             <ul>
-                                <li><strong>Purpose:</strong> Import data from an external `accredit_data.db` file and merge it intelligently with your current database. This differs from Restore, as it *adds* data rather than replacing the entire database. Useful for combining data from different instructors or separate installations.</li>
+                                <li><strong>Purpose:</strong> Combine data from multiple related courses into a single course.</li>
                                 <li>
-                                    <strong>Process:</strong>
-                                    <ol>
-                                        <li>Go to Utilities -> Import Database.</li>
-                                        <li>Upload the `.db` file you want to import data from.</li>
-                                        <li>Choose what data types to import (Courses, Students, Exams, Outcomes, Achievement Levels).</li>
-                                        <li>Optionally create a `pre_import_backup`.</li>
-                                        <li>Confirm the import.</li>
-                                    </ol>
+                                    <strong>Features:</strong>
+                                    <ul>
+                                        <li>Merge students and scores</li>
+                                        <li>Combine assessment data</li>
+                                        <li>Preview of changes before execution</li>
+                                    </ul>
                                 </li>
-                                <li><strong>Conflict Handling:</strong> The import process tries to be smart about duplicates. It typically skips importing items (like courses, students, exams) if an item with the same unique identifier (e.g., course code + semester) already exists in your current database. It focuses on adding *new* information. Check the log messages and summary after import for details.</li>
+                                <li><strong>When to Use:</strong> When combining different sections of the same course, or consolidating historical data.</li>
+                                <li><strong>Access:</strong> Utilities → Merge Courses</li>
                             </ul>
 
-
-                            <h6>View Logs</h6>
+                            <h5 class="mt-4"><i class="fas fa-list-alt me-2"></i>System Logs</h5>
                             <ul>
-                                <li><strong>Purpose:</strong> View a history of actions performed within the application (e.g., Course Added, Backup Created, Calculation Ran, User Login - if implemented).</li>
-                                <li><strong>Features:</strong> Filter logs by action type, date range. Paginated view for performance. Option to export the filtered logs to CSV.</li>
-                                <li><strong>Access:</strong> Utilities -> View Logs.</li>
+                                <li><strong>Purpose:</strong> Track and review system activities and changes made in the application.</li>
+                                <li>
+                                    <strong>Features:</strong>
+                                    <ul>
+                                        <li>Filter logs by action type</li>
+                                        <li>Filter by date range</li>
+                                        <li>Export log data</li>
+                                    </ul>
+                                </li>
+                                <li><strong>When to Use:</strong> When troubleshooting issues, tracking changes, or generating activity reports.</li>
+                                <li><strong>Access:</strong> Utilities → System Logs</li>
+                            </ul>
+
+                            </li>
+                            <li>
+                                <strong>Simultaneous Access:</strong>
+                                <ul>
+                                    <li>Ensure only one instance of the application is running</li>
+                                    <li>Close any database browser tools that might be accessing the file</li>
+                                </ul>
+                            </li>
+                            <li>
+                                <strong>Permission Issues:</strong>
+                                <ul>
+                                    <li>Ensure the application has read/write permissions to the <code>instance</code> directory</li>
+                                    <li>Run the application with appropriate permissions</li>
+                                </ul>
+                            </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">Missing or Unexpected Data</h6>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Symptoms:</strong> Courses, exams, or students that should be present are missing, or data appears incorrect.</p>
+
+                            <p><strong>Possible Causes & Solutions:</strong></p>
+                            <ul>
+                                <li>
+                                    <strong>Accidental Deletion:</strong>
+                                    <ul>
+                                        <li>Restore from a recent backup if available</li>
+                                        <li>Check the system logs for deletion actions: Utilities → View Logs</li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    <strong>Wrong Database File:</strong>
+                                    <ul>
+                                        <li>Ensure you're using the correct database file (particularly if you use multiple databases)</li>
+                                        <li>Check the backup list to verify which database is currently active</li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    <strong>Data Import Issues:</strong>
+                                    <ul>
+                                        <li>If data appears after an import operation, verify the import settings were correct</li>
+                                        <li>You may need to restore from a pre-import backup and retry with different settings</li>
+                                    </ul>
+                                </li>
                             </ul>
                         </div>
                     </div>
                 </div>
 
-                <!-- FAQ -->
-                <div class="tab-pane fade" id="faq">
+                <!-- Privacy Policy -->
+                <div class="tab-pane fade" id="privacy-policy">
                     <div class="card shadow-sm">
-                        <div class="card-header bg-light">
-                            <h4 class="mb-0"><i class="fas fa-question me-2"></i>Frequently Asked Questions</h4>
+                        <div class="card-header bg-secondary text-white">
+                            <h4 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Privacy Policy</h4>
                         </div>
                         <div class="card-body">
-                            <div class="accordion" id="faqAccordion">
-                                <div class="accordion-item">
-                                    <h2 class="accordion-header" id="faqHeading1">
-                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse1" aria-expanded="true" aria-controls="faqCollapse1">
-                                            How are Accredit achievement levels (CO/PO percentages) calculated?
-                                        </button>
-                                    </h2>
-                                    <div id="faqCollapse1" class="accordion-collapse collapse show" aria-labelledby="faqHeading1" data-bs-parent="#faqAccordion">
-                                        <div class="accordion-body">
-                                            <p><strong>Course Outcome (CO) Achievement:</strong></p>
-                                            <ol>
-                                                <li>The system identifies all questions linked to a specific CO across all exams in the course.</li>
-                                                <li>For each linked question, it calculates the average percentage score achieved by students: `(Sum of scores on this question / (Number of students * Question Max Score)) * 100`.</li>
-                                                <li>The overall CO achievement percentage is typically a weighted average of these individual question averages, weighted by the maximum score of each question. Questions worth more points contribute more to the outcome assessment.</li>
-                                            </ol>
-                                            <p><strong>Program Outcome (PO) Achievement:</strong></p>
-                                            <ol>
-                                                <li>The system identifies all COs within the course that are linked to a specific PO.</li>
-                                                <li>The PO achievement level (contribution from this course) is calculated based on the achievement levels of those linked COs. This might be a simple average or potentially weighted if such weighting is defined.</li>
-                                            </ol>
-                                            <p>The exact formulas might have minor variations depending on the specific implementation, but this is the general principle.</p>
-                                        </div>
-                                    </div>
-                                </div>
+                            <p class="lead">This Privacy Policy describes how your data is collected, used, and shared when you use Accredit Helper Pro.</p>
 
-                                <div class="accordion-item">
-                                    <h2 class="accordion-header" id="faqHeading2">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse2" aria-expanded="false" aria-controls="faqCollapse2">
-                                            Can I export data for Accredit reports?
-                                        </button>
-                                    </h2>
-                                    <div id="faqCollapse2" class="accordion-collapse collapse" aria-labelledby="faqHeading2" data-bs-parent="#faqAccordion">
-                                        <div class="accordion-body">
-                                            <p>Yes. Key export features include:</p>
+                            <div class="alert alert-info mb-4">
+                                <i class="fas fa-info-circle me-2"></i><strong>Last Updated:</strong> 2023-07-15
+                            </div>
+
+                            <h5><i class="fas fa-database me-2"></i>Information We Collect</h5>
+                            <p>Accredit Helper Pro is designed to operate locally on your machine and within your institutional environment. The application collects and stores the following information:</p>
+                            <ul>
+                                <li><strong>Course Information:</strong> Course codes, names, descriptions, and semester data</li>
+                                <li><strong>Student Information:</strong> Student IDs, names, and academic performance data</li>
+                                <li><strong>Assessment Data:</strong> Exam scores, questions, and assessment criteria</li>
+                                <li><strong>Program and Course Outcomes:</strong> Learning objectives and performance metrics</li>
+                                <li><strong>Application Logs:</strong> Actions performed within the application for auditing purposes</li>
+                            </ul>
+
+                            <h5><i class="fas fa-server me-2"></i>Data Storage and Security</h5>
+                            <p>Accredit Helper Pro stores all data in a local SQLite database on your computer or institutional server. We implement reasonable security measures to protect the personal information collected:</p>
+                            <ul>
+                                <li>All data is stored locally within your institutional environment</li>
+                                <li>No data is transmitted to external servers unless explicitly initiated by the user</li>
+                                <li>Automatic database backups are created before significant operations</li>
+                                <li>Access to the application should be controlled through your institutional IT policies</li>
+                            </ul>
+
+                            <h5><i class="fas fa-share-alt me-2"></i>Information Sharing</h5>
+                            <p>We do not share your data with third parties. The data you enter into Accredit Helper Pro remains within your local environment and under your control. Any data sharing would only occur if:</p>
+                            <ul>
+                                <li>You explicitly export data for accreditation or reporting purposes</li>
+                                <li>You share database backups with colleagues or IT support</li>
+                                <li>You are required to do so by law or institutional policy</li>
+                            </ul>
+
+                            <h5><i class="fas fa-cookie me-2"></i>Cookies and Tracking</h5>
+                            <p>Accredit Helper Pro does not use cookies or tracking technologies to collect information about your usage. As a locally-installed application, it does not employ web tracking mechanisms.</p>
+
+                            <h5><i class="fas fa-user-shield me-2"></i>Data Retention</h5>
+                            <p>You control how long data is retained within Accredit Helper Pro. The application will keep your data until you choose to delete it. We recommend implementing your institutional data retention policies regarding student records.</p>
+
+                            <h5><i class="fas fa-globe me-2"></i>International Data Transfer</h5>
+                            <p>Since Accredit Helper Pro operates locally within your environment, no international data transfers occur through our software. If you choose to move your data across jurisdictions, you are responsible for compliance with applicable laws.</p>
+
+                            <h5><i class="fas fa-child me-2"></i>Children's Privacy</h5>
+                            <p>Accredit Helper Pro is intended for use by educational institutions and faculty members. It is not designed for use by individuals under 18 years of age. We do not knowingly collect data from children under 18.</p>
+
+                            <h5><i class="fas fa-balance-scale me-2"></i>Your Rights</h5>
+                            <p>Depending on your location, you may have rights regarding your personal data. These might include:</p>
+                            <ul>
+                                <li>The right to access personal data we hold about you</li>
+                                <li>The right to have your data corrected or deleted</li>
+                                <li>The right to object to processing of your data</li>
+                                <li>The right to withdraw consent</li>
+                            </ul>
+                            <p>Since you control the application and its data directly, most of these rights can be exercised through the application interface.</p>
+
+                            <h5><i class="fas fa-file-contract me-2"></i>Legal Basis for Processing</h5>
+                            <p>Educational institutions may process data in Accredit Helper Pro under various legal bases:</p>
+                            <ul>
+                                <li><strong>Legitimate Interest:</strong> Processing necessary for accreditation and educational quality assurance</li>
+                                <li><strong>Legal Obligation:</strong> Compliance with educational standards and regulations</li>
+                                <li><strong>Consent:</strong> Where applicable, with appropriate disclosures to students</li>
+                                <li><strong>Contractual Necessity:</strong> Fulfilling educational service agreements</li>
+                            </ul>
+                            <p>Institutions should consult their legal departments to ensure appropriate legal basis for their specific use cases.</p>
+
+                            <h5><i class="fas fa-pencil-alt me-2"></i>Changes to This Privacy Policy</h5>
+                            <p>We may update this privacy policy from time to time to reflect changes in our practices or for other operational, legal, or regulatory reasons. Updates will be provided with new versions of the software.</p>
+
+                            <h5><i class="fas fa-envelope me-2"></i>Contact Us</h5>
+                            <p>If you have questions about this Privacy Policy or your data within Accredit Helper Pro, please contact your institution's administrator or IT department.</p>
+
+                            <div class="alert alert-warning mt-3">
+                                <i class="fas fa-exclamation-triangle me-2"></i><strong>Disclaimer:</strong> This privacy policy is provided as a template and should be reviewed by your institution's legal department before deployment to ensure compliance with local laws and regulations.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Terms of Use -->
+                <div class="tab-pane fade" id="terms-of-use">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-secondary text-white">
+                            <h4 class="mb-0"><i class="fas fa-gavel me-2"></i>Terms of Use</h4>
+                        </div>
+                        <div class="card-body">
+                            <p class="lead">These Terms of Use govern your use of Accredit Helper Pro. By using the application, you agree to these terms.</p>
+
+                            <div class="alert alert-info mb-4">
+                                <i class="fas fa-info-circle me-2"></i><strong>Last Updated:</strong> 2023-07-15
+                            </div>
+
+                            <h5><i class="fas fa-file-signature me-2"></i>Acceptance of Terms</h5>
+                            <p>By accessing or using Accredit Helper Pro, you agree to be bound by these Terms of Use. If you disagree with any part of these terms, you may not use the application.</p>
+
+                            <h5><i class="fas fa-user-lock me-2"></i>User Responsibilities</h5>
+                            <p>When using Accredit Helper Pro, you agree to:</p>
+                            <ul>
+                                <li>Use the application in compliance with all applicable laws and regulations</li>
+                                <li>Ensure you have appropriate rights to enter and store the data you input</li>
+                                <li>Maintain the confidentiality of student data in accordance with privacy laws (e.g., FERPA in the US)</li>
+                                <li>Implement appropriate security measures to protect the application and its data</li>
+                                <li>Create regular backups of your database</li>
+                                <li>Keep the software updated with the latest version when available</li>
+                            </ul>
+
+                            <h5><i class="fas fa-laptop-code me-2"></i>Software License</h5>
+                            <p>Accredit Helper Pro is provided under the terms of the license included with the software. This license grants you the right to:</p>
+                            <ul>
+                                <li>Install and use the application within your educational institution</li>
+                                <li>Make copies of the software for backup purposes</li>
+                                <li>Use the software for educational and accreditation purposes</li>
+                            </ul>
+                            <p>You may not:</p>
+                            <ul>
+                                <li>Distribute the software to third parties outside your institution without permission</li>
+                                <li>Modify, reverse engineer, or create derivative works of the software</li>
+                                <li>Remove or alter any copyright notices or attributions</li>
+                                <li>Use the software for commercial purposes beyond its intended educational use</li>
+                            </ul>
+
+                            <h5><i class="fas fa-exclamation-circle me-2"></i>Disclaimer of Warranties</h5>
+                            <p>Accredit Helper Pro is provided "as is" without warranty of any kind, either express or implied, including, but not limited to, the implied warranties of merchantability and fitness for a particular purpose. The developers do not warrant that:</p>
+                            <ul>
+                                <li>The functions contained in the software will meet your specific requirements</li>
+                                <li>The operation of the software will be uninterrupted or error-free</li>
+                                <li>Defects in the software will be corrected</li>
+                            </ul>
+                            <p>The entire risk as to the quality and performance of the software is with you. Should the software prove defective, you assume the cost of all necessary servicing, repair, or correction.</p>
+
+                            <h5><i class="fas fa-hand-paper me-2"></i>Limitation of Liability</h5>
+                            <p>In no event shall the developers of Accredit Helper Pro be liable for any damages whatsoever (including, without limitation, damages for loss of business profits, business interruption, loss of business information, or any other pecuniary loss) arising out of the use or inability to use this software, even if the developers have been advised of the possibility of such damages.</p>
+
+                            <h5><i class="fas fa-database me-2"></i>Data Ownership and Privacy</h5>
+                            <p>All data entered into Accredit Helper Pro remains your property and under your control. The application developers do not claim ownership of your data and cannot access it unless you explicitly share it. Your use of the application is also governed by our <a href="#privacy-policy" class="tab-link">Privacy Policy</a>.</p>
+
+                            <h5><i class="fas fa-sync-alt me-2"></i>Updates and Changes</h5>
+                            <p>We reserve the right to:</p>
+                            <ul>
+                                <li>Update the software to add features, fix bugs, or improve security</li>
+                                <li>Modify these Terms of Use at any time</li>
+                                <li>Change or discontinue features of the application</li>
+                            </ul>
+                            <p>We will attempt to notify users of significant changes to these terms or the software functionality through release notes or other appropriate channels.</p>
+
+                            <h5><i class="fas fa-file-export me-2"></i>Data Export and Portability</h5>
+                            <p>Accredit Helper Pro provides functionality to export your data in various formats for reporting, backup, or transfer purposes. You are responsible for:</p>
+                            <ul>
+                                <li>Maintaining appropriate backups of your data</li>
+                                <li>Ensuring exported data is handled securely</li>
+                                <li>Complying with relevant data protection regulations when transferring data</li>
+                            </ul>
+
+                            <h5><i class="fas fa-balance-scale me-2"></i>Governing Law</h5>
+                            <p>These Terms of Use shall be governed by and construed in accordance with the laws applicable in your jurisdiction, without regard to its conflict of law provisions.</p>
+
+                            <h5><i class="fas fa-handshake me-2"></i>Entire Agreement</h5>
+                            <p>These Terms of Use, together with the Privacy Policy, constitute the entire agreement between you and the developers regarding the use of Accredit Helper Pro, superseding any prior agreements between you and the developers.</p>
+
+                            <h5><i class="fas fa-phone me-2"></i>Contact</h5>
+                            <p>If you have any questions about these Terms of Use, please contact your institution's administrator or IT department.</p>
+
+                            <div class="alert alert-warning mt-3">
+                                <i class="fas fa-exclamation-triangle me-2"></i><strong>Disclaimer:</strong> These Terms of Use are provided as a template and should be reviewed by your institution's legal department before deployment to ensure compliance with local laws and regulations.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact & Support -->
+                <div class="tab-pane fade" id="contact">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-info text-white">
+                            <h4 class="mb-0"><i class="fas fa-envelope me-2"></i>Contact & Support</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info mb-4">
+                                <i class="fas fa-info-circle me-2"></i><strong>Support Availability:</strong> Our team is dedicated to helping you make the most of Accredit Helper Pro. We offer various support channels to address your questions, technical issues, and feature requests.
+                            </div>
+
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <div class="card h-100 border-primary">
+                                        <div class="card-header bg-primary text-white">
+                                            <h5 class="mb-0"><i class="fas fa-question-circle me-2"></i>Getting Help</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <h6><i class="fas fa-book-reader me-2"></i>Documentation Resources</h6>
+                                            <p>Before contacting support, consider checking these resources:</p>
                                             <ul>
-                                                <li><strong>Calculation Results:</strong> Export detailed outcome achievement data (CO & PO levels) and success rates as a formatted PDF report or raw CSV/Excel data from the Calculation Results page.</li>
-                                                <li><strong>Student List:</strong> Export the list of students enrolled in a course to CSV from the Course Detail page -> Students section.</li>
-                                                <li><strong>Scores (Potentially):</strong> While direct score export might not be a primary feature, exporting calculation results often includes summary data derived from scores. Raw score export might be available via database tools if needed.</li>
-                                                <li><strong>Logs:</strong> Export system activity logs to CSV from the Utilities -> View Logs page.</li>
+                                                <li><a href="#overview" class="tab-link">Help & Documentation</a> (this guide)</li>
+                                                <li><a href="#troubleshooting" class="tab-link">Troubleshooting Guide</a></li>
+                                                <li><a href="https://github.com/furkangozukara/Accredit-Helper-Pro/wiki" target="_blank">Online Wiki</a> (may contain updated information)</li>
                                             </ul>
-                                            <p>The PDF export from the Calculation Results page is often the most directly useful for formal Accredit documentation.</p>
-                                        </div>
-                                    </div>
-                                </div>
 
-                                <div class="accordion-item">
-                                    <h2 class="accordion-header" id="faqHeading3">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse3" aria-expanded="false" aria-controls="faqCollapse3">
-                                            How do I handle Make-up Exams correctly?
-                                        </button>
-                                    </h2>
-                                    <div id="faqCollapse3" class="accordion-collapse collapse" aria-labelledby="faqHeading3" data-bs-parent="#faqAccordion">
-                                        <div class="accordion-body">
-                                            <ol>
-                                                <li>Create the make-up assessment as a new exam (e.g., "Midterm 1 - Makeup").</li>
-                                                <li>Crucially, check the "Is Makeup Exam?" box AND select the original exam it replaces from the "Makeup For" dropdown.</li>
-                                                <li>Add questions to the make-up exam, ensuring they assess the same COs as the original exam questions they replace, and link them appropriately.</li>
-                                                <li>When entering scores for the make-up exam, only input scores for the students who took the make-up. Leave scores blank for students who took the original.</li>
-                                                <li>The calculation engine will automatically use the make-up score for a student if one exists for that assessment; otherwise, it will use their score from the original exam. The make-up exam automatically inherits the weight defined for the original exam it replaces.</li>
-                                            </ol>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="accordion-item">
-                                    <h2 class="accordion-header" id="faqHeading4">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse4" aria-expanded="false" aria-controls="faqCollapse4">
-                                            What's the difference between 'Absolute' and 'Relative' Success Rate calculation?
-                                        </button>
-                                    </h2>
-                                    <div id="faqCollapse4" class="accordion-collapse collapse" aria-labelledby="faqHeading4" data-bs-parent="#faqAccordion">
-                                        <div class="accordion-body">
-                                            This setting (in Course Settings) determines how the overall course success percentage is calculated:
+                                            <h6 class="mt-4"><i class="fas fa-user-circle me-2"></i>Personal Support</h6>
+                                            <p>For direct assistance, you can reach out via:</p>
                                             <ul>
-                                                <li><strong>Absolute:</strong> A student is considered successful if their final weighted score (calculated using exam weights) is greater than or equal to a fixed threshold (often implied by the lowest bound of the lowest "passing" Achievement Level, e.g., 60).</li>
-                                                <li><strong>Relative:</strong> A student is considered successful if their final weighted score meets the 'Absolute' threshold OR if their score is above a certain percentage of the class average score. You define this percentage in Course Settings (e.g., a threshold of 60 means success if `Score >= 60` OR `Score >= ClassAverage * 0.60`). This method can be more lenient in courses with lower overall averages.</li>
+                                                <li>
+                                                    <strong>Email Support:</strong><br>
+                                                    <a href="mailto:furkangozukara@gmail.com"><i class="fas fa-envelope me-2"></i>furkangozukara@gmail.com</a>
+                                                    <small class="text-muted d-block mt-1">Response within 48 hours (typically faster)</small>
+                                                </li>
+                                                <li class="mt-2">
+                                                    <strong>LinkedIn:</strong><br>
+                                                    <a href="https://www.linkedin.com/in/furkangozukara/" target="_blank"><i class="fab fa-linkedin me-2"></i>linkedin.com/in/furkangozukara</a>
+                                                </li>
                                             </ul>
-                                            Choose the method that aligns with your institution's or program's definition of success for reporting purposes.
                                         </div>
                                     </div>
                                 </div>
 
-                                <div class="accordion-item">
-                                    <h2 class="accordion-header" id="faqHeading5">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse5" aria-expanded="false" aria-controls="faqCollapse5">
-                                            What happens if I delete a Course / Exam / Question / Student / Outcome?
-                                        </button>
-                                    </h2>
-                                    <div id="faqCollapse5" class="accordion-collapse collapse" aria-labelledby="faqHeading5" data-bs-parent="#faqAccordion">
-                                        <div class="accordion-body">
-                                            <p>Deleting items has cascading effects. Be very careful:</p>
+                                <div class="col-md-6">
+                                    <div class="card h-100 border-success">
+                                        <div class="card-header bg-success text-white">
+                                            <h5 class="mb-0"><i class="fas fa-tools me-2"></i>Support Resources</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <h6><i class="fas fa-video me-2"></i>Video Tutorials</h6>
+                                            <p>Visual learner? Check our video guides:</p>
                                             <ul>
-                                                <li><strong>Deleting a Course:</strong> Permanently removes the course AND all its associated Exams, Questions, Course Outcomes, Students, and Scores. <strong>Irreversible.</strong></li>
-                                                <li><strong>Deleting an Exam:</strong> Permanently removes the exam AND all its associated Questions and Scores.</li>
-                                                <li><strong>Deleting a Question:</strong> Permanently removes the question AND all associated student Scores for that question.</li>
-                                                <li><strong>Deleting a Student (from a course):</strong> Permanently removes the student from that course AND all their Scores within that course.</li>
-                                                <li><strong>Deleting a Course Outcome (CO):</strong> Permanently removes the CO and its links to POs and Questions. Calculations involving that CO will no longer be possible.</li>
-                                                <li><strong>Deleting a Program Outcome (PO):</strong> Permanently removes the PO. Any COs linked ONLY to this PO will become unlinked from any PO.</li>
+                                                <li><a href="https://www.youtube.com/playlist?list=PLxxxxxYOURPLAYLISTID" target="_blank">Getting Started Series</a></li>
+                                                <li><a href="https://www.youtube.com/playlist?list=PLxxxxxYOURPLAYLISTID" target="_blank">Advanced Features</a></li>
                                             </ul>
-                                            <div class="alert alert-danger mt-2"><i class="fas fa-skull-crossbones me-1"></i> Always consider backing up your database before performing major deletions.</div>
+
+                                            <h6 class="mt-4"><i class="fas fa-code me-2"></i>Development Resources</h6>
+                                            <p>For technical users and contributors:</p>
+                                            <ul>
+                                                <li><a href="https://github.com/furkangozukara/Accredit-Helper-Pro" target="_blank">GitHub Repository</a></li>
+                                                <li><a href="https://github.com/furkangozukara/Accredit-Helper-Pro/issues" target="_blank">Known Issues</a></li>
+                                            </ul>
+
+                                            <h6 class="mt-4"><i class="fas fa-chalkboard-teacher me-2"></i>Training</h6>
+                                            <p>For departments interested in comprehensive training:</p>
+                                            <ul>
+                                                <li>Contact us to arrange personalized training sessions</li>
+                                                <li>Group workshops available for academic departments</li>
+                                            </ul>
                                         </div>
                                     </div>
                                 </div>
+                            </div>
 
+                            <div class="card mb-4">
+                                <div class="card-header bg-info text-white">
+                                    <h5 class="mb-0"><i class="fas fa-bug me-2"></i>Reporting Issues</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p>When reporting an issue, please include:</p>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <ul>
+                                                <li><strong>Issue Description:</strong> What's happening?</li>
+                                                <li><strong>Expected Behavior:</strong> What should happen instead?</li>
+                                                <li><strong>Reproduction Steps:</strong> How can we reproduce the issue?</li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <ul>
+                                                <li><strong>Screenshots:</strong> If applicable</li>
+                                                <li><strong>System Info:</strong> Browser, OS, screen resolution</li>
+                                                <li><strong>Log Messages:</strong> Any error messages you see</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+
+                                    <div class="alert alert-secondary mt-3">
+                                        <p><strong>Channels for Issue Reporting:</strong></p>
+                                        <ul class="mb-0">
+                                            <li><strong>Email:</strong> <a href="mailto:furkangozukara@gmail.com">furkangozukara@gmail.com</a> with subject line "Accredit Helper Pro Issue"</li>
+                                            <li><strong>GitHub:</strong> <a href="https://github.com/furkangozukara/Accredit-Helper-Pro/issues" target="_blank">Open an Issue</a> on our GitHub repository</li>
+                                            <li><strong>Feedback Form:</strong> Use the form below</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card mb-4">
+                                <div class="card-header bg-warning text-dark">
+                                    <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Feature Requests & Feedback</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p>Have ideas for improving Accredit Helper Pro? We'd love to hear them!</p>
+                                    <p>Your feedback helps us prioritize development efforts and improve the tool for everyone. When submitting feature requests, please explain:</p>
+                                    <ul>
+                                        <li>What specific functionality you're looking for</li>
+                                        <li>How this feature would benefit your workflow</li>
+                                        <li>Any examples of similar functionality in other applications</li>
+                                    </ul>
+
+                                    <div class="alert alert-success mt-3">
+                                        <p><strong>How We Use Your Feedback:</strong></p>
+                                        <p>We categorize all feedback into:</p>
+                                        <ul class="mb-0">
+                                            <li><strong>Bug Fixes:</strong> Immediate attention for critical issues</li>
+                                            <li><strong>Short-term Improvements:</strong> Implemented in upcoming releases</li>
+                                            <li><strong>Long-term Features:</strong> Added to our development roadmap</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h5 class="mb-0"><i class="fas fa-comment-alt me-2"></i>Feedback Form</h5>
+                                </div>
+                                <div class="card-body">
+                                    <form id="feedbackForm">
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <label for="feedbackName" class="form-label">Name</label>
+                                                <input type="text" class="form-control" id="feedbackName" required>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="feedbackEmail" class="form-label">Email</label>
+                                                <input type="email" class="form-control" id="feedbackEmail" required>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="feedbackType" class="form-label">Feedback Type</label>
+                                            <select class="form-select" id="feedbackType" required>
+                                                <option value="" selected disabled>Please select...</option>
+                                                <option value="bug">Bug Report</option>
+                                                <option value="feature">Feature Request</option>
+                                                <option value="general">General Feedback</option>
+                                                <option value="question">Question</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="feedbackMessage" class="form-label">Your Message</label>
+                                            <textarea class="form-control" id="feedbackMessage" rows="5" required></textarea>
+                                        </div>
+
+                                        <div class="mb-3 form-check">
+                                            <input type="checkbox" class="form-check-input" id="contactPermission">
+                                            <label class="form-check-label" for="contactPermission">I give permission to contact me regarding this feedback</label>
+                                        </div>
+
+                                        <button type="submit" class="btn btn-primary">Submit Feedback</button>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-header bg-secondary text-white">
+                                    <h5 class="mb-0"><i class="fas fa-file-contract me-2"></i>Support Policy</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p>Our support policy includes:</p>
+                                    <ul>
+                                        <li><strong>Scope:</strong> Installation, configuration, usage questions, bug reporting, feature requests</li>
+                                        <li><strong>Response Time:</strong> We aim to respond to all inquiries within 48 business hours</li>
+                                        <li><strong>Priority:</strong> Critical issues that prevent usage receive highest priority</li>
+                                        <li><strong>Custom Development:</strong> Specific feature development may require additional arrangements</li>
+                                    </ul>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1513,131 +1815,120 @@
                 <div class="tab-pane fade" id="troubleshooting">
                     <div class="card shadow-sm">
                         <div class="card-header bg-danger text-white">
-                            <h4 class="mb-0"><i class="fas fa-wrench me-2"></i>Troubleshooting</h4>
+                            <h4 class="mb-0"><i class="fas fa-wrench me-2"></i>Troubleshooting Guide</h4>
                         </div>
                         <div class="card-body">
-                            <div class="alert alert-info mb-4">
-                                <i class="fas fa-info-circle me-2"></i>Having issues with Accredit Helper Pro? This troubleshooting guide covers common problems and their solutions. If you can't find a solution here, please contact support.
-                            </div>
-                            
+                            <p>Encountering issues? This guide covers common problems and solutions.</p>
+
                             <div class="accordion" id="troubleshootingAccordion">
-                                <!-- Application Startup Issues -->
+                                <!-- Database & File Issues -->
                                 <div class="accordion-item">
-                                    <h2 class="accordion-header" id="headingStartup">
-                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseStartup" aria-expanded="true" aria-controls="collapseStartup">
-                                            <i class="fas fa-power-off me-2"></i><strong>Application Startup Issues</strong>
+                                    <h2 class="accordion-header" id="headingDatabase">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDatabase" aria-expanded="false" aria-controls="collapseDatabase">
+                                            <i class="fas fa-database me-2"></i><strong>Database & File Issues</strong>
                                         </button>
                                     </h2>
-                                    <div id="collapseStartup" class="accordion-collapse collapse show" aria-labelledby="headingStartup" data-bs-parent="#troubleshootingAccordion">
+                                    <div id="collapseDatabase" class="accordion-collapse collapse" aria-labelledby="headingDatabase" data-bs-parent="#troubleshootingAccordion">
                                         <div class="accordion-body">
                                             <div class="card mb-3">
                                                 <div class="card-header bg-light">
-                                                    <h6 class="mb-0">Application Fails to Start</h6>
+                                                    <h6 class="mb-0">Database Backup Issues</h6>
                                                 </div>
                                                 <div class="card-body">
-                                                    <p><strong>Symptoms:</strong> The application window doesn't appear, or you get an error message during startup.</p>
-                                                    
+                                                    <p><strong>Symptoms:</strong> Unable to backup the database, or backup files are corrupted.</p>
+
                                                     <p><strong>Possible Causes & Solutions:</strong></p>
                                                     <ul>
                                                         <li>
-                                                            <strong>Port Conflict:</strong>
+                                                            <strong>Database Corruption:</strong>
                                                             <ul>
-                                                                <li>Another application might be using port 5000</li>
-                                                                <li>Close other applications or change the port in the configuration file</li>
+                                                                <li>Run the application with administrator privileges</li>
+                                                                <li>Check for any error messages or logs related to database operations</li>
+                                                                <li>Try using a different database management system (e.g., SQLite3 instead of SQLite)</li>
                                                             </ul>
                                                         </li>
                                                         <li>
-                                                            <strong>Missing Dependencies:</strong>
+                                                            <strong>File System Issues:</strong>
                                                             <ul>
-                                                                <li>Ensure all dependencies are installed: <code>pip install -r requirements.txt</code></li>
-                                                                <li>Check for any error messages about missing modules</li>
+                                                                <li>Ensure you have enough disk space for backups</li>
+                                                                <li>Check if the backup directory is writable</li>
+                                                                <li>Run the backup command manually to verify its success</li>
                                                             </ul>
                                                         </li>
                                                         <li>
-                                                            <strong>Python Version Compatibility:</strong>
+                                                            <strong>Permissions Issues:</strong>
                                                             <ul>
-                                                                <li>Verify you're using Python 3.8 or newer</li>
-                                                                <li>Check your Python version: <code>python --version</code></li>
+                                                                <li>Ensure the application has write permissions to the backup directory</li>
+                                                                <li>Run the backup command with appropriate permissions</li>
                                                             </ul>
                                                         </li>
                                                     </ul>
-                                                    
-                                                    <div class="alert alert-warning mt-3">
-                                                        <i class="fas fa-terminal me-2"></i>Run the application from the command line to see detailed error messages: <code>python app.py</code>
-                                                    </div>
                                                 </div>
                                             </div>
-                                            
+
                                             <div class="card mb-3">
                                                 <div class="card-header bg-light">
-                                                    <h6 class="mb-0">Database Connection Errors</h6>
+                                                    <h6 class="mb-0">Database Restore Issues</h6>
                                                 </div>
                                                 <div class="card-body">
-                                                    <p><strong>Symptoms:</strong> Error messages about database connection, or "unable to open database file".</p>
-                                                    
+                                                    <p><strong>Symptoms:</strong> Unable to restore the database, or restore process fails.</p>
+
                                                     <p><strong>Possible Causes & Solutions:</strong></p>
                                                     <ul>
                                                         <li>
-                                                            <strong>Database File Missing:</strong>
+                                                            <strong>File Corruption:</strong>
                                                             <ul>
-                                                                <li>Verify the database file exists in the <code>instance</code> directory</li>
-                                                                <li>If missing, the application should create a new one automatically</li>
-                                                                <li>If problems persist, restore from a backup or reinstall</li>
+                                                                <li>Verify the backup file integrity before attempting restore</li>
+                                                                <li>Try using a different backup file if the restore fails</li>
+                                                                <li>Run the restore command manually to verify its success</li>
                                                             </ul>
                                                         </li>
                                                         <li>
-                                                            <strong>Corrupted Database:</strong>
+                                                            <strong>Permissions Issues:</strong>
                                                             <ul>
-                                                                <li>Restore from a recent backup if available</li>
-                                                                <li>If no backups are available, rename/move the existing database file and let the application create a new one</li>
+                                                                <li>Ensure the application has read/write permissions to the database file</li>
+                                                                <li>Run the restore command with appropriate permissions</li>
                                                             </ul>
                                                         </li>
                                                         <li>
-                                                            <strong>Simultaneous Access:</strong>
+                                                            <strong>Database Compatibility:</strong>
                                                             <ul>
-                                                                <li>Ensure only one instance of the application is running</li>
-                                                                <li>Close any database browser tools that might be accessing the file</li>
+                                                                <li>Ensure the backup and restore operations are performed on compatible versions of the application</li>
+                                                                <li>Check if any database schema changes are required before restoring</li>
+                                                            </ul>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+
+                                            <div class="card mb-3">
+                                                <div class="card-header bg-light">
+                                                    <h6 class="mb-0">File System Issues</h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <p><strong>Symptoms:</strong> Unable to save data, files are corrupted, or data is lost.</p>
+
+                                                    <p><strong>Possible Causes & Solutions:</strong></p>
+                                                    <ul>
+                                                        <li>
+                                                            <strong>Disk Space Issues:</strong>
+                                                            <ul>
+                                                                <li>Check if there is enough disk space available</li>
+                                                                <li>Delete unnecessary files to free up space</li>
                                                             </ul>
                                                         </li>
                                                         <li>
-                                                            <strong>Permission Issues:</strong>
+                                                            <strong>Permissions Issues:</strong>
                                                             <ul>
-                                                                <li>Ensure the application has read/write permissions to the <code>instance</code> directory</li>
+                                                                <li>Ensure the application has write permissions to the data directory</li>
                                                                 <li>Run the application with appropriate permissions</li>
                                                             </ul>
                                                         </li>
-                                                    </ul>
-                                                </div>
-                                            </div>
-                                            
-                                            <div class="card mb-3">
-                                                <div class="card-header bg-light">
-                                                    <h6 class="mb-0">Missing or Unexpected Data</h6>
-                                                </div>
-                                                <div class="card-body">
-                                                    <p><strong>Symptoms:</strong> Courses, exams, or students that should be present are missing, or data appears incorrect.</p>
-                                                    
-                                                    <p><strong>Possible Causes & Solutions:</strong></p>
-                                                    <ul>
                                                         <li>
-                                                            <strong>Accidental Deletion:</strong>
+                                                            <strong>File System Errors:</strong>
                                                             <ul>
-                                                                <li>Restore from a recent backup if available</li>
-                                                                <li>Check the system logs for deletion actions: Utilities → View Logs</li>
-                                                            </ul>
-                                                        </li>
-                                                        <li>
-                                                            <strong>Wrong Database File:</strong>
-                                                            <ul>
-                                                                <li>Ensure you're using the correct database file (particularly if you use multiple databases)</li>
-                                                                <li>Check the backup list to verify which database is currently active</li>
-                                                            </ul>
-                                                        </li>
-                                                        <li>
-                                                            <strong>Data Import Issues:</strong>
-                                                            <ul>
-                                                                <li>If data appears after an import operation, verify the import settings were correct</li>
-                                                                <li>You may need to restore from a pre-import backup and retry with different settings</li>
+                                                                <li>Check for any error messages or logs related to file operations</li>
+                                                                <li>Run the application with administrator privileges to check for file system issues</li>
                                                             </ul>
                                                         </li>
                                                     </ul>
@@ -1646,7 +1937,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <!-- Calculation & Results Issues -->
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingCalculation">
@@ -1662,7 +1953,7 @@
                                                 </div>
                                                 <div class="card-body">
                                                     <p><strong>Symptoms:</strong> Outcome achievement percentages or success rates seem incorrect or unexpectedly low/high.</p>
-                                                    
+
                                                     <p><strong>Possible Causes & Solutions:</strong></p>
                                                     <ul>
                                                         <li>
@@ -1704,14 +1995,14 @@
                                                     </ul>
                                                 </div>
                                             </div>
-                                            
+
                                             <div class="card mb-3">
                                                 <div class="card-header bg-light">
                                                     <h6 class="mb-0">Calculation Errors or Failures</h6>
                                                 </div>
                                                 <div class="card-body">
                                                     <p><strong>Symptoms:</strong> Error messages when calculating results, or the calculation process fails to complete.</p>
-                                                    
+
                                                     <p><strong>Possible Causes & Solutions:</strong></p>
                                                     <ul>
                                                         <li>
@@ -1738,7 +2029,7 @@
                                                     </ul>
                                                 </div>
                                             </div>
-                                            
+
                                             <div class="alert alert-info mt-3">
                                                 <i class="fas fa-lightbulb me-2"></i><strong>Debugging Tip:</strong> To understand calculation issues, try breaking them down:
                                                 <ol class="mb-0">
@@ -1752,7 +2043,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <!-- Import/Export Issues -->
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingImport">
@@ -1768,7 +2059,7 @@
                                                 </div>
                                                 <div class="card-body">
                                                     <p><strong>Symptoms:</strong> Student import fails, imports incorrect data, or skips students.</p>
-                                                    
+
                                                     <p><strong>Possible Causes & Solutions:</strong></p>
                                                     <ul>
                                                         <li>
@@ -1795,20 +2086,20 @@
                                                             </ul>
                                                         </li>
                                                     </ul>
-                                                    
+
                                                     <div class="alert alert-success mt-3">
                                                         <i class="fas fa-file-alt me-2"></i><strong>Tip:</strong> For complex student lists, prepare your data in Excel or another spreadsheet program, then export as CSV or copy/paste into the text import option. Always verify the preview before completing the import.
                                                     </div>
                                                 </div>
                                             </div>
-                                            
+
                                             <div class="card mb-3">
                                                 <div class="card-header bg-light">
                                                     <h6 class="mb-0">Database Merge Issues</h6>
                                                 </div>
                                                 <div class="card-body">
                                                     <p><strong>Symptoms:</strong> Merge operation fails, data is duplicated, or expected data is missing after merge.</p>
-                                                    
+
                                                     <p><strong>Possible Causes & Solutions:</strong></p>
                                                     <ul>
                                                         <li>
@@ -1833,20 +2124,20 @@
                                                             </ul>
                                                         </li>
                                                     </ul>
-                                                    
+
                                                     <div class="alert alert-warning mt-3">
                                                         <i class="fas fa-exclamation-triangle me-2"></i><strong>Important:</strong> Always create a backup before attempting database merges or imports. This allows you to restore if the operation doesn't produce the expected results.
                                                     </div>
                                                 </div>
                                             </div>
-                                            
+
                                             <div class="card mb-3">
                                                 <div class="card-header bg-light">
                                                     <h6 class="mb-0">Export Problems</h6>
                                                 </div>
                                                 <div class="card-body">
                                                     <p><strong>Symptoms:</strong> Unable to export data, exported files are empty or corrupted.</p>
-                                                    
+
                                                     <p><strong>Possible Causes & Solutions:</strong></p>
                                                     <ul>
                                                         <li>
@@ -1877,7 +2168,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <!-- Performance Issues -->
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingPerformance">
@@ -1893,7 +2184,7 @@
                                                 </div>
                                                 <div class="card-body">
                                                     <p><strong>Symptoms:</strong> Pages take a long time to load, operations like searching or sorting are slow.</p>
-                                                    
+
                                                     <p><strong>Possible Causes & Solutions:</strong></p>
                                                     <ul>
                                                         <li>
@@ -1920,20 +2211,20 @@
                                                             </ul>
                                                         </li>
                                                     </ul>
-                                                    
+
                                                     <div class="alert alert-info mt-3">
                                                         <i class="fas fa-broom me-2"></i><strong>Database Maintenance:</strong> If the application becomes consistently slow, consider creating a new, clean database for new semesters and archiving the old one. You can always export important data or use the merge functionality to transfer specific courses if needed.
                                                     </div>
                                                 </div>
                                             </div>
-                                            
+
                                             <div class="card mb-3">
                                                 <div class="card-header bg-light">
                                                     <h6 class="mb-0">Score Entry Grid Performance</h6>
                                                 </div>
                                                 <div class="card-body">
                                                     <p><strong>Symptoms:</strong> Score entry grid is slow to load or respond to input, especially with large classes.</p>
-                                                    
+
                                                     <p><strong>Possible Causes & Solutions:</strong></p>
                                                     <ul>
                                                         <li>
@@ -1963,7 +2254,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <!-- Troubleshooting -->
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingTroubleshooting">
@@ -1982,204 +2273,14 @@
                     </div>
                 </div>
 
-                <!-- Contact & Support -->
-                <div class="tab-pane fade" id="contact">
-                    <div class="card shadow-sm">
-                        <div class="card-header bg-primary text-white">
-                            <h4 class="mb-0"><i class="fas fa-envelope me-2"></i>Contact & Support</h4>
-                        </div>
-                        <div class="card-body">
-                            <div class="alert alert-info mb-4">
-                                <i class="fas fa-info-circle me-2"></i><strong>Support Availability:</strong> Our team is dedicated to helping you make the most of Accredit Helper Pro. We offer various support channels to address your questions, technical issues, and feature requests.
-                            </div>
-
-                            <div class="row mb-4">
-                                <div class="col-md-6">
-                                    <div class="card h-100 border-primary">
-                                        <div class="card-header bg-primary text-white">
-                                            <h5 class="mb-0"><i class="fas fa-question-circle me-2"></i>Getting Help</h5>
-                                        </div>
-                                        <div class="card-body">
-                                            <h6><i class="fas fa-book-reader me-2"></i>Documentation Resources</h6>
-                                            <p>Before contacting support, consider checking these resources:</p>
-                                            <ul>
-                                                <li><a href="#overview" data-bs-toggle="list">Help & Documentation</a> (this guide)</li>
-                                                <li><a href="#faq" data-bs-toggle="list">Frequently Asked Questions</a></li>
-                                                <li><a href="#troubleshooting" data-bs-toggle="list">Troubleshooting Guide</a></li>
-                                                <li><a href="https://github.com/furkangozukara/Accredit-Helper-Pro/wiki" target="_blank">Online Wiki</a> (may contain updated information)</li>
-                                            </ul>
-                                            
-                                            <h6 class="mt-4"><i class="fas fa-user-circle me-2"></i>Personal Support</h6>
-                                            <p>For direct assistance, you can reach out via:</p>
-                                            <ul>
-                                                <li>
-                                                    <strong>Email Support:</strong><br>
-                                                    <a href="mailto:furkangozukara@gmail.com"><i class="fas fa-envelope me-2"></i>furkangozukara@gmail.com</a>
-                                                    <small class="text-muted d-block mt-1">Response within 48 hours (typically faster)</small>
-                                                </li>
-                                                <li class="mt-2">
-                                                    <strong>LinkedIn:</strong><br>
-                                                    <a href="https://www.linkedin.com/in/furkangozukara/" target="_blank"><i class="fab fa-linkedin me-2"></i>linkedin.com/in/furkangozukara</a>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </div>
+            </div>
                                 </div>
                                 
-                                <div class="col-md-6">
-                                    <div class="card h-100 border-success">
-                                        <div class="card-header bg-success text-white">
-                                            <h5 class="mb-0"><i class="fas fa-tools me-2"></i>Support Resources</h5>
-                                        </div>
-                                        <div class="card-body">
-                                            <h6><i class="fas fa-video me-2"></i>Video Tutorials</h6>
-                                            <p>Visual learner? Check our video guides:</p>
-                                            <ul>
-                                                <li><a href="https://www.youtube.com/playlist?list=PLxxxxxYOURPLAYLISTID" target="_blank">Getting Started Series</a></li>
-                                                <li><a href="https://www.youtube.com/playlist?list=PLxxxxxYOURPLAYLISTID" target="_blank">Advanced Features</a></li>
-                                            </ul>
-                                            
-                                            <h6 class="mt-4"><i class="fas fa-code me-2"></i>Development Resources</h6>
-                                            <p>For technical users and contributors:</p>
-                                            <ul>
-                                                <li><a href="https://github.com/furkangozukara/Accredit-Helper-Pro" target="_blank">GitHub Repository</a></li>
-                                                <li><a href="https://github.com/furkangozukara/Accredit-Helper-Pro/issues" target="_blank">Known Issues</a></li>
-                                            </ul>
-                                            
-                                            <h6 class="mt-4"><i class="fas fa-chalkboard-teacher me-2"></i>Training</h6>
-                                            <p>For departments interested in comprehensive training:</p>
-                                            <ul>
-                                                <li>Contact us to arrange personalized training sessions</li>
-                                                <li>Group workshops available for academic departments</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="card mb-4">
-                                <div class="card-header bg-info text-white">
-                                    <h5 class="mb-0"><i class="fas fa-bug me-2"></i>Reporting Issues</h5>
-                                </div>
-                                <div class="card-body">
-                                    <p>When reporting an issue, please include:</p>
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <ul>
-                                                <li><strong>Issue Description:</strong> What's happening?</li>
-                                                <li><strong>Expected Behavior:</strong> What should happen instead?</li>
-                                                <li><strong>Reproduction Steps:</strong> How can we reproduce the issue?</li>
-                                            </ul>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <ul>
-                                                <li><strong>Screenshots:</strong> If applicable</li>
-                                                <li><strong>System Info:</strong> Browser, OS, screen resolution</li>
-                                                <li><strong>Log Messages:</strong> Any error messages you see</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="alert alert-secondary mt-3">
-                                        <p><strong>Channels for Issue Reporting:</strong></p>
-                                        <ul class="mb-0">
-                                            <li><strong>Email:</strong> <a href="mailto:furkangozukara@gmail.com">furkangozukara@gmail.com</a> with subject line "Accredit Helper Pro Issue"</li>
-                                            <li><strong>GitHub:</strong> <a href="https://github.com/furkangozukara/Accredit-Helper-Pro/issues" target="_blank">Open an Issue</a> on our GitHub repository</li>
-                                            <li><strong>Feedback Form:</strong> Use the form below</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="card mb-4">
-                                <div class="card-header bg-warning text-dark">
-                                    <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Feature Requests & Feedback</h5>
-                                </div>
-                                <div class="card-body">
-                                    <p>Have ideas for improving Accredit Helper Pro? We'd love to hear them!</p>
-                                    <p>Your feedback helps us prioritize development efforts and improve the tool for everyone. When submitting feature requests, please explain:</p>
-                                    <ul>
-                                        <li>What specific functionality you're looking for</li>
-                                        <li>How this feature would benefit your workflow</li>
-                                        <li>Any examples of similar functionality in other applications</li>
-                                    </ul>
-                                    
-                                    <div class="alert alert-success mt-3">
-                                        <p><strong>How We Use Your Feedback:</strong></p>
-                                        <p>We categorize all feedback into:</p>
-                                        <ul class="mb-0">
-                                            <li><strong>Bug Fixes:</strong> Immediate attention for critical issues</li>
-                                            <li><strong>Short-term Improvements:</strong> Implemented in upcoming releases</li>
-                                            <li><strong>Long-term Features:</strong> Added to our development roadmap</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="card mb-4">
-                                <div class="card-header bg-light">
-                                    <h5 class="mb-0"><i class="fas fa-comment-alt me-2"></i>Feedback Form</h5>
-                                </div>
-                                <div class="card-body">
-                                    <form id="feedbackForm">
-                                        <div class="row mb-3">
-                                            <div class="col-md-6">
-                                                <label for="feedbackName" class="form-label">Name</label>
-                                                <input type="text" class="form-control" id="feedbackName" required>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label for="feedbackEmail" class="form-label">Email</label>
-                                                <input type="email" class="form-control" id="feedbackEmail" required>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="mb-3">
-                                            <label for="feedbackType" class="form-label">Feedback Type</label>
-                                            <select class="form-select" id="feedbackType" required>
-                                                <option value="" selected disabled>Please select...</option>
-                                                <option value="bug">Bug Report</option>
-                                                <option value="feature">Feature Request</option>
-                                                <option value="general">General Feedback</option>
-                                                <option value="question">Question</option>
-                                            </select>
-                                        </div>
-                                        
-                                        <div class="mb-3">
-                                            <label for="feedbackMessage" class="form-label">Your Message</label>
-                                            <textarea class="form-control" id="feedbackMessage" rows="5" required></textarea>
-                                        </div>
-                                        
-                                        <div class="mb-3 form-check">
-                                            <input type="checkbox" class="form-check-input" id="contactPermission">
-                                            <label class="form-check-label" for="contactPermission">I give permission to contact me regarding this feedback</label>
-                                        </div>
-                                        
-                                        <button type="submit" class="btn btn-primary">Submit Feedback</button>
-                                    </form>
-                                </div>
-                            </div>
-                            
-                            <div class="card">
-                                <div class="card-header bg-secondary text-white">
-                                    <h5 class="mb-0"><i class="fas fa-file-contract me-2"></i>Support Policy</h5>
-                                </div>
-                                <div class="card-body">
-                                    <p>Our support policy includes:</p>
-                                    <ul>
-                                        <li><strong>Scope:</strong> Installation, configuration, usage questions, bug reporting, feature requests</li>
-                                        <li><strong>Response Time:</strong> We aim to respond to all inquiries within 48 business hours</li>
-                                        <li><strong>Priority:</strong> Critical issues that prevent usage receive highest priority</li>
-                                        <li><strong>Custom Development:</strong> Specific feature development may require additional arrangements</li>
-                                    </ul>
-                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div> <!-- /tab-content -->
-        </div> <!-- /col-md-9 -->
-    </div> <!-- /row -->
-</div> <!-- /container -->
+
+ 
+
 
 {% endblock %}
 
@@ -2187,6 +2288,36 @@
 {{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Add CSS to fix tab pane display
+    const style = document.createElement('style');
+    style.textContent = `
+        /* Remove any display:none from tab-panes outside the container */
+        .tab-pane {
+            display: none;
+        }
+        .tab-pane.active {
+            display: block !important;
+        }
+        .tab-pane.show {
+            display: block !important;
+        }
+        .highlight-search {
+            background-color: #fff3cd;
+            transition: background-color 0.5s;
+            padding: 4px;
+            border-radius: 3px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+        }
+        /* Important fix - remove the default display:none inline style that may be added */
+        [role="tabpanel"] {
+            display: none !important;
+        }
+        [role="tabpanel"].active {
+            display: block !important;
+        }
+    `;
+    document.head.appendChild(style);
+
     // Get the hash from the URL (without the # symbol)
     let hash = window.location.hash;
     
@@ -2219,24 +2350,39 @@ document.addEventListener('DOMContentLoaded', function() {
             // 2. Add active class to selected tab link
             tabElement.classList.add('active');
             
-            // 3. Hide all tab panes
-            document.querySelectorAll('.tab-pane').forEach(pane => {
+            // 3. Hide all tab panes in the tab-content container only
+            document.querySelectorAll('#helpContent .tab-pane').forEach(pane => {
+                pane.style.display = 'none'; // Explicitly hide
                 pane.classList.remove('show', 'active');
             });
             
-            // 4. Show the selected tab pane
-            const targetPane = document.querySelector(hash);
+            // 4. Show the selected tab pane inside the container only
+            const targetPane = document.querySelector('#helpContent ' + hash);
             if (targetPane) {
+                targetPane.style.display = 'block'; // Explicitly show with block display
+                // Add show/active classes immediately without delay
                 targetPane.classList.add('show', 'active');
-                
-                // Scroll to the content
+
+                // Scroll to the top of the tab content area, not the pane itself
                 setTimeout(() => {
-                    const contentTop = document.querySelector('#helpContent').offsetTop;
-                    window.scrollTo({ top: contentTop - 70, behavior: 'smooth' });
-                }, 100);
+                    // Scroll to the top of the content area
+                    document.querySelector('.tab-content').scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }, 50);
+            } else {
+                // Log error if the target pane wasn't found
+                console.warn('Hash link target pane not found inside tab content:', hash);
             }
+            
+            // Important fix: Hide any tab panes with the same ID that might be outside the container
+            const outsidePanes = document.querySelectorAll(':not(#helpContent) > .tab-pane, :not(#helpContent) [role="tabpanel"]');
+            outsidePanes.forEach(pane => {
+                pane.style.display = 'none';
+            });
         } else {
-            console.warn('Hash link target not found:', hash);
+            console.warn('Hash link navigation element not found:', tabSelector);
         }
     }
 
@@ -2247,6 +2393,30 @@ document.addEventListener('DOMContentLoaded', function() {
         // If no hash, activate the overview tab
         activateTabFromHash('#overview');
     }
+
+    // Make sure any outside tab-panes are hidden on page load
+    const outsidePanes = document.querySelectorAll(':not(#helpContent) > .tab-pane, :not(#helpContent) [role="tabpanel"]');
+    outsidePanes.forEach(pane => {
+        pane.style.display = 'none';
+    });
+
+    // Handle all intra-document tab links
+    document.querySelectorAll('.tab-link').forEach(link => {
+        link.addEventListener('click', function(event) {
+            event.preventDefault();
+            const newHash = this.getAttribute('href');
+            
+            // Update URL hash
+            if (history.pushState) {
+                history.pushState(null, null, newHash);
+            } else {
+                window.location.hash = newHash;
+            }
+            
+            // Activate the tab manually
+            activateTabFromHash(newHash);
+        });
+    });
 
     // Update URL hash when tabs change for bookmarking/linking
     const tabLinks = document.querySelectorAll('#helpNav a[data-bs-toggle="list"]');
@@ -2427,19 +2597,6 @@ document.addEventListener('DOMContentLoaded', function() {
             feedbackForm.reset();
         });
     }
-    
-    // Add CSS for search highlight effect
-    const style = document.createElement('style');
-    style.textContent = `
-        .highlight-search {
-            background-color: #fff3cd;
-            transition: background-color 0.5s;
-            padding: 4px;
-            border-radius: 3px;
-            box-shadow: 0 0 5px rgba(0,0,0,0.1);
-        }
-    `;
-    document.head.appendChild(style);
 });
 </script>
 {% endblock %} 
