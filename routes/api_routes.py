@@ -29,73 +29,75 @@ def get_question_outcomes(exam_id):
 
 @api_bp.route('/student/<int:student_id>/abet-scores', methods=['GET'])
 def get_student_abet_scores(student_id):
-    """API endpoint to get Accredit scores for a specific student in a course"""
-    student = Student.query.get_or_404(student_id)
-    
-    # Get course_id from query parameters
+    """API endpoint to get a student's ABET scores for all course outcomes"""
     course_id = request.args.get('course_id', type=int)
     if not course_id:
-        return jsonify({"error": "course_id is required"}), 400
+        return jsonify({'error': 'Course ID is required'}), 400
     
-    course = Course.query.get_or_404(course_id)
+    # Get the student
+    student = Student.query.filter_by(id=student_id, course_id=course_id).first()
+    if not student:
+        return jsonify({'error': 'Student not found'}), 404
     
-    # Get regular and makeup exams for this course separately
-    regular_exams = Exam.query.filter_by(course_id=course_id, is_makeup=False).all()
-    makeup_exams = Exam.query.filter_by(course_id=course_id, is_makeup=True).all()
-    
-    # Create a map from original exam to makeup exam
-    makeup_map = {}
-    for makeup in makeup_exams:
-        if makeup.makeup_for:
-            makeup_map[makeup.makeup_for] = makeup.id
-            
-    if not regular_exams:
-        return jsonify([])
-        
-    # Get all course outcomes for this course
-    course_outcomes = CourseOutcome.query.filter_by(course_id=course_id).order_by(CourseOutcome.code).all()
+    # Get course outcomes for this course
+    course_outcomes = CourseOutcome.query.filter_by(course_id=course_id).all()
     if not course_outcomes:
-        return jsonify([])
+        return jsonify({'error': 'No course outcomes found for this course'}), 404
     
     # Get achievement levels for this course
     achievement_levels = AchievementLevel.query.filter_by(course_id=course_id).order_by(AchievementLevel.min_score.desc()).all()
     
-    # Get exam weights
+    # Preload scores data
+    # Get all questions for this course
+    questions = Question.query.join(Exam).filter(Exam.course_id == course_id).all()
+    
+    # Create a map of course outcomes to questions
+    outcome_questions = {}
+    for outcome in course_outcomes:
+        outcome_questions[outcome.id] = outcome.questions
+    
+    # Create scores dictionary
+    scores_dict = {}
+    scores = Score.query.filter_by(student_id=student_id).join(Question).join(Exam).filter(Exam.course_id == course_id).all()
+    for score in scores:
+        scores_dict[(score.student_id, score.question_id, score.exam_id)] = score.score
+    
+    # Create attendance dictionary
+    attendance_dict = {}
+    attendance_records = StudentExamAttendance.query.filter_by(student_id=student_id).join(Exam).filter(Exam.course_id == course_id).all()
+    for record in attendance_records:
+        attendance_dict[(record.student_id, record.exam_id)] = record.attended
+    
+    # Get all exams and calculate normalized weights
+    exams = Exam.query.filter_by(course_id=course_id, is_makeup=False).all()
     exam_weights = {}
+    total_weight = Decimal('0')
+    
+    # Get all weights for this course
     weights = ExamWeight.query.filter_by(course_id=course_id).all()
     for weight in weights:
         exam_weights[weight.exam_id] = weight.weight
     
-    # Create a map of exams to their questions
-    questions_by_exam = {}
-    all_exams = regular_exams + makeup_exams
-    for exam in all_exams:
-        questions_by_exam[exam.id] = exam.questions
+    # Sum up weights for regular exams
+    for exam in exams:
+        if exam.id not in exam_weights:
+            exam_weights[exam.id] = Decimal('0')
+        total_weight += exam_weights[exam.id]
     
-    # Create a map of course outcomes to their related questions
-    outcome_questions = {}
-    for co in course_outcomes:
-        outcome_questions[co.id] = co.questions
-    
-    # Get all scores for this student in this course
-    all_scores = Score.query.filter_by(student_id=student_id).all()
-    scores_dict = {}
-    
-    for score in all_scores:
-        scores_dict[(score.student_id, score.question_id, score.exam_id)] = score.score
-    
-    # Get attendance records for this student
-    attendance_records = StudentExamAttendance.query.filter_by(student_id=student_id).all()
-    attendance_dict = {}
-    for record in attendance_records:
-        attendance_dict[(record.student_id, record.exam_id)] = record.attended
+    # Normalize weights if they don't add up to 1.0
+    normalized_weights = {}
+    for exam_id, weight in exam_weights.items():
+        if total_weight > Decimal('0'):
+            normalized_weights[exam_id] = weight / total_weight
+        else:
+            normalized_weights[exam_id] = weight
     
     # Calculate outcome scores using helper functions
     result = []
     for outcome in course_outcomes:
         # Use calculate_course_outcome_score_optimized to get consistent results
         outcome_score = calculate_course_outcome_score_optimized(
-            student_id, outcome.id, scores_dict, outcome_questions
+            student_id, outcome.id, scores_dict, outcome_questions, normalized_weights
         )
         
         if outcome_score is not None:

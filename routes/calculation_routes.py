@@ -23,12 +23,22 @@ calculation_bp = Blueprint('calculation', __name__, url_prefix='/calculation')
 # Helper function for achievement levels
 def get_achievement_level(score, achievement_levels):
     """Get the achievement level for a given score"""
-    for level in achievement_levels:
-        if level.min_score <= score <= level.max_score:
+    # Use exact float representation for precision without rounding
+    exact_score = float(score)
+    
+    # Sort achievement levels by min_score in descending order for proper categorization
+    sorted_levels = sorted(achievement_levels, key=lambda x: float(x.min_score), reverse=True)
+    
+    # For each achievement level, if score is >= min_score, it belongs to that level
+    # This ensures scores at boundaries (like 60.0) are categorized at the higher level
+    for level in sorted_levels:
+        if exact_score >= float(level.min_score):
             return {
                 'name': level.name,
                 'color': level.color
             }
+    
+    # If no level was found (shouldn't happen with proper level definitions)
     return {
         'name': 'Not Categorized',
         'color': 'secondary'
@@ -595,52 +605,22 @@ def export_results(course_id):
                 continue  # Skip if the outcome isn't in headers
             
             # Calculate course outcome achievement
-            co_score = Decimal('0')
-            co_total_weight = Decimal('0')
+            co_score = calculate_course_outcome_score_optimized(
+                student.id, co.id, scores_dict, outcome_questions, normalized_weights
+            )
             
-            # For each exam, calculate this outcome's score
-            for exam in regular_exams:
-                # Skip exams with no weight
-                if exam.id not in weights or weights[exam.id] == Decimal('0'):
-                    continue
+            if co_score is not None:
+                # Add score and achievement level
+                student_row[idx] = round(float(co_score), 2)
                 
-                # Determine if we should use the makeup exam instead
-                use_makeup = False
-                actual_exam = exam
-                if exam.id in makeup_map:
-                    makeup_exam = makeup_map[exam.id]
-                    if makeup_exam.id in student_exam_scores:
-                        use_makeup = True
-                        actual_exam = makeup_exam
-                
-                # Get the exam's weight
-                weight = weights[exam.id]
-                
-                # Get questions for this exam
-                questions = questions_by_exam[actual_exam.id]
-                
-                # Calculate total possible points for this outcome in this exam
-                total_points = Decimal('0')
-                earned_points = Decimal('0')
-                for question in questions:
-                    # Check if question is associated with this course outcome through the many-to-many relationship
-                    if question in co.questions:
-                        score_key = (student.id, question.id, actual_exam.id)
-                        if score_key in scores_dict:
-                            earned_points += Decimal(str(scores_dict[score_key])) * Decimal(str(question.max_score))
-                        total_points += Decimal(str(question.max_score))
-                
-                if total_points > Decimal('0'):
-                    outcome_percentage = (earned_points / total_points) * Decimal('100')
-                    co_score += outcome_percentage * weight
-                    co_total_weight += weight
-            
-            # Calculate the weighted average for the course outcome
-            if co_total_weight > Decimal('0'):
-                overall_co_percentage = co_score / co_total_weight
-                student_row[idx] = round(float(overall_co_percentage), 2)
+                # Get achievement level
+                level = get_achievement_level(float(co_score), achievement_levels)
+                student_row[f'{co.code} Achievement Level'] = level['name']
+            else:
+                student_row[f'{co.code} Achievement (%)'] = "N/A"
+                student_row[f'{co.code} Achievement Level'] = "N/A"
         
-        # Calculate overall percentage
+        # Calculate and add overall weighted score
         if total_weight_used > Decimal('0'):
             overall_percentage = weighted_score / total_weight_used
             # Set overall percentage in the last column
@@ -1202,8 +1182,20 @@ def calculate_student_exam_score_optimized(student_id, exam_id, scores_dict, que
 
     return (total_score / total_possible) * Decimal('100')
 
-def calculate_course_outcome_score_optimized(student_id, outcome_id, scores_dict, outcome_questions):
-    """Calculate a student's score for a course outcome using preloaded data"""
+def calculate_course_outcome_score_optimized(student_id, outcome_id, scores_dict, outcome_questions, normalized_weights=None):
+    """Calculate a student's score for a course outcome using preloaded data
+    
+    This function calculates a student's achievement for a specific Course Outcome (CO)
+    using the master course weights to ensure proper relative importance of each exam.
+    
+    Parameters:
+    - student_id: The student's ID
+    - outcome_id: The Course Outcome ID
+    - scores_dict: Dictionary containing all scores for fast lookup
+    - outcome_questions: Dictionary mapping outcome_id to list of questions
+    - normalized_weights: Pre-calculated, normalized weights for all exams in the course
+                         (if None, will calculate weights only for exams with questions for this outcome)
+    """
     questions = outcome_questions.get(outcome_id, [])
 
     if not questions:
@@ -1256,35 +1248,42 @@ def calculate_course_outcome_score_optimized(student_id, outcome_id, scores_dict
         # Include the base exam if no makeup was attended
         filtered_exam_ids.append(exam_id)
     
-    # Get exam weights
-    weights = {}
-    total_weight = Decimal('0')
-    for exam_id in filtered_exam_ids:
-        weight_record = ExamWeight.query.filter_by(exam_id=exam_id).first()
-        if weight_record:
-            weights[exam_id] = weight_record.weight
-            total_weight += weight_record.weight
-        else:
-            weights[exam_id] = Decimal('0')
-    
-    # If no valid weights, return None or default to equal weights
-    if total_weight == Decimal('0'):
-        if len(filtered_exam_ids) > 0:
-            # Default to equal weights if no weights defined
-            equal_weight = Decimal('1') / Decimal(str(len(filtered_exam_ids)))
-            for exam_id in filtered_exam_ids:
-                weights[exam_id] = equal_weight
-            total_weight = Decimal('1')
-        else:
-            return Decimal('0')  # Return 0 instead of None when no valid exam weights found
-    
-    # Normalize weights
-    normalized_weights = {}
-    for exam_id, weight in weights.items():
-        normalized_weights[exam_id] = weight / total_weight
+    # If normalized_weights is None, we need to calculate them only for the relevant exams
+    # This is the old behavior and should only be used if no master weights are provided
+    if normalized_weights is None:
+        # Get exam weights
+        weights = {}
+        total_weight = Decimal('0')
+        for exam_id in filtered_exam_ids:
+            weight_record = ExamWeight.query.filter_by(exam_id=exam_id).first()
+            if weight_record:
+                weights[exam_id] = weight_record.weight
+                total_weight += weight_record.weight
+            else:
+                weights[exam_id] = Decimal('0')
+        
+        # If no valid weights, return None or default to equal weights
+        if total_weight == Decimal('0'):
+            if len(filtered_exam_ids) > 0:
+                # Default to equal weights if no weights defined
+                equal_weight = Decimal('1') / Decimal(str(len(filtered_exam_ids)))
+                for exam_id in filtered_exam_ids:
+                    weights[exam_id] = equal_weight
+                total_weight = Decimal('1')
+            else:
+                return Decimal('0')  # Return 0 instead of None when no valid exam weights found
+        
+        # Normalize weights
+        exam_weights = {}
+        for exam_id, weight in weights.items():
+            exam_weights[exam_id] = weight / total_weight
+    else:
+        # Use the provided master course weights
+        exam_weights = normalized_weights
     
     # Calculate weighted score for each exam containing questions for this outcome
     weighted_outcome_score = Decimal('0')
+    total_applied_weight = Decimal('0')
     
     for exam_id in filtered_exam_ids:
         if exam_id not in questions_by_exam:
@@ -1292,6 +1291,10 @@ def calculate_course_outcome_score_optimized(student_id, outcome_id, scores_dict
             
         exam_questions = questions_by_exam[exam_id]
         
+        # Skip if this exam isn't in the weights (shouldn't happen with proper master weights)
+        if exam_id not in exam_weights:
+            continue
+            
         # Calculate percentage score for this exam's questions related to the outcome
         exam_total_possible = Decimal('0')
         exam_total_score = Decimal('0')
@@ -1305,14 +1308,30 @@ def calculate_course_outcome_score_optimized(student_id, outcome_id, scores_dict
         if exam_total_possible > Decimal('0'):
             exam_percentage = (exam_total_score / exam_total_possible) * Decimal('100')
             # Apply exam weight to this percentage
-            weighted_outcome_score += exam_percentage * normalized_weights[exam_id]
+            weighted_outcome_score += exam_percentage * exam_weights[exam_id]
+            total_applied_weight += exam_weights[exam_id]
     
+    # If no weights were applied, return 0
+    if total_applied_weight == Decimal('0'):
+        return Decimal('0')
+        
+    # Return the weighted outcome score directly without normalizing again
     return weighted_outcome_score
 
 # Optimized helper function to calculate a student's score for a program outcome
 def calculate_program_outcome_score_optimized(student_id, outcome_id, course_id, scores_dict, 
-                                             program_to_course_outcomes, outcome_questions):
-    """Calculate a student's score for a program outcome using preloaded data"""
+                                             program_to_course_outcomes, outcome_questions, normalized_weights=None):
+    """Calculate a student's score for a program outcome using preloaded data
+    
+    Parameters:
+    - student_id: The student's ID
+    - outcome_id: The Program Outcome ID
+    - course_id: The Course ID
+    - scores_dict: Dictionary containing all scores for fast lookup
+    - program_to_course_outcomes: Map of program outcomes to related course outcomes
+    - outcome_questions: Dictionary mapping outcome_id to list of questions
+    - normalized_weights: Pre-calculated, normalized weights for all exams in the course
+    """
     # Get related course outcomes from the preloaded mapping
     related_course_outcomes = program_to_course_outcomes.get(outcome_id, [])
     
@@ -1330,9 +1349,9 @@ def calculate_program_outcome_score_optimized(student_id, outcome_id, course_id,
     
     # Get individual course outcome scores and apply weights
     for course_outcome in related_course_outcomes:
-        # Calculate the score for this course outcome
+        # Calculate the score for this course outcome, passing through the normalized weights
         co_score = calculate_course_outcome_score_optimized(
-            student_id, course_outcome.id, scores_dict, outcome_questions
+            student_id, course_outcome.id, scores_dict, outcome_questions, normalized_weights
         )
         
         if co_score is not None:
@@ -1626,7 +1645,7 @@ def calculate_single_course_results(course_id, calculation_method='absolute'):
         # Calculate course outcome scores
         for outcome in course_outcomes:
             co_score = calculate_course_outcome_score_optimized(
-                student.id, outcome.id, scores_dict, outcome_questions
+                student.id, outcome.id, scores_dict, outcome_questions, normalized_weights
             )
             student_data['course_outcomes'][outcome.id] = co_score
         
@@ -1634,7 +1653,7 @@ def calculate_single_course_results(course_id, calculation_method='absolute'):
         for outcome in program_outcomes:
             po_score = calculate_program_outcome_score_optimized(
                 student.id, outcome.id, course_id, scores_dict, 
-                program_to_course_outcomes, outcome_questions
+                program_to_course_outcomes, outcome_questions, normalized_weights
             )
             student_data['program_outcomes'][outcome.id] = po_score
         
@@ -1873,12 +1892,12 @@ def debug_calculations(course_id):
         
         # Calculate course outcome scores
         for outcome in course_outcomes:
-            score = calculate_course_outcome_score_optimized(student.id, outcome.id, scores_dict, outcome_questions)
+            score = calculate_course_outcome_score_optimized(student.id, outcome.id, scores_dict, outcome_questions, normalized_weights)
             student_results[student.id]['course_outcome_scores'][outcome.id] = score
         
         # Calculate program outcome scores
         for outcome in program_outcomes:
-            score = calculate_program_outcome_score_optimized(student.id, outcome.id, course_id, scores_dict, program_to_course_outcomes, outcome_questions)
+            score = calculate_program_outcome_score_optimized(student.id, outcome.id, course_id, scores_dict, program_to_course_outcomes, outcome_questions, normalized_weights)
             student_results[student.id]['program_outcome_scores'][outcome.id] = score
     
     # Calculate average scores for the whole class
@@ -2493,7 +2512,7 @@ def export_student_results(course_id):
         for co in course_outcomes:
             # Calculate course outcome achievement
             co_score = calculate_course_outcome_score_optimized(
-                student.id, co.id, scores_dict, outcome_questions
+                student.id, co.id, scores_dict, outcome_questions, normalized_weights
             )
             
             if co_score is not None:

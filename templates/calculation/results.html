@@ -220,7 +220,10 @@
                                                          style="width: {{ po_data.percentage }}%;" 
                                                          aria-valuenow="{{ po_data.percentage }}" 
                                                          aria-valuemin="0" 
-                                                         aria-valuemax="100">
+                                                         aria-valuemax="100"
+                                                         data-exact-score="{{ po_data.percentage }}"
+                                                         data-rounded-score="{{ po_data.percentage|round(2) }}"
+                                                         data-achievement-level="{{ (get_achievement_level(po_data.percentage, achievement_levels))['name'] }}">
                                                         {{ "%.1f"|format(po_data.percentage) }}% ({{ 
                                                             (get_achievement_level(po_data.percentage, achievement_levels))['name'] 
                                                         }})
@@ -294,7 +297,10 @@
                                                          style="width: {{ co_data.percentage }}%;" 
                                                          aria-valuenow="{{ co_data.percentage }}" 
                                                          aria-valuemin="0" 
-                                                         aria-valuemax="100">
+                                                         aria-valuemax="100"
+                                                         data-exact-score="{{ co_data.percentage }}"
+                                                         data-rounded-score="{{ co_data.percentage|round(2) }}"
+                                                         data-achievement-level="{{ (get_achievement_level(co_data.percentage, achievement_levels))['name'] }}">
                                                         {{ "%.1f"|format(co_data.percentage) }}% ({{ 
                                                             (get_achievement_level(co_data.percentage, achievement_levels))['name'] 
                                                         }})
@@ -427,7 +433,10 @@
                                                          style="width: {{ student_data.overall_percentage }}%;" 
                                                          aria-valuenow="{{ student_data.overall_percentage }}" 
                                                          aria-valuemin="0" 
-                                                         aria-valuemax="100">
+                                                         aria-valuemax="100"
+                                                         data-exact-score="{{ student_data.overall_percentage }}"
+                                                         data-rounded-score="{{ student_data.overall_percentage|round(2) }}"
+                                                         data-achievement-level="{{ (get_achievement_level(student_data.overall_percentage, achievement_levels))['name'] }}">
                                                         {{ "%.1f"|format(student_data.overall_percentage) }}% ({{ 
                                                             (get_achievement_level(student_data.overall_percentage, achievement_levels))['name'] 
                                                         }})
@@ -470,7 +479,10 @@
                                                                          style="width: {{ percentage }}%;" 
                                                                          aria-valuenow="{{ percentage }}" 
                                                                          aria-valuemin="0" 
-                                                                         aria-valuemax="100">
+                                                                         aria-valuemax="100"
+                                                                         data-exact-score="{{ percentage }}"
+                                                                         data-rounded-score="{{ percentage|round(2) }}"
+                                                                         data-achievement-level="{{ (get_achievement_level(percentage, achievement_levels))['name'] }}">
                                                                         {{ "%.1f"|format(percentage) }}%
                                                                     </div>
                                                                 </div>
@@ -491,7 +503,10 @@
                                                                          style="width: {{ percentage }}%;" 
                                                                          aria-valuenow="{{ percentage }}" 
                                                                          aria-valuemin="0" 
-                                                                         aria-valuemax="100">
+                                                                         aria-valuemax="100"
+                                                                         data-exact-score="{{ percentage }}"
+                                                                         data-rounded-score="{{ percentage|round(2) }}"
+                                                                         data-achievement-level="{{ (get_achievement_level(percentage, achievement_levels))['name'] }}">
                                                                         {{ "%.1f"|format(percentage) }}%
                                                                     </div>
                                                                 </div>
@@ -686,7 +701,10 @@
                             'style="width: ' + studentData.overall_percentage + '%;" ' +
                             'aria-valuenow="' + studentData.overall_percentage + '" ' +
                             'aria-valuemin="0" ' +
-                            'aria-valuemax="100">' +
+                            'aria-valuemax="100" ' +
+                            'data-exact-score="' + studentData.overall_percentage + '" ' +
+                            'data-rounded-score="' + studentData.overall_percentage|round(2) + '" ' +
+                            'data-achievement-level="' + achievement.name + '">' +
                             studentData.overall_percentage.toFixed(1) + '% (' + achievement.name + ')' +
                             '</div>' +
                             '</div>';
@@ -744,7 +762,10 @@
                             'style="width: ' + percentage + '%;" ' +
                             'aria-valuenow="' + percentage + '" ' +
                             'aria-valuemin="0" ' +
-                            'aria-valuemax="100">' +
+                            'aria-valuemax="100" ' +
+                            'data-exact-score="' + percentage + '" ' +
+                            'data-rounded-score="' + percentage|round(2) + '" ' +
+                            'data-achievement-level="' + coAchievement.name + '">' +
                             percentage.toFixed(1) + '%' +
                             '</div>' +
                             '</div>' +
@@ -769,7 +790,10 @@
                             'style="width: ' + percentage + '%;" ' +
                             'aria-valuenow="' + percentage + '" ' +
                             'aria-valuemin="0" ' +
-                            'aria-valuemax="100">' +
+                            'aria-valuemax="100" ' +
+                            'data-exact-score="' + percentage + '" ' +
+                            'data-rounded-score="' + percentage|round(2) + '" ' +
+                            'data-achievement-level="' + examAchievement.name + '">' +
                             percentage.toFixed(1) + '%' +
                             '</div>' +
                             '</div>' +
@@ -870,9 +894,18 @@
             { name: 'Poor', min_score: 0, max_score: 49.99, color: 'danger' }
         ];
         
-        for (var i = 0; i < achievementLevels.length; i++) {
-            var level = achievementLevels[i];
-            if (percentage >= level.min_score && percentage <= level.max_score) {
+        // Use exact number without rounding for precise comparison
+        var exactScore = Number(percentage);
+        
+        // Sort levels by min_score descending for proper categorization
+        var sortedLevels = achievementLevels.sort(function(a, b) {
+            return b.min_score - a.min_score;
+        });
+        
+        // For each achievement level, if score is >= min_score, it belongs to that level
+        for (var i = 0; i < sortedLevels.length; i++) {
+            var level = sortedLevels[i];
+            if (exactScore >= level.min_score) {
                 return level;
             }
         }
