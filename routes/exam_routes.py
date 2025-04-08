@@ -24,6 +24,7 @@ def add_exam(course_id):
         is_makeup = True if request.form.get('is_makeup') else False
         is_final = True if request.form.get('is_final') else False
         makeup_for = request.form.get('makeup_for')
+        relative_weight = request.form.get('relative_weight', '40')
         
         # Basic validation
         if not name or not max_score:
@@ -66,7 +67,7 @@ def add_exam(course_id):
             
             # Create default weight
             # If it's a makeup exam, it should inherit the weight from the original exam
-            weight_value = 0
+            weight_value = Decimal(relative_weight) / Decimal('100')
             if is_makeup and makeup_for:
                 original_exam_weight = ExamWeight.query.filter_by(exam_id=int(makeup_for)).first()
                 if original_exam_weight:
@@ -108,6 +109,7 @@ def add_exam(course_id):
     return render_template('exam/form.html', 
                          course=course, 
                          other_exams=other_exams,
+                         exam_weight=None,
                          active_page='courses')
 
 @exam_bp.route('/edit/<int:exam_id>', methods=['GET', 'POST'])
@@ -123,6 +125,7 @@ def edit_exam(exam_id):
         is_makeup = True if request.form.get('is_makeup') else False
         is_final = True if request.form.get('is_final') else False
         makeup_for = request.form.get('makeup_for')
+        relative_weight = request.form.get('relative_weight', '40')
         
         # Basic validation
         if not name or not max_score:
@@ -195,9 +198,18 @@ def edit_exam(exam_id):
                 # If exam was a makeup but is no longer, remove the makeup relationship
                 exam.makeup_for = None
                 
-                # If we're removing a makeup relationship, we should reset the weight
-                # to a default (e.g., 0) or keep it as is
-                # Here, we choose to keep it as is, requiring manual adjustment through manage_weights
+                # Update the weight value if not a makeup exam
+                weight_value = Decimal(relative_weight) / Decimal('100')
+                exam_weight = ExamWeight.query.filter_by(exam_id=exam_id, course_id=course.id).first()
+                if exam_weight:
+                    exam_weight.weight = weight_value
+                else:
+                    new_weight = ExamWeight(
+                        exam_id=exam_id,
+                        course_id=course.id,
+                        weight=weight_value
+                    )
+                    db.session.add(new_weight)
             
             # Log action
             log = Log(action="EDIT_EXAM", description=f"Edited exam: {name} in course: {course.code}")
@@ -223,11 +235,13 @@ def edit_exam(exam_id):
     
     # For GET request, prepare data for the form
     other_exams = Exam.query.filter_by(course_id=exam.course_id, is_makeup=False).filter(Exam.id != exam_id).all()
+    exam_weight = ExamWeight.query.filter_by(exam_id=exam_id, course_id=exam.course_id).first()
     
     return render_template('exam/form.html', 
                          course=course, 
                          exam=exam,
                          other_exams=other_exams,
+                         exam_weight=exam_weight,
                          active_page='courses')
 
 @exam_bp.route('/delete/<int:exam_id>', methods=['POST'])

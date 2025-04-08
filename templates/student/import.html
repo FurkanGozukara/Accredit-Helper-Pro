@@ -22,10 +22,18 @@
                             <h6><i class="fas fa-info-circle"></i> Import Format Guidelines</h6>
                             <p class="mb-1">You can import students in the following formats:</p>
                             <ul class="mb-0">
-                                <li>With ID numbers: <code>24220030102[tab/space]ÖZGÜR[tab/space]AÇAR</code></li>
+                                <li>Student ID followed by full name: <code>17155970 HENRY WATSON</code></li>
+                                <li>Student ID with separated names: <code>24220030102[tab/space]ÖZGÜR[tab/space]AÇAR</code></li>
                                 <li>With row numbers: <code>1[tab/space]24220030102[tab/space]ÖZGÜR[tab/space]AÇAR</code></li>
                                 <li>With semicolons: <code>24220030102;ÖZGÜR;AÇAR</code></li>
+                                <li>Any common format from university systems (ID followed by names)</li>
                             </ul>
+                            <p class="mt-2 mb-0"><strong>Example:</strong><br/>
+                            <pre class="bg-light p-2">17155970 HENRY WATSON
+18155013 OLIVER JAMES PARKER
+19155014 GRACE MILLER
+20155814 ANTHONY WRIGHT</pre>
+                            </p>
                         </div>
 
                         <div class="mb-3">
@@ -42,11 +50,13 @@
                                 Paste student data directly. Each line should contain one student's information.<br>
                                 <strong>Supported formats:</strong>
                                 <ul>
-                                    <li>Student_ID;Full Name</li>
-                                    <li>Student_ID;Last Name, First Name</li>
-                                    <li>Student_ID;First Name;Last Name</li>
-                                    <li>Student_ID   Full Name (tab or multiple spaces)</li>
+                                    <li>Student_ID Name (e.g., "17155970 HENRY WATSON")</li>
+                                    <li>Student_ID First_Name Last_Name (e.g., "17155970 HENRY WATSON")</li>
+                                    <li>Student_ID;First_Name;Last_Name</li>
+                                    <li>Student_ID;Full_Name</li>
+                                    <li>Student_ID;Last_Name, First_Name</li>
                                 </ul>
+                                <p>The system will automatically detect ALL CAPS names and process them appropriately.</p>
                             </div>
                         </div>
                         

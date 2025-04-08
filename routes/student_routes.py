@@ -125,34 +125,35 @@ def import_students(course_id):
             
             # Try to parse the line
             try:
-                # First try to split by detected delimiter
+                # Step 1: Try to split by detected delimiter
                 parts = [p.strip() for p in line.split(delimiter) if p.strip()]
                 
-                # If that didn't work well, try alternative parsing
+                # Step 2: If delimiter doesn't work well, try multiple spaces as delimiter
                 if len(parts) < 2:
-                    # Try other common delimiters or multiple spaces
+                    # Split by multiple spaces
+                    parts = re.split(r'\s{1,}', line.strip())
+                    parts = [p.strip() for p in parts if p.strip()]
+                
+                # Step 3: If still not enough parts, try other common delimiters
+                if len(parts) < 2:
                     for alt_delimiter in ['\t', ';', ',', '|']:
                         if alt_delimiter != delimiter and alt_delimiter in line:
                             temp_parts = [p.strip() for p in line.split(alt_delimiter) if p.strip()]
                             if len(temp_parts) >= 2:
                                 parts = temp_parts
                                 break
-                    
-                    # If still not enough parts, try splitting by multiple spaces
-                    if len(parts) < 2:
-                        parts = re.split(r'\s{2,}', line.strip())
-                        parts = [p.strip() for p in parts if p.strip()]
                 
                 if len(parts) < 2:
                     errors.append(f"Line {i}: Not enough data (expected at least student ID and name)")
                     continue
                 
+                # Extract student ID from parts (first element is always student ID)
                 student_id = parts[0]
                 
-                # Sanitize student ID - remove any unsafe characters
+                # Sanitize student ID - remove any unsafe characters but allow numbers
                 student_id = re.sub(r'[^\w\-]', '', student_id)
                 
-                # Validate student ID format (broader pattern allowing more formats)
+                # Validate student ID format - allow alphanumeric, underscore, and hyphen
                 if not re.match(r'^[\w\-]+$', student_id):
                     errors.append(f"Line {i}: Invalid student ID format: {student_id} (only alphanumeric, underscore, and hyphen allowed)")
                     continue
@@ -172,27 +173,49 @@ def import_students(course_id):
                     errors.append(f"Line {i}: Duplicate student ID {student_id} in import data")
                     continue
                 
-                # Enhanced name parsing logic
+                # Robust name parsing logic
                 first_name = ""
                 last_name = ""
                 
-                # Determine name format mode from form or use auto-detection
+                # Handle different name formats based on number of parts and specified format
                 name_format = request.form.get('name_format', 'auto')
                 
-                if len(parts) == 2:  # Only have ID and full name
-                    full_name = parts[1]
-                    
-                    if name_format == 'eastern':
-                        # Eastern format: Last name first, no comma (e.g., "Kim Minjun")
-                        name_parts = full_name.split()
-                        if len(name_parts) > 1:
-                            last_name = name_parts[0]
-                            first_name = " ".join(name_parts[1:])
-                        else:
-                            last_name = full_name
-                            first_name = ""
-                    elif name_format == 'western':
-                        # Western format: First name first (e.g., "John Smith")
+                # Compile all name parts
+                name_parts = parts[1:]
+                full_name = " ".join(name_parts)
+                
+                # Handle different name formats
+                if name_format == 'eastern':
+                    # Eastern format: Last name first, no comma (e.g., "Kim Minjun")
+                    if name_parts:
+                        last_name = name_parts[0]
+                        first_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+                elif name_format == 'western':
+                    # Western format: First name first (e.g., "John Smith")
+                    if name_parts:
+                        first_name = " ".join(name_parts[:-1])
+                        last_name = name_parts[-1]
+                    else:
+                        first_name = full_name
+                        last_name = ""
+                elif name_format == 'comma':
+                    # Comma format: "Last, First"
+                    if ',' in full_name:
+                        name_components = full_name.split(',', 1)
+                        last_name = name_components[0].strip()
+                        first_name = name_components[1].strip() if len(name_components) > 1 else ""
+                    else:
+                        # Fallback if comma format specified but no comma found
+                        first_name = " ".join(name_parts[:-1]) if len(name_parts) > 1 else name_parts[0]
+                        last_name = name_parts[-1] if len(name_parts) > 1 else ""
+                else:  # Auto-detect
+                    # Check for comma-separated format: "LastName, FirstName"
+                    if ',' in full_name:
+                        name_components = full_name.split(',', 1)
+                        last_name = name_components[0].strip()
+                        first_name = name_components[1].strip() if len(name_components) > 1 else ""
+                    else:
+                        # Default to Western format (FirstName LastName)
                         name_parts = full_name.split()
                         if len(name_parts) > 1:
                             first_name = " ".join(name_parts[:-1])
@@ -200,46 +223,8 @@ def import_students(course_id):
                         else:
                             first_name = full_name
                             last_name = ""
-                    elif name_format == 'comma':
-                        # Comma format: "Last, First"
-                        if ',' in full_name:
-                            name_components = full_name.split(',', 1)
-                            last_name = name_components[0].strip()
-                            first_name = name_components[1].strip() if len(name_components) > 1 else ""
-                        else:
-                            # Fallback if comma format specified but no comma found
-                            name_parts = full_name.split()
-                            if len(name_parts) > 1:
-                                first_name = " ".join(name_parts[:-1])
-                                last_name = name_parts[-1]
-                            else:
-                                first_name = full_name
-                                last_name = ""
-                    else:  # Auto-detect
-                        # Check for comma-separated format: "LastName, FirstName"
-                        if ',' in full_name:
-                            name_components = full_name.split(',', 1)
-                            last_name = name_components[0].strip()
-                            first_name = name_components[1].strip() if len(name_components) > 1 else ""
-                        else:
-                            # Default to Western format (FirstName LastName)
-                            name_parts = full_name.split()
-                            if len(name_parts) > 1:
-                                first_name = " ".join(name_parts[:-1])
-                                last_name = name_parts[-1]
-                            else:
-                                first_name = full_name
-                                last_name = ""
-                else:
-                    # Multiple fields - assume second field is first name, third is last name
-                    if len(parts) >= 3:
-                        first_name = parts[1]
-                        last_name = parts[2]
-                    else:
-                        first_name = parts[1]
-                        last_name = ""
                 
-                # Sanitize names
+                # Trim and sanitize names
                 first_name = first_name[:50].strip()  # Limit to model field size
                 last_name = last_name[:50].strip()    # Limit to model field size
                 
@@ -1518,7 +1503,7 @@ def import_attendance(exam_id):
                 # Try alternative delimiters if the detected one didn't work
                 for alt_delimiter in ['\t', ';', ',']:
                     if alt_delimiter != delimiter and alt_delimiter in line:
-                        temp_parts = [p.strip() for p in line.split(alt_delimiter)]
+                        temp_parts = [p.strip() for p in line.split(alt_delimiter) if p.strip()]
                         if len(temp_parts) >= 2:
                             parts = temp_parts
                             break

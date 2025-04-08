@@ -433,17 +433,28 @@ def restore_database():
         
         if os.path.exists(backup_dir):
             backup_files = glob.glob(os.path.join(backup_dir, "accredit_data_backup_*.db"))
+            # Add pre-restore and pre-import backups to the list
+            backup_files.extend(glob.glob(os.path.join(backup_dir, "pre_restore_backup_*.db")))
+            backup_files.extend(glob.glob(os.path.join(backup_dir, "pre_import_backup_*.db")))
             for backup_file in backup_files:
                 filename = os.path.basename(backup_file)
                 created_at = os.path.getmtime(backup_file)
                 size = os.path.getsize(backup_file) / (1024 * 1024)  # Size in MB
+                
+                # Add backup type information
+                backup_type = "Regular"
+                if "pre_import_backup" in filename:
+                    backup_type = "Pre-Import"
+                elif "pre_restore_backup" in filename:
+                    backup_type = "Pre-Restore"
                 
                 backups.append({
                     'filename': filename,
                     'created_at': datetime.fromtimestamp(created_at),
                     'size': round(size, 2),
                     'size_formatted': f"{round(size, 2)} MB",
-                    'description': descriptions.get(filename, '')
+                    'type': backup_type,
+                    'description': descriptions.get(filename, backup_type)
                 })
         
         # Sort backups by creation time (newest first)
@@ -2822,8 +2833,6 @@ def import_database():
                     backup_type = "Pre-Import"
                 elif "pre_restore_backup" in filename:
                     backup_type = "Pre-Restore"
-                elif "pre_merge_backup" in filename:
-                    backup_type = "Pre-Merge"
                 
                 backups.append({
                     'filename': filename,

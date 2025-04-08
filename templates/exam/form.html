@@ -72,6 +72,13 @@
                                 <div class="form-text">Mark this exam as the final exam for the course.</div>
                             </div>
                         </div>
+                        
+                        <div class="mb-3">
+                            <label for="relative_weight" class="form-label">Relative Weight (%)</label>
+                            <input type="number" class="form-control" id="relative_weight" name="relative_weight"
+                                   value="{{ '%.1f'|format((exam_weight.weight * 100)) if exam_weight else '40.0' }}" min="0" max="100" step="0.1">
+                            <div class="form-text">The relative weight of this exam in the final grade calculation (e.g., 40%)</div>
+                        </div>
 
                         <div class="d-flex justify-content-between">
                             <a href="{{ url_for('course.course_detail', course_id=course.id) }}" class="btn btn-secondary">

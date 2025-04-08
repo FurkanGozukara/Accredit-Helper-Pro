@@ -1092,6 +1092,14 @@ def update_course_settings(course_id):
     # Update excluded status
     settings.excluded = 'excluded' in request.form
     
+    # Update course weight if provided
+    course_weight = request.form.get('course_weight')
+    if course_weight:
+        try:
+            course.course_weight = float(course_weight)
+        except ValueError:
+            flash('Course weight must be a valid number. Using previous value.', 'warning')
+    
     db.session.commit()
     
     # Log action

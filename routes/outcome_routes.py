@@ -351,7 +351,7 @@ def delete_program_outcome(outcome_id):
     program_outcome = ProgramOutcome.query.get_or_404(outcome_id)
     
     # Check if this program outcome is associated with any course outcomes
-    associated_count = program_outcome.course_outcomes.count()
+    associated_count = len(program_outcome.course_outcomes)
     
     if associated_count > 0:
         flash(f'Cannot delete: This program outcome is associated with {associated_count} course outcomes. Remove these associations first.', 'error')
@@ -370,6 +370,160 @@ def delete_program_outcome(outcome_id):
         db.session.rollback()
         logging.error(f"Error deleting program outcome: {str(e)}")
         flash('An error occurred while deleting the program outcome', 'error')
+    
+    return redirect(url_for('outcome.list_program_outcomes'))
+
+@outcome_bp.route('/program/batch-delete', methods=['POST'])
+def batch_delete_program_outcomes():
+    """Batch delete multiple program outcomes"""
+    outcome_ids = request.form.getlist('outcome_ids', type=int)
+    
+    if not outcome_ids:
+        flash('No program outcomes selected for deletion', 'error')
+        return redirect(url_for('outcome.list_program_outcomes'))
+    
+    deleted_count = 0
+    error_count = 0
+    
+    for outcome_id in outcome_ids:
+        outcome = ProgramOutcome.query.get(outcome_id)
+        
+        if outcome:
+            # Check if this program outcome is associated with any course outcomes
+            associated_count = len(outcome.course_outcomes)
+            
+            if associated_count > 0:
+                flash(f"Cannot delete '{outcome.code}': It is associated with {associated_count} course outcomes", 'warning')
+                error_count += 1
+                continue
+                
+            try:
+                # Log action before deletion
+                log = Log(action="DELETE_PROGRAM_OUTCOME", 
+                         description=f"Deleted program outcome {outcome.code}")
+                db.session.add(log)
+                
+                db.session.delete(outcome)
+                deleted_count += 1
+            except Exception as e:
+                logging.error(f"Error deleting outcome {outcome.code}: {str(e)}")
+                error_count += 1
+                flash(f'Error deleting outcome {outcome.code}: {str(e)}', 'error')
+    
+    try:
+        db.session.commit()
+        if deleted_count > 0:
+            flash(f'Successfully deleted {deleted_count} program outcomes', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error in batch deletion transaction: {str(e)}")
+        flash(f'An error occurred during batch deletion: {str(e)}', 'error')
+    
+    if error_count > 0:
+        flash(f'Failed to delete {error_count} program outcomes due to associations with course outcomes', 'warning')
+    
+    return redirect(url_for('outcome.list_program_outcomes'))
+
+@outcome_bp.route('/program/batch-import', methods=['POST'])
+def batch_import_program_outcomes():
+    """Import multiple program outcomes from a text input with tab or semicolon delimiters"""
+    if 'outcome_data' not in request.form or not request.form['outcome_data'].strip():
+        flash('No data provided for import', 'error')
+        return redirect(url_for('outcome.list_program_outcomes'))
+        
+    data = request.form['outcome_data'].strip()
+    lines = data.split('\n')
+    
+    # Process each line
+    added_count = 0
+    error_count = 0
+    updated_count = 0
+    existing_count = 0
+    
+    for line in lines:
+        if not line.strip():
+            continue
+            
+        # Split by tab or semicolon, whichever appears first
+        if '\t' in line:
+            parts = line.split('\t', 1)
+        elif ';' in line:
+            parts = line.split(';', 1)
+        else:
+            flash(f'Invalid format in line: {line}. Use tab or semicolon as separator.', 'error')
+            error_count += 1
+            continue
+            
+        if len(parts) < 2:
+            flash(f'Invalid format in line: {line}. Missing code or description.', 'error')
+            error_count += 1
+            continue
+            
+        code = parts[0].strip()
+        description = parts[1].strip()
+        
+        if not code or not description:
+            flash(f'Invalid data: Code and description are required', 'error')
+            error_count += 1
+            continue
+            
+        # Check if outcome already exists
+        existing_outcome = ProgramOutcome.query.filter_by(code=code).first()
+        
+        try:
+            if existing_outcome:
+                # Check if different and needs update
+                if existing_outcome.description != description:
+                    existing_outcome.description = description
+                    existing_outcome.updated_at = datetime.now()
+                    
+                    # Log update action
+                    log = Log(action="UPDATE_PROGRAM_OUTCOME",
+                             description=f"Updated program outcome {code} via batch import")
+                    db.session.add(log)
+                    updated_count += 1
+                else:
+                    existing_count += 1
+            else:
+                # Create new outcome
+                new_outcome = ProgramOutcome(
+                    code=code,
+                    description=description
+                )
+                db.session.add(new_outcome)
+                
+                # Log action
+                log = Log(action="ADD_PROGRAM_OUTCOME",
+                         description=f"Added program outcome {code} via batch import")
+                db.session.add(log)
+                added_count += 1
+                
+        except Exception as e:
+            logging.error(f"Error processing outcome {code}: {str(e)}")
+            error_count += 1
+            flash(f'Error processing outcome {code}: {str(e)}', 'error')
+    
+    try:
+        db.session.commit()
+        
+        summary = []
+        if added_count > 0:
+            summary.append(f"Added {added_count} new outcomes")
+        if updated_count > 0:
+            summary.append(f"Updated {updated_count} existing outcomes")
+        if existing_count > 0:
+            summary.append(f"Skipped {existing_count} unchanged outcomes")
+            
+        if summary:
+            flash('Import completed: ' + '; '.join(summary), 'success')
+            
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error in batch import transaction: {str(e)}")
+        flash(f'An error occurred during batch import: {str(e)}', 'error')
+    
+    if error_count > 0:
+        flash(f'Failed to process {error_count} outcomes due to errors', 'warning')
     
     return redirect(url_for('outcome.list_program_outcomes'))
 

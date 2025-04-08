@@ -298,6 +298,18 @@
                                 When excluded, this course will not contribute to the program outcome averages.
                             </div>
                         </div>
+
+                        <div class="mb-3">
+                            <label for="courseWeight{{ data.course.id }}" class="form-label">Course Weight</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="courseWeight{{ data.course.id }}"
+                                       name="course_weight" min="0.1" max="100" step="0.1"
+                                       value="{{ data.course.course_weight }}">
+                            </div>
+                            <div class="form-text">
+                                This weight determines how much this course contributes to program outcome calculations.
+                            </div>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

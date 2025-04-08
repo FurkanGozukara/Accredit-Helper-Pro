@@ -12,6 +12,12 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Program Outcomes</h1>
         <div>
+            <button type="button" class="btn btn-info me-2" data-bs-toggle="modal" data-bs-target="#batchImportModal">
+                <i class="fas fa-file-import"></i> Batch Import
+            </button>
+            <button id="batchDeleteBtn" type="button" class="btn btn-danger me-2" style="display:none;" data-bs-toggle="modal" data-bs-target="#batchDeleteModal">
+                <i class="fas fa-trash"></i> Batch Delete
+            </button>
             <a href="{{ url_for('outcome.export_program_outcomes') }}" class="btn btn-success me-2">
                 <i class="fas fa-file-export"></i> Export Outcomes
             </a>
@@ -23,43 +29,57 @@
 
     <div class="card">
         <div class="card-header bg-light">
-            <h5 class="mb-0">All Program Outcomes</h5>
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">All Program Outcomes</h5>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="selectAllOutcomes">
+                    <label class="form-check-label" for="selectAllOutcomes">Select All</label>
+                </div>
+            </div>
         </div>
         <div class="card-body">
             {% if program_outcomes %}
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead class="thead-light">
-                            <tr>
-                                <th>Code</th>
-                                <th>Description</th>
-                                <th class="text-center">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for outcome in program_outcomes %}
+                <form id="batchActionsForm" action="{{ url_for('outcome.batch_delete_program_outcomes') }}" method="POST">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="thead-light">
                                 <tr>
-                                    <td><strong>{{ outcome.code }}</strong></td>
-                                    <td>{{ outcome.description }}</td>
-                                    <td class="text-center">
-                                        <a href="{{ url_for('outcome.edit_program_outcome', outcome_id=outcome.id) }}" 
-                                           class="btn btn-sm btn-outline-primary me-2" title="Edit">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <button type="button" class="btn btn-sm btn-outline-danger" 
-                                                data-bs-toggle="modal" 
-                                                data-bs-target="#confirmDeleteModal" 
-                                                data-outcome-id="{{ outcome.id }}"
-                                                data-outcome-code="{{ outcome.code }}"
-                                                title="Delete">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </td>
+                                    <th width="5%">Select</th>
+                                    <th width="15%">Code</th>
+                                    <th width="65%">Description</th>
+                                    <th width="15%" class="text-center">Actions</th>
                                 </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody>
+                                {% for outcome in program_outcomes %}
+                                    <tr>
+                                        <td>
+                                            <div class="form-check">
+                                                <input type="checkbox" class="form-check-input outcome-checkbox" name="outcome_ids" value="{{ outcome.id }}">
+                                            </div>
+                                        </td>
+                                        <td><strong>{{ outcome.code }}</strong></td>
+                                        <td>{{ outcome.description }}</td>
+                                        <td class="text-center">
+                                            <a href="{{ url_for('outcome.edit_program_outcome', outcome_id=outcome.id) }}" 
+                                               class="btn btn-sm btn-outline-primary me-2" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#confirmDeleteModal" 
+                                                    data-outcome-id="{{ outcome.id }}"
+                                                    data-outcome-code="{{ outcome.code }}"
+                                                    title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
             {% else %}
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle"></i> No program outcomes have been added yet.
@@ -91,8 +111,65 @@
     </div>
 </div>
 
+<!-- Batch Delete Confirmation Modal -->
+<div class="modal fade" id="batchDeleteModal" tabindex="-1" aria-labelledby="batchDeleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="batchDeleteModalLabel">Confirm Batch Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="selectedOutcomeCount"></strong> program outcomes?</p>
+                <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> This action cannot be undone!</p>
+                <p>Note: Program outcomes that are associated with course outcomes cannot be deleted.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmBatchDeleteBtn">Delete Selected</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Batch Import Modal -->
+<div class="modal fade" id="batchImportModal" tabindex="-1" aria-labelledby="batchImportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="batchImportModalLabel">Batch Import Program Outcomes</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('outcome.batch_import_program_outcomes') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="outcomeData" class="form-label">Paste program outcomes below (one per line):</label>
+                        <div class="alert alert-info">
+                            <p class="mb-1"><i class="fas fa-info-circle"></i> Format: <code>CODE[tab or ;]DESCRIPTION</code></p>
+                            <p class="mb-1">Example:</p>
+                            <pre class="mb-0">PO1	Ability to apply mathematical knowledge
+PO2;Ability to design and conduct experiments</pre>
+                        </div>
+                        <textarea class="form-control" id="outcomeData" name="outcome_data" rows="10" required
+                                placeholder="PO1&#9;Description of program outcome 1
+PO2&#9;Description of program outcome 2"></textarea>
+                    </div>
+                    <div class="alert alert-warning">
+                        <p class="mb-0"><i class="fas fa-exclamation-triangle"></i> Note: Existing outcomes with the same code will be updated if the description has changed.</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Import</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Single delete modal handler
         const confirmDeleteModal = document.getElementById('confirmDeleteModal');
         if (confirmDeleteModal) {
             confirmDeleteModal.addEventListener('show.bs.modal', function(event) {
@@ -104,6 +181,58 @@
                 document.getElementById('deleteOutcomeForm').action = `/outcome/program/delete/${outcomeId}`;
             });
         }
+        
+        // Batch delete functionality
+        const selectAllCheckbox = document.getElementById('selectAllOutcomes');
+        const outcomeCheckboxes = document.querySelectorAll('.outcome-checkbox');
+        const batchDeleteBtn = document.getElementById('batchDeleteBtn');
+        const batchActionsForm = document.getElementById('batchActionsForm');
+        const confirmBatchDeleteBtn = document.getElementById('confirmBatchDeleteBtn');
+        
+        // Update batch delete button visibility
+        function updateBatchDeleteButton() {
+            const selectedCount = document.querySelectorAll('.outcome-checkbox:checked').length;
+            if (selectedCount > 0) {
+                batchDeleteBtn.style.display = 'inline-block';
+                document.getElementById('selectedOutcomeCount').textContent = selectedCount;
+            } else {
+                batchDeleteBtn.style.display = 'none';
+            }
+        }
+        
+        // Select all checkbox handler
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', function() {
+                outcomeCheckboxes.forEach(checkbox => {
+                    checkbox.checked = selectAllCheckbox.checked;
+                });
+                updateBatchDeleteButton();
+            });
+        }
+        
+        // Individual checkbox handler
+        outcomeCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                updateBatchDeleteButton();
+                
+                // Update "select all" checkbox state
+                const allChecked = Array.from(outcomeCheckboxes).every(cb => cb.checked);
+                const someChecked = Array.from(outcomeCheckboxes).some(cb => cb.checked);
+                
+                selectAllCheckbox.checked = allChecked;
+                selectAllCheckbox.indeterminate = someChecked && !allChecked;
+            });
+        });
+        
+        // Batch delete confirmation
+        if (confirmBatchDeleteBtn) {
+            confirmBatchDeleteBtn.addEventListener('click', function() {
+                batchActionsForm.submit();
+            });
+        }
+        
+        // Initialize batch delete button state
+        updateBatchDeleteButton();
     });
 </script>
 {% endblock %} 
