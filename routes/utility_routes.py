@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, send_file, make_response
-from flask import current_app
+from flask import current_app, Markup
 from app import db
 from models import Log, Course, Student, Exam, CourseOutcome, Question, Score, ExamWeight, StudentExamAttendance, ProgramOutcome
 from datetime import datetime
@@ -1542,6 +1542,10 @@ def import_database():
                     if missing_course_cols:
                         schema_validation_errors.append(f"Course table missing columns: {', '.join(missing_course_cols)}")
                     
+                    # Check for course_weight column (optional but important)
+                    if 'course_weight' not in course_cols:
+                        schema_warnings.append("Course table missing 'course_weight' column. Default value of 1.0 will be used.")
+                    
                     # Check student table
                     student_cols = [col[1] for col in conn.execute("PRAGMA table_info(student)").fetchall()]
                     required_student_cols = ['id', 'student_id', 'first_name', 'last_name', 'course_id']
@@ -1760,6 +1764,13 @@ def import_database():
                             course_key = (course_data['code'], course_data['semester'])
                             import_course_id = course_data['id']
                             
+                            # Debug - log the keys available in course_data
+                            try:
+                                logging.info(f"Course data keys: {dict(course_data).keys()}")
+                                logging.info(f"Course data full: {dict(course_data)}")
+                            except:
+                                logging.info("Failed to convert course_data to dict")
+                            
                             # Validate course data
                             if not course_data['code'] or not course_data['name'] or not course_data['semester']:
                                 logging.warning(f"Skipping course with invalid data: {course_data['code']}")
@@ -1776,6 +1787,45 @@ def import_database():
                                 logging.info(f"Mapped existing course: {course_data['code']} {course_data['semester']} " +
                                             f"(import ID: {import_course_id}, current ID: {existing_id})")
                             else:
+                                # Fetch the column names for the course table in the import database
+                                course_columns = [column[1] for column in 
+                                                 import_db.execute("PRAGMA table_info(course)").fetchall()]
+                                
+                                # Check if course_weight is in the columns, otherwise it will be defaulted to 1.0
+                                has_course_weight = 'course_weight' in course_columns
+                                if not has_course_weight:
+                                    logging.warning("course_weight column not found in import database, will use default 1.0")
+                                
+                                # Debug the course data to see what we're getting
+                                try:
+                                    # Get the actual course_weight value and convert it explicitly
+                                    course_weight_value = 1.0  # Default
+                                    if has_course_weight:
+                                        # Try to access it directly from course_data dictionary
+                                        if 'course_weight' in course_data:
+                                            try:
+                                                # Log the raw value for debugging
+                                                raw_weight = course_data['course_weight']
+                                                logging.info(f"Raw course weight value: {raw_weight}, type: {type(raw_weight)}")
+                                                
+                                                # Convert to float regardless of type
+                                                if raw_weight is not None:
+                                                    course_weight_value = float(raw_weight)
+                                            except (ValueError, TypeError) as e:
+                                                logging.warning(f"Error converting course_weight: {e}, using default 1.0")
+                                        else:
+                                            # Fallback to a direct query for this specific course
+                                            weight_row = import_db.execute(
+                                                "SELECT course_weight FROM course WHERE id = ?", 
+                                                (import_course_id,)
+                                            ).fetchone()
+                                            if weight_row and weight_row[0] is not None:
+                                                course_weight_value = float(weight_row[0])
+                                                logging.info(f"Retrieved course weight from direct query: {course_weight_value}")
+                                except Exception as e:
+                                    logging.error(f"Error processing course_weight: {e}")
+                                    course_weight_value = 1.0  # Default on error
+                                
                                 # Insert new course
                                 cursor = current_db.execute(
                                     """
@@ -1786,7 +1836,7 @@ def import_database():
                                         course_data['code'],
                                         course_data['name'],
                                         course_data['semester'],
-                                        course_data.get('course_weight', 1.0),  # Default to 1.0 if not present
+                                        course_weight_value,  # Use our explicitly converted value
                                         datetime.now(),
                                         datetime.now()
                                     )
@@ -1796,7 +1846,8 @@ def import_database():
                                 current_courses[course_key] = new_course_id  # Update lookup for subsequent operations
                                 import_summary['courses_imported'] += 1
                                 logging.info(f"Imported new course: {course_data['code']} {course_data['semester']} " +
-                                           f"(import ID: {import_course_id}, new ID: {new_course_id})")
+                                           f"(import ID: {import_course_id}, new ID: {new_course_id}, " +
+                                           f"weight: {course_weight_value})")
                         release_savepoint("courses")
                     else:
                         # Even if not importing courses, create ID mapping for existing courses
@@ -1990,8 +2041,325 @@ def import_database():
                                     logging.error(f"Error importing achievement level: {str(e)}")
                         release_savepoint("achievement_levels")
                     
-                    # Continue with the rest of the import process...
-                    # ... existing code ...
+                    # STEP 5a: Import students if selected
+                    if import_students and course_id_map:
+                        create_savepoint("students")
+                        
+                        # Get all students from import database
+                        import_students_data = import_db.execute("SELECT * FROM student").fetchall()
+                        
+                        for student_data in import_students_data:
+                            import_student_id = student_data['id']
+                            import_course_id = student_data['course_id']
+                            
+                            # Validate student data
+                            if not student_data['student_id'] or student_data['course_id'] is None:
+                                logging.warning(f"Skipping student with invalid data: {student_data['student_id']}")
+                                import_errors['students'] += 1
+                                continue
+                            
+                            # Skip if no mapping for this course
+                            if import_course_id not in course_id_map:
+                                continue  
+                            
+                            # Skip students for existing courses
+                            if import_course_id in existing_course_ids:
+                                continue
+                            
+                            current_course_id = course_id_map[import_course_id]
+                            student_key = (student_data['student_id'], current_course_id)
+                            
+                            # Check if student already exists
+                            if student_key in current_students:
+                                # Student already exists, just map the ID
+                                student_id_map[import_student_id] = current_students[student_key]
+                                continue
+                            
+                            # Insert new student
+                            try:
+                                cursor = current_db.execute(
+                                    """
+                                    INSERT INTO student 
+                                    (student_id, first_name, last_name, course_id, excluded, created_at, updated_at)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                                    """,
+                                    (
+                                        student_data['student_id'],
+                                        student_data['first_name'],
+                                        student_data['last_name'],
+                                        current_course_id,
+                                        student_data['excluded'] if 'excluded' in student_data else False,
+                                        datetime.now(),
+                                        datetime.now()
+                                    )
+                                )
+                                
+                                new_student_id = cursor.lastrowid
+                                student_id_map[import_student_id] = new_student_id
+                                current_students[student_key] = new_student_id  # Update lookup
+                                import_summary['students_imported'] += 1
+                            except Exception as e:
+                                import_errors['students'] += 1
+                                logging.error(f"Error importing student: {str(e)}")
+                        
+                        release_savepoint("students")
+                    
+                    # STEP 5b: Import exams and questions if selected
+                    if import_exams and course_id_map:
+                        create_savepoint("exams")
+                        
+                        # Get all exams from import database
+                        import_exams_data = import_db.execute("SELECT * FROM exam").fetchall()
+                        
+                        for exam_data in import_exams_data:
+                            import_exam_id = exam_data['id']
+                            import_course_id = exam_data['course_id']
+                            
+                            # Validate exam data
+                            if not exam_data['name'] or exam_data['course_id'] is None:
+                                logging.warning(f"Skipping exam with invalid data: {exam_data['name']}")
+                                import_errors['exams'] += 1
+                                continue
+                            
+                            # Skip if no mapping for this course
+                            if import_course_id not in course_id_map:
+                                continue
+                            
+                            # Skip exams for existing courses
+                            if import_course_id in existing_course_ids:
+                                continue
+                            
+                            current_course_id = course_id_map[import_course_id]
+                            exam_key = (exam_data['name'], current_course_id)
+                            
+                            # Check if exam already exists
+                            if exam_key in current_exams:
+                                # Exam already exists, just map the ID
+                                existing_exam_id = current_exams[exam_key]
+                                exam_id_map[import_exam_id] = existing_exam_id
+                                continue
+                            
+                            # Insert new exam
+                            try:
+                                cursor = current_db.execute(
+                                    """
+                                    INSERT INTO exam
+                                    (name, max_score, exam_date, course_id, is_makeup, is_final, is_mandatory, created_at, updated_at)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    """,
+                                    (
+                                        exam_data['name'],
+                                        exam_data['max_score'],
+                                        exam_data['exam_date'],
+                                        current_course_id,
+                                        exam_data['is_makeup'] if 'is_makeup' in exam_data else False,
+                                        exam_data['is_final'] if 'is_final' in exam_data else False,
+                                        exam_data['is_mandatory'] if 'is_mandatory' in exam_data else False,
+                                        datetime.now(),
+                                        datetime.now()
+                                    )
+                                )
+                                
+                                new_exam_id = cursor.lastrowid
+                                exam_id_map[import_exam_id] = new_exam_id
+                                current_exams[exam_key] = new_exam_id  # Update lookup
+                                import_summary['exams_imported'] += 1
+                                
+                                # Import questions for this exam
+                                import_questions_data = import_db.execute(
+                                    "SELECT * FROM question WHERE exam_id = ?", 
+                                    (import_exam_id,)
+                                ).fetchall()
+                                
+                                for question_data in import_questions_data:
+                                    import_question_id = question_data['id']
+                                    question_key = (question_data['number'], new_exam_id, question_data['max_score'])
+                                    
+                                    # Check if question already exists
+                                    if question_key in current_questions:
+                                        # Question already exists, just map the ID
+                                        question_id_map[import_question_id] = current_questions[question_key]
+                                        continue
+                                    
+                                    # Insert new question
+                                    try:
+                                        cursor = current_db.execute(
+                                            """
+                                            INSERT INTO question
+                                            (text, number, max_score, exam_id, created_at, updated_at)
+                                            VALUES (?, ?, ?, ?, ?, ?)
+                                            """,
+                                            (
+                                                question_data['text'],
+                                                question_data['number'],
+                                                question_data['max_score'],
+                                                new_exam_id,
+                                                datetime.now(),
+                                                datetime.now()
+                                            )
+                                        )
+                                        
+                                        new_question_id = cursor.lastrowid
+                                        question_id_map[import_question_id] = new_question_id
+                                        current_questions[question_key] = new_question_id  # Update lookup
+                                    except Exception as e:
+                                        import_errors['questions'] += 1
+                                        logging.error(f"Error importing question: {str(e)}")
+                                        
+                                # Import exam weights if they exist
+                                try:
+                                    # First check if the table exists
+                                    weight_table_exists = import_db.execute(
+                                        "SELECT name FROM sqlite_master WHERE type='table' AND name='exam_weight'"
+                                    ).fetchone()
+                                    
+                                    if weight_table_exists:
+                                        # Get weights for this exam
+                                        weight_data = import_db.execute(
+                                            "SELECT * FROM exam_weight WHERE exam_id = ?",
+                                            (import_exam_id,)
+                                        ).fetchone()
+                                        
+                                        if weight_data:
+                                            current_db.execute(
+                                                """
+                                                INSERT INTO exam_weight
+                                                (exam_id, course_id, weight, created_at, updated_at)
+                                                VALUES (?, ?, ?, ?, ?)
+                                                """,
+                                                (
+                                                    new_exam_id,
+                                                    current_course_id,
+                                                    weight_data['weight'],
+                                                    datetime.now(),
+                                                    datetime.now()
+                                                )
+                                            )
+                                            import_summary['weights_imported'] += 1
+                                except Exception as e:
+                                    import_errors['weights'] += 1
+                                    logging.error(f"Error importing exam weight: {str(e)}")
+                            except Exception as e:
+                                import_errors['exams'] += 1
+                                logging.error(f"Error importing exam: {str(e)}")
+                        
+                        # Import scores if we have students and questions
+                        if student_id_map and question_id_map:
+                            try:
+                                # Get all scores from import database
+                                import_scores_data = import_db.execute("SELECT * FROM score").fetchall()
+                                
+                                for score_data in import_scores_data:
+                                    import_student_id = score_data['student_id']
+                                    import_question_id = score_data['question_id']
+                                    import_exam_id = score_data['exam_id']
+                                    
+                                    # Skip if any mapping is missing
+                                    if (import_student_id not in student_id_map or
+                                        import_question_id not in question_id_map or
+                                        import_exam_id not in exam_id_map):
+                                        continue
+                                    
+                                    # Get mapped IDs
+                                    current_student_id = student_id_map[import_student_id]
+                                    current_question_id = question_id_map[import_question_id]
+                                    current_exam_id = exam_id_map[import_exam_id]
+                                    
+                                    # Check if score already exists
+                                    existing_score = current_db.execute(
+                                        """
+                                        SELECT id FROM score
+                                        WHERE student_id = ? AND question_id = ?
+                                        """,
+                                        (current_student_id, current_question_id)
+                                    ).fetchone()
+                                    
+                                    if existing_score:
+                                        # Score already exists, skip
+                                        continue
+                                    
+                                    # Insert new score
+                                    current_db.execute(
+                                        """
+                                        INSERT INTO score
+                                        (score, student_id, question_id, exam_id, created_at, updated_at)
+                                        VALUES (?, ?, ?, ?, ?, ?)
+                                        """,
+                                        (
+                                            score_data['score'],
+                                            current_student_id,
+                                            current_question_id,
+                                            current_exam_id,
+                                            datetime.now(),
+                                            datetime.now()
+                                        )
+                                    )
+                                    import_summary['scores_imported'] += 1
+                            except Exception as e:
+                                import_errors['scores'] += 1
+                                logging.error(f"Error importing scores: {str(e)}")
+                        
+                        release_savepoint("exams")
+                    
+                    # STEP 5c: Import course settings if available
+                    if import_courses and course_id_map:
+                        create_savepoint("course_settings")
+                        
+                        # Check if course_settings table exists in the import database
+                        settings_table_exists = import_db.execute(
+                            "SELECT name FROM sqlite_master WHERE type='table' AND name='course_settings'"
+                        ).fetchone()
+                        
+                        if settings_table_exists:
+                            # Get all course settings from import database
+                            import_settings_data = import_db.execute("SELECT * FROM course_settings").fetchall()
+                            
+                            for settings_data in import_settings_data:
+                                import_course_id = settings_data['course_id']
+                                
+                                # Skip if course mapping is missing
+                                if import_course_id not in course_id_map:
+                                    continue
+                                
+                                # Skip settings for existing courses
+                                if import_course_id in existing_course_ids:
+                                    continue
+                                
+                                current_course_id = course_id_map[import_course_id]
+                                
+                                # Check if settings already exist for this course
+                                existing_settings = current_db.execute(
+                                    "SELECT id FROM course_settings WHERE course_id = ?", 
+                                    (current_course_id,)
+                                ).fetchone()
+                                
+                                if existing_settings:
+                                    # Settings already exist, skip
+                                    continue
+                                
+                                # Insert new course settings
+                                try:
+                                    current_db.execute(
+                                        """
+                                        INSERT INTO course_settings
+                                        (course_id, success_rate_method, relative_success_threshold, excluded, created_at, updated_at)
+                                        VALUES (?, ?, ?, ?, ?, ?)
+                                        """,
+                                        (
+                                            current_course_id,
+                                            settings_data['success_rate_method'],
+                                            settings_data['relative_success_threshold'],
+                                            settings_data['excluded'] if 'excluded' in settings_data else False,
+                                            datetime.now(),
+                                            datetime.now()
+                                        )
+                                    )
+                                    import_summary['settings_imported'] += 1
+                                except Exception as e:
+                                    import_errors['settings'] += 1
+                                    logging.error(f"Error importing course settings: {str(e)}")
+                        
+                        release_savepoint("course_settings")
                     
                     # STEP 6: Import student exam attendance records if selected
                     if import_students and import_exams and student_id_map and exam_id_map:
@@ -2407,7 +2775,7 @@ def import_database():
                             for course in existing_courses_info:
                                 summary_message += f"- {course}<br>"
                     
-                    flash(summary_message, 'success')
+                    flash(Markup(summary_message), 'success')
                     
                     # Display error summary if any occurred
                     error_count = sum(import_errors.values())
@@ -2417,7 +2785,7 @@ def import_database():
                         for entity, count in import_errors.items():
                             if count > 0:
                                 error_message += f"- {count} {entity} errors<br>"
-                        flash(error_message, 'warning')
+                        flash(Markup(error_message), 'warning')
                     
                 except Exception as e:
                     # Rollback in case of error

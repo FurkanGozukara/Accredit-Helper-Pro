@@ -213,7 +213,7 @@ def export_courses():
     
     # Prepare data for export
     data = []
-    headers = ['Code', 'Name', 'Semester', 'Student Count', 'Exam Count', 'Course Outcomes']
+    headers = ['Code', 'Name', 'Semester', 'Course Weight', 'Student Count', 'Exam Count', 'Course Outcomes']
     
     for course in courses:
         student_count = Student.query.filter_by(course_id=course.id).count()
@@ -224,6 +224,7 @@ def export_courses():
             'Code': course.code,
             'Name': course.name,
             'Semester': course.semester,
+            'Course Weight': course.course_weight,
             'Student Count': student_count,
             'Exam Count': exam_count,
             'Course Outcomes': outcome_count

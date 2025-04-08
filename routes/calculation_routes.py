@@ -777,9 +777,8 @@ def all_courses_calculations():
                     po_scores[po.id] = []
                     po_counts[po.id] = 0
                 
-                # Apply course weight to the score
-                weighted_score = po_score * Decimal(str(course.course_weight))
-                po_scores[po.id].append((weighted_score, Decimal(str(course.course_weight))))
+                # Store the original score and weight separately without pre-multiplying
+                po_scores[po.id].append((po_score, Decimal(str(course.course_weight))))
                 po_counts[po.id] += 1
         
         # Calculate average outcome score for this course
@@ -965,9 +964,8 @@ def export_all_courses():
                     po_scores[po.id] = []
                     po_counts[po.id] = 0
                 
-                # Apply course weight to the score
-                weighted_score = po_score * Decimal(str(course.course_weight))
-                po_scores[po.id].append((weighted_score, Decimal(str(course.course_weight))))
+                # Store the original score and weight separately without pre-multiplying
+                po_scores[po.id].append((po_score, Decimal(str(course.course_weight))))
                 po_counts[po.id] += 1
         
         # Calculate average outcome score for this course
@@ -1023,14 +1021,14 @@ def export_all_courses():
     csv_data = []
     
     # Create header row with program outcome codes
-    headers = ['Course Code', 'Course Name', 'Semester', 'Average PO Score']
+    headers = ['Course Code', 'Course Name', 'Semester', 'Course Weight', 'Average PO Score']
     po_codes = [po.code for po in program_outcomes]
     headers.extend(po_codes)
     
     # Add data rows for each course
     for course_code, course_data in sorted_results.items():
         course = course_data['course']
-        row = [course.code, course.name, course.semester, f"{course_data['avg_outcome_score']:.2f}%"]
+        row = [course.code, course.name, course.semester, course.course_weight, f"{course_data['avg_outcome_score']:.2f}%"]
         
         # Add percentage for each program outcome
         for po_code in po_codes:
@@ -1046,7 +1044,7 @@ def export_all_courses():
         csv_data.append(row)
     
     # Add average row at the bottom
-    avg_row = ['AVERAGE', '', '', '']
+    avg_row = ['AVERAGE', '', '', '', '']
     for po_code in po_codes:
         if po_code in po_averages and po_averages[po_code] is not None:
             avg_row.append(f"{float(po_averages[po_code]):.2f}%")
@@ -1059,10 +1057,10 @@ def export_all_courses():
     if excluded_courses:
         csv_data.append([])  # Empty row as separator
         csv_data.append(['EXCLUDED COURSES'])
-        csv_data.append(['Course Code', 'Course Name', 'Semester'])
+        csv_data.append(['Course Code', 'Course Name', 'Semester', 'Course Weight'])
         
         for course in excluded_courses:
-            csv_data.append([course.code, course.name, course.semester])
+            csv_data.append([course.code, course.name, course.semester, course.course_weight])
     
     # Log action
     log = Log(action="EXPORT_ALL_COURSES", 
