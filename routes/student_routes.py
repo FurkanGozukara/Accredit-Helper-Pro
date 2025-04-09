@@ -1167,7 +1167,7 @@ def export_exam_scores(exam_id):
     data = []
     
     # Create headers
-    headers = ['Student ID', 'Student Name']
+    headers = ['Import Format', 'Student ID', 'Student Name']
     for question in questions:
         headers.append(f'Q{question.number} (max: {float(question.max_score)})')
     headers.append('Total Score')
@@ -1193,7 +1193,9 @@ def export_exam_scores(exam_id):
             else:
                 student_row[f'Q{question.number} (max: {float(question.max_score)})'] = ""
         
-        student_row['Total Score'] = round(total_score, 1)
+        # Format total score without decimal if it's a whole number
+        rounded_total = round(total_score, 1)
+        student_row['Total Score'] = int(rounded_total) if rounded_total.is_integer() else rounded_total
         
         # Calculate percentage
         if max_score > 0:
@@ -1201,6 +1203,14 @@ def export_exam_scores(exam_id):
             student_row['Percentage (%)'] = round(percentage, 1)
         else:
             student_row['Percentage (%)'] = ""
+        
+        # Add Import Format column (student_id;score)
+        if max_score > 0:
+            # Convert to integer if it's a whole number
+            obs_score = int(rounded_total) if rounded_total.is_integer() else rounded_total
+            student_row['Import Format'] = f"{student.student_id};{obs_score}"
+        else:
+            student_row['Import Format'] = f"{student.student_id};"
         
         data.append(student_row)
     
