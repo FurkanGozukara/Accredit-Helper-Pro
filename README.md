@@ -988,3 +988,578 @@ Common issues and potential solutions.
     *   **Data Format:** Did you enter data in an unexpected format (e.g., text where numbers expected)?
     *   **Version:** Are you using the latest version? Check for updates.
 
+# Supported Accreditations List
+
+# Comprehensive Global List of Bodies/Frameworks Utilizing Outcome-Based Assessment (OBA) / Competency-Based Education & Assessment (CBE/CBA)
+
+*(Grouped by Field/Region where appropriate for clarity. National Quality Agencies in Section XVI often mandate OBA across multiple fields)*
+
+## I. International Accords, Frameworks & Networks (Mandating/Implying Outcome-Based Standards)
+
+### Engineering & Technology
+
+*   **International Engineering Alliance (IEA):** Umbrella organization promoting **outcome-based standards** (**Graduate Attributes** / **Professional Competencies**). Includes:
+    *   **Washington Accord (WA):** Professional Engineering degrees.
+    *   **Sydney Accord (SY):** Engineering Technologist qualifications.
+    *   **Dublin Accord (DU):** Engineering Technician qualifications.
+    *   **Agreement for International Engineering Technicians (AIET):** Technician competency.
+    *   **International Professional Engineers Agreement (IPEA):** Professional Engineer competence.
+    *   **International Engineering Technologists Agreement (IETA):** Technologist competence.
+*   **ENAEE Network / EUR-ACE® Framework:** (European Network for Accreditation of Engineering Education) European label for engineering degrees based on program **outcomes**. National agencies award this label.
+*   **FEANI (European Federation of National Engineering Associations):** Defines standards for the **EUR ING** title based on education and competence (**outcomes**).
+
+### Computing/IT
+
+*   **Seoul Accord (SE):** Mutual recognition of Computing/IT degrees based on **graduate outcomes**.
+*   **IFIP (International Federation for Information Processing):** Develops standards and promotes professionalism, influencing competency frameworks.
+*   **SFIA (Skills Framework for the Information Age):** Global standard defining IT professional skills/competencies (**outcomes**), used by organizations and influencing education.
+
+### Architecture
+
+*   **Canberra Accord (CA):** Mutual recognition of substantially equivalent architectural qualifications, increasingly focusing on **outcomes/competencies**.
+*   **UIA (International Union of Architects) Education Commission / UNESCO-UIA Validation System:** Validates programs meeting UIA Accord standards (**abilities/outcomes**).
+*   **Commonwealth Association of Architects (CAA):** Validates programs based on **outcome criteria** aligned with UIA/Canberra principles.
+
+### Healthcare
+
+*   **WFME (World Federation for Medical Education) Recognition Programme:** Recognizes medical accrediting agencies meeting global standards heavily emphasizing **competency/outcome-based medical education (CBME)**. A primary driver for **OBA** in medicine globally.
+*   **FDI World Dental Federation:** Develops global standards and guidelines influencing competency focus in dental education.
+*   **ICN (International Council of Nurses):** Sets standards and promotes competency frameworks (e.g., ICNP) influencing nursing education globally.
+*   **FIP (International Pharmaceutical Federation):** Global framework for pharmacy education (e.g., Nanjing Statements) emphasizes **competencies and outcomes**.
+*   **WCPT (World Confederation for Physical Therapy):** Develops guidelines and standards influencing **competency-based** physiotherapy education.
+*   **WFOT (World Federation of Occupational Therapists):** Sets Minimum Standards for the Education of Occupational Therapists focusing on **competencies**.
+*   **WVA (World Veterinary Association):** Promotes global standards, including **Day One Competences**, influencing veterinary education.
+*   **IAMRA (International Association of Medical Regulatory Authorities):** Forum for medical regulators, often discussing competency assessment for licensure/registration.
+
+### Education Quality Assurance (General)
+
+*   **INQAAHE (International Network for Quality Assurance Agencies in Higher Education):** Global network sharing best practices, often including **OBA** implementation.
+*   **CIQG (CHEA International Quality Group)** (USA-based, global focus): Discusses international QA trends, including **OBA**.
+*   **ENQA (European Association for Quality Assurance in Higher Education):** Promotes **ESG** (Standards and Guidelines for Quality Assurance in the European Higher Education Area). **ESG** core principle is student-centred learning requiring clear definition/assessment of **learning outcomes**. Highly influential globally.
+*   **EUA (European University Association):** Promotes **Bologna Process** implementation, including **outcome-based** frameworks.
+*   **ESU (European Students' Union):** Advocates for student-centred learning and **outcome** focus within ESG/Bologna.
+*   **EURASHE (European Association of Institutions in Higher Education):** Represents professional HE, promotes **outcome** relevance (especially in applied fields).
+*   **APQN (Asia-Pacific Quality Network):** Regional network promoting QA standards, often referencing **outcomes**.
+*   **AQAN (ASEAN Quality Assurance Network):** Promotes **ASEAN Quality Reference Framework (AQRF)**, a regional framework referencing **learning outcomes** and **competency standards**.
+*   **HAQAA Initiative / AQRM (Harmonisation of African Higher Education Quality Assurance and Accreditation / African Quality Rating Mechanisms):** African Union initiatives promoting comparable QA systems, often incorporating **outcome/competency** elements.
+*   **RIACES (Red Iberoamericana para el Aseguramiento de la Calidad en la Educación Superior):** Ibero-American network discussing QA standards, including **outcome** focus.
+*   **CANQATE (Caribbean Area Network for Quality Assurance in Tertiary Education):** Regional QA network.
+
+### Qualifications Frameworks
+
+*   **European Qualifications Framework (EQF):** Meta-framework using **learning outcomes** (knowledge, skills, responsibility/autonomy). Influences NQFs globally.
+*   Many **National Qualifications Frameworks (NQFs)** worldwide are explicitly based on **learning outcome level descriptors** (See Section XVI).
+
+### Vocational Education & Training
+
+*   **EQAVET (European Quality Assurance in Vocational Education and Training):** Framework promoting QA in VET based on **learning outcomes** and quality indicators.
+*   **WorldSkills International:** Competitions drive global VET standards based on demonstrating practical **skills/competencies (outcomes)**.
+*   **IVETA (International Vocational Education and Training Association):** Promotes VET development, including **competency-based** approaches.
+
+### Other Fields
+
+*   **IASSW (International Association of Schools of Social Work) / IFSW (International Federation of Social Workers):** Global Standards for Social Work Education promote **outcome/competency** focus.
+*   **IFLA (International Federation of Library Associations and Institutions):** Guidelines for Professional LIS Education Programmes influence **competency/outcome** focus.
+*   **IFAC (International Federation of Accountants):** Sets **International Education Standards (IES)** for professional accountants, defining required **learning outcomes and competencies**. Drives **OBA** in accounting education globally.
+*   **IAA (International Actuarial Association):** Sets education syllabus guidelines influencing national actuarial programs toward defined **outcomes**.
+*   **FIG (International Federation of Surveyors):** Promotes standards and **competency frameworks** in surveying education.
+*   **ICHRIE (International Council on Hotel, Restaurant, and Institutional Education):** Global network influencing hospitality education standards towards industry-relevant **outcomes**.
+*   **ISOCARP (International Society of City and Regional Planners):** Global association influencing planning education standards.
+*   **IUFRO (International Union of Forest Research Organizations):** Influences forestry education standards globally.
+*   **ICA (Association for European Life Science Universities):** Network promoting quality in life sciences, including **outcome** considerations.
+
+### General Concepts
+
+*   **Bologna Process:** Key driver for **OBA** in Europe (Qualifications Frameworks, ECTS based on outcomes, Diploma Supplement listing outcomes) with global influence.
+*   **Mutual Recognition Agreements (MRAs):** Bilateral/multilateral agreements between professional bodies often rely on demonstrating equivalent **competency/outcome** achievement.
+*   **Competency Frameworks:** Numerous profession-specific frameworks define required **outcomes** (e.g., **CanMEDS** - Medicine, **COPA** - Medicine, **Entrustable Professional Activities (EPAs)** - various health fields, **SFIA** - IT, **PKSB** - LIS).
+*   **Bloom's Taxonomy / SOLO Taxonomy:** Frameworks used to structure **learning outcomes** and assessment complexity.
+
+## II. Engineering, Technology, Computing & Applied/Natural Sciences
+
+### Accrediting Bodies (Many are signatories/authorized for accords/EUR-ACE)
+
+*   **ABET** (USA, accredits globally) - Engineering (EAC), Computing (CAC), Eng. Tech. (ETAC), Applied & Natural Science (ANSAC). Pioneer in **OBA**. (Signatory: **WA, SY, DU, SE**)
+*   **Engineers Canada / CEAB** (Canada) - Engineering. **Graduate attributes (outcomes)**. (Signatory: **WA**)
+*   **Engineers Australia (EA)** (Australia) - Engineering. **Stage 1 competencies (outcomes)**. (Signatory: **WA, SY, DU**)
+*   **Engineering Council (EngC)** (UK) - via PEIs (IET, IMechE, ICE, IChemE, etc.). **AHEP standards** define **outcomes**. (Signatory: **WA, SY, DU**; EUR-ACE Auth.)
+*   **Engineers Ireland (EI)** (Ireland) - Program **outcomes/graduate attributes**. (Signatory: **WA, SY, DU**; EUR-ACE Auth.)
+*   **National Board of Accreditation (NBA)** (India) - Eng, Tech, Mgmt, Pharm, Arch, etc. Explicit **OBA (POs, PSOs, COs)**. (Signatory: **WA, SY**)
+*   **MÜDEK** (Turkey) - Engineering. **Outcome-based** criteria. (Signatory: **WA**; EUR-ACE Auth.)
+*   **ABEEK** (South Korea) - Eng, Comp, Tech, Arch Design. Program **outcomes**. (Signatory: **WA, SE**; EUR-ACE Auth.)
+*   **JABEE** (Japan) - Eng, Agri, Sci, Comp/IT. **Outcome assessment** criteria. (Signatory: **WA, SE**)
+*   **CEEAA / CAST** (China) - Engineering. **Graduate attributes/outcomes**. (Signatory: **WA**)
+*   **IEET** (Taiwan/Chinese Taipei) - Eng, Comp, Tech, Arch, Design. **Outcome-based** criteria. (Signatory: **WA, SY, DU, SE**)
+*   **ASIIN** (Germany, accredits globally) - Eng, Info, Nat Sci, Math, Econ. **Outcome-oriented** criteria. (Signatory: **WA** via ENAEE; EUR-ACE Auth.)
+*   **CTI** (France, accredits globally) - Engineering. **Competency/outcome framework** ("référentiel"). (Signatory: **WA**; EUR-ACE Auth.)
+*   **QUACING** (Italy) - Engineering. **EUR-ACE aligned outcome** criteria. (Signatory: **WA**; EUR-ACE Auth.)
+*   **Ordem dos Engenheiros (OE)** (Portugal) - **EUR-ACE aligned outcomes**. (Signatory: **WA**; EUR-ACE Auth.)
+*   **ANECA / IIE** (Spain) - Engineering (EUR-ACE label) via **outcome** focus in VERIFICA/ACREDITA. (EUR-ACE Auth.)
+*   **ARACIS** (Romania) - Multiple fields incl. Engineering. **ESG/EUR-ACE outcomes** focus. (EUR-ACE Auth.)
+*   **AEER** (Russia) - Engineering. **Outcome requirements** aligned with accords. (Signatory: **WA**; EUR-ACE Auth.)
+*   **PII / IABEE** (Indonesia) - Engineering. **Outcome-based** aligned with **WA**. (Signatory: **WA**)
+*   **PEC** (Pakistan) - Engineering. **Graduate attributes/PLOs** aligned with accords. (Signatory: **WA, SY**)
+*   **BEM / EAC** (Malaysia) - Engineering. **Outcome-based** aligned with **WA**. (Signatory: **WA**)
+*   **PTC** (Philippines) - Eng, Tech, Comp. **OBA** aligned with accords. (Signatory: **WA, SY, DU, SE**)
+*   **IES / EAB** (Singapore) - Engineering. **Outcome-based** criteria. (Signatory: **WA**)
+*   **ECSA** (South Africa) - Engineering. **Exit Level Outcomes (ELOs)**. (Signatory: **WA, SY, DU**)
+*   **Engineering New Zealand (EngNZ)** (New Zealand) - **Graduate attributes/outcomes**. (Signatory: **WA, SY, DU**)
+*   **CACEI** (Mexico) - Engineering. Framework aligned with **WA OBA** standards. (Signatory: **WA**)
+*   **Acredita CI** (Chile) - Engineering. **Graduate profiles/outcomes** aligned with **WA**. (Signatory: **WA**)
+*   **ICACIT** (Peru) - Comp, Eng, Tech. **Outcome-based** aligned with accords. (Signatory: **WA, SY, SE**)
+*   **SLAEB** (Sri Lanka) - Engineering. **WA outcomes based** system. (**WA** Provisional Signatory)
+*   **CNA (Consejo Nacional de Acreditación)** (Colombia) - National body, accredits Engineering (and others) based on '**Resultados Académicos**' (**academic outcomes**).
+*   **NCAAA / ETEC** (Saudi Arabia) - All fields incl. Engineering, requires **outcome definition/assessment**.
+*   **CAA (Commission for Academic Accreditation)** (UAE) - Accredits programs, requires defined **learning outcomes/assessment**.
+*   **KazSEE** (Kazakhstan) - Engineering accreditation, often aligned with **EUR-ACE OBA** standards. (EUR-ACE Auth.)
+*   **FINEEC** (Finland) - Engineering evaluation considers **outcomes** within national QA framework. (EUR-ACE Auth.)
+*   **ZEvA** (Germany) - Central Evaluation and Accreditation Agency, covers Eng/Sci etc., **outcome** focus.
+*   **AQAS** (Germany) - Agency for Quality Assurance through Accreditation of Study Programs, covers Eng/Sci etc., **outcome** focus.
+*   **ACQUIN** (Germany) - Accreditation, Certification and Quality Assurance Institute, covers Eng/Sci etc., **outcome** focus.
+*   **MUSIAD** (Turkey) - Independent Industrialists and Businessmen's Association, involved in some VET/technical **outcome** discussions (less formal accreditation).
+*   **COREN (Council for the Regulation of Engineering in Nigeria)** (Nigeria) - Accredits engineering programs, standards increasingly emphasize **outcomes** aligned with **WA**.
+*   **ZIE (Zimbabwe Institution of Engineers)** (Zimbabwe) - Involved in accrediting/recognizing programs based on **outcome** standards.
+*   **EBK (Engineers Board of Kenya)** (Kenya) - Accredits engineering programs, standards reference **outcome** requirements.
+*   **ERB (Engineers Registration Board)** (Tanzania, Uganda, etc.) - National bodies often aligning standards with regional/international **OBA** benchmarks.
+*   **CONFEDI (Consejo Federal de Decanos de Ingeniería)** (Argentina) - Influences engineering education standards towards **competency/outcome** focus within CONEAU framework.
+*   **CONFEA/CREA System** (Brazil) - Regulates professions, influences curriculum through **competency requirements** for engineering fields. SINAES/INEP evaluate programs considering **outcomes**.
+*   **CFIA (Colegio Federado de Ingenieros y de Arquitectos)** (Costa Rica) - Influences standards, SINAES accredits with **outcome** focus.
+*   **UPADI (Pan American Union of Engineering Societies):** Regional network promoting standards harmonization, including **outcome** considerations.
+*   **National Accreditation Agency for Higher Education (NAAHE / Badan Akreditasi Nasional Perguruan Tinggi - BAN-PT) & Independent Accreditation Agencies (Lembaga Akreditasi Mandiri - LAMs)** (Indonesia) - National system uses standards (SN-DIKTI) requiring **Learning Outcomes (Capaian Pembelajaran)**. IABEE handles specific **WA** alignment.
+
+### Computing/IT Specific
+
+*   **Australian Computer Society (ACS)** (Australia) - Core body of knowledge & **graduate attributes (outcomes)**. (Signatory: **SE**)
+*   **CIPS (Canada's Association of IT Professionals)** (Canada) - **Outcome-based** accreditation. (Signatory: **SE**)
+*   **BCS, The Chartered Institute for IT** (UK) - **Learning outcomes** focus. (Signatory: **SE**)
+*   **PCS-ITAC** (Philippines) - **OBA** system. (**SE** Provisional Signatory)
+*   **Hong Kong Institution of Engineers (HKIE)** (Hong Kong SAR) - Accredits Comp/IT based on **outcome** standards. (Signatory: **SE**)
+*   **Computing Society of Zimbabwe (CSZ)** (Zimbabwe) - Promotes standards, may influence curricula.
+*   **Institute of IT Professionals South Africa (IITPSA)** (South Africa) - Endorses programs based on meeting knowledge/**competency outcomes**.
+
+### Applied & Natural Sciences Specific
+
+*   **ACS-CPT (American Chemical Society - Committee on Professional Training)** (USA) - Chemistry program approval requires defined **outcomes & assessment**.
+*   **RSC (Royal Society of Chemistry)** (UK, accredits globally) - Chemistry accreditation requires demonstrating **graduate outcomes**.
+*   **European Chemistry Thematic Network (ECTN) / Chemistry Quality Labels (Eurobachelor®, Euromaster®, Chemistry Doctorate Eurolabel®):** Promote **outcome-based** European standards.
+*   **Geological Society of London (GSL)** (UK, accredits globally) - Geology/Earth Science accreditation based on defined **learning outcomes/skills**.
+*   **Institute of Physics (IOP)** (UK/Ireland) - Physics accreditation requires meeting core content & skills (**outcomes**).
+*   **American Society for Biochemistry and Molecular Biology (ASBMB)** (USA) - Accreditation based on conceptual understanding & skills (**outcomes**).
+*   **EuroGeologist Title / EFG (European Federation of Geologists) Accreditation:** Accredits training based on required knowledge/skills (**outcomes**).
+*   **CoNAEQ (Consejo Nacional para la Evaluación de la Educación Química)** (Mexico) - Chemistry, promotes **OBA** standards.
+*   **CONAPRO (Consejo Nacional para la Acreditación de Programas Educativos en Física)** (Mexico) - Physics, moving towards **OBA**.
+*   **Council for Agricultural Science and Technology (CAST)** (USA) - Influences curriculum via publications, implicitly **outcome-focused**.
+*   **American Society of Agricultural and Biological Engineers (ASABE)** (USA) - Sometimes involved in program reviews focusing on **outcomes** (often via ABET).
+*   **Royal Society of Biology (RSB)** (UK) - Accredits bioscience degrees based on meeting **outcome** standards.
+*   **Institute of Food Science & Technology (IFST)** (UK) - Accredits food science programs based on meeting required knowledge/**competency outcomes**.
+*   **RILEM (International Union of Laboratories and Experts in Construction Materials, Systems and Structures):** Influences standards in materials science/engineering.
+
+## III. Business and Management
+
+### Global Accrediting Bodies
+
+*   **AACSB International** (Global) - Standard 5 (**Assurance of Learning - AoL**) requires systematic **OBA**.
+*   **ACBSP** (Global) - Standard 4 focuses on Measurement/Analysis of Student Learning based on **outcomes**.
+*   **IACBE** (Global) - Principle 1 requires **Outcomes Assessment** Plan & demonstration of achievement.
+*   **EFMD Global** (Global, European roots) - **EPAS** (Programme) & **EQUIS** (Institutional) heavily emphasize **Intended Learning Outcomes (ILOs)** assessment.
+*   **AMBA & BGA** (Global) - Assess achievement of program aims & **learning outcomes**.
+
+### Regional / National / Specialized
+
+*   **National Board of Accreditation (NBA)** (India) - Includes Management programs, explicit **OBA**.
+*   **CEEMAN** (Central/Eastern Europe focused, global reach) - **IQA** accreditation emphasizes **outcomes** and impact.
+*   **FIBAA** (Germany/Austria/Switzerland based, accredits globally) - Social Sci, Law, Econ, Mgmt. **Outcome-oriented** criteria (ESG/EQF aligned).
+*   **CLADEA** (Latin America) - Network influencing standards towards **outcomes** focus.
+*   **AAPBS (Association of Asia-Pacific Business Schools):** Network promoting quality, discussions include **AoL/outcomes**.
+*   **AABS (Association of African Business Schools):** Promotes quality standards, including relevance and **outcomes**.
+*   **Chartered Association of Business Schools (CABS)** (UK) - Influences quality discussions, benchmarking often relates to **outcomes**.
+*   **CGE (Conférence des Grandes Écoles)** (France) - Accredits specific high-level programs, standards include **competency/outcome** requirements.
+*   **National Quality Agencies (NQAs - Section XVI):** Oversee Business/Management programs (e.g., **QAA-UK Benchmarks**, **TEQSA-Australia**, **ANECA-Spain**, **HCERES-France**, **ETEC-Saudi Arabia**).
+
+## IV. Healthcare (Medicine, Nursing, Pharmacy, Dentistry, Allied Health, Public Health, Veterinary, etc.)
+
+### Medicine
+
+*   **WFME Recognition Programme:** Key global driver for **CBME/OBA**.
+*   Examples of **WFME-Recognized / OBA-focused** Accreditors:
+    *   **LCME** (USA/Canada)
+    *   **AMC** (Australia/NZ)
+    *   **GMC** (UK)
+    *   **CFPC/RCPSC** (Canada - use **CanMEDS competency framework**)
+    *   **AAQ** (Switzerland)
+    *   **NOKUT** (Norway)
+    *   **ANECA** (Spain)
+    *   **NVAO** (Netherlands/Flanders)
+    *   **CoCA** (USA - Osteopathic)
+    *   **NAQAAE** (Egypt)
+    *   **BAN-PT / LAM-PTKes** (Indonesia)
+    *   **NAC / IAAR / IQAA** (Kazakhstan)
+    *   **NCAAA / ETEC** (Saudi Arabia)
+    *   **TMC / COPHEE** (Thailand)
+    *   **TEPDAD** (Turkey)
+    *   **HEAC** (Jordan)
+    *   **HPCSA** (South Africa)
+    *   **Medical & Dental Council** (Nigeria)
+    *   **Medical Council of India (NMC - National Medical Commission, successor)** (India) - **CBME** curriculum mandated.
+    *   **Pakistan Medical Commission (PMC)** (Pakistan) - Standards moving towards **competency** focus.
+    *   **CAMF / CAMES** (Francophone Africa) - Influences standards.
+    *   Many others globally aligning with **WFME** standards.
+*   **ECFMG (Educational Commission for Foreign Medical Graduates)** (USA) - Assesses readiness of International Medical Graduates (IMGs) based on demonstrated clinical skills/knowledge **outcomes** (e.g., Step exams, pathway requirements).
+*   **CanMEDS Framework** (Canada - RCPSC): Highly influential **competency framework** used globally.
+*   **ACGME (Accreditation Council for Graduate Medical Education)** (USA) - Residency/fellowship accreditation heavily based on **Milestones (competency outcomes)**.
+*   **COPA (Consortium of Organizations for Professional Advancement):** Focuses on **competency assessment** in health professions.
+
+### Nursing
+
+*   **CCNE** (USA, global) - Requires assessment of program **outcomes/competencies**.
+*   **ACEN** (USA, global) - Standard 5 on **Educational Outcomes** assessment.
+*   **CASN** (Canada) - Assesses program **outcomes** & alignment with entry-to-practice **competencies**.
+*   **NMC** (UK) - Sets standards defining required **outcomes/proficiencies**.
+*   **ANMAC** (Australia) - Standards based on **outcomes/practice standards**.
+*   **Nursing Council of New Zealand (NCNZ)** (New Zealand) - Sets **competencies (outcomes)** required.
+*   **SANC** (South Africa) - Sets standards including **competency requirements**.
+*   **Nursing and Midwifery Board of Ireland (NMBI)** (Ireland) - Sets requirements focusing on **competencies**.
+*   **Singapore Nursing Board (SNB)** (Singapore) - Sets standards and **competencies**.
+*   **Indian Nursing Council (INC)** (India) - Curriculum standards include **outcome objectives**.
+*   **Nursing and Midwifery Council of Nigeria (NMCN)** (Nigeria) - Sets standards including **outcomes**.
+*   **Nursing and Midwifery Council of Ghana (NMCG)** (Ghana) - Regulates based on **competency standards**.
+*   Many other national nursing boards/councils globally.
+
+### Pharmacy
+
+*   **ACPE** (USA, global) - Standards require **outcome assessment** (PharmD standards, **EPAs**).
+*   **CCAPP** (Canada) - Requires demonstrating achievement of **outcomes/competencies**.
+*   **GPhC** (UK) - Sets **learning outcomes** for MPharm accreditation.
+*   **APC** (Australia/NZ) - Standards based on performance **outcomes** & **competency standards**.
+*   **National Board of Accreditation (NBA)** (India) - Accredits Pharmacy using **OBA** framework.
+*   **Pharmaceutical Society of Ireland (PSI)** (Ireland) - Accredits based on core **competency map/outcomes**.
+*   **Pharmacy Council (South Africa)** (South Africa) - Sets **competency standards**.
+*   **Pharmacy Board of Australia (PharmBA)** (Australia) - Works with APC, defines **competency standards**.
+*   **Pharmacy Examining Board of Canada (PEBC)** (Canada) - Qualifying exams assess **competencies**.
+*   Many national pharmacy councils/boards globally.
+
+### Dentistry
+
+*   **CODA** (USA/Canada) - **Competency/outcome-based** standards.
+*   **CDAC** (Canada) - Standards focus on **outcome/competency** achievement.
+*   **ADEE** (Europe) - Promotes **competency frameworks** ("Profile and Competences for the Graduating European Dentist").
+*   **ADC** (Australia/NZ) - Standards based on **competencies/graduate attributes**.
+*   **GDC** (UK) - Sets **learning outcomes** ("Preparing for Practice").
+*   **Dental Council of Ireland** (Ireland) - Accredits based on **competencies/outcomes**.
+*   **Dental Council of India (DCI)** (India) - Curriculum includes objectives/**competencies**.
+*   **South African Dental Association (SADA) / HPCSA** (South Africa) - Influence standards towards **competencies**.
+*   **National Dental Examining Board of Canada (NDEB)** (Canada) - Exams assess **competency outcomes**.
+
+### Public Health
+
+*   **CEPH** (USA, global) - Criteria based on foundational & concentration **competencies**, requires **outcome assessment**.
+*   **APHEA** (Europe, global) - Focuses on demonstrating achievement of core **competencies**.
+*   **Council on Linkages Between Academia and Public Health Practice** (USA) - Develops **Core Competencies for Public Health Professionals**.
+
+### Allied Health (Examples - Numerous fields operate on competency/outcome models)
+
+*   **CAAHEP** (USA) - Many fields (Medical Assistant, Paramedic, etc.). Requires demonstrating **competency achievement & outcome measures**.
+*   **ABHES** (USA) - Health Education institutions/programs. Requires **outcome assessment (competencies, job placement)**.
+*   **NAACLS** (USA) - Clinical Lab Sciences. Defined **competencies & outcome measures**.
+*   **CAPTE** (USA) - Physical Therapy. Assessment of **outcomes** related to goals/**competencies**.
+*   **PEAC** (Canada) - Physiotherapy. Standards based on national **competency profile**.
+*   **ACOTE** (USA) - Occupational Therapy. **Outcome** data demonstrating **competency achievement**.
+*   **CAOT** (Canada) - OT Academic Credentialing Council uses standards based on **competency profile**.
+*   **JRCERT** (USA) - Radiologic Technology. Standards require **outcome assessment**.
+*   **CoARC** (USA) - Respiratory Care. Standards require **outcome assessment**.
+*   **HPCSA** (South Africa) - Accredits training for multiple health professions, **competency-focused** standards.
+*   **CORU** (Ireland) - Regulates Health & Social Care Professions, approves programs based on meeting **standards of proficiency (outcomes)**.
+*   **AHPC (Allied Health Professions Council)** (Singapore) - Influences standards towards **competencies**.
+*   **AHPRA (Australian Health Practitioner Regulation Agency) / National Boards** (Australia) - Set **competency standards** for registration, influencing accreditation (e.g., Physiotherapy Board, OT Board).
+*   **Canadian Alliance of Physiotherapy Regulators (CAPR):** Administers **competency-based** Physiotherapy Competency Examination (PCE).
+*   **CAMRT (Canadian Association of Medical Radiation Technologists):** Sets **competency profiles** used for certification exams and program accreditation.
+*   **CSMLS (Canadian Society for Medical Laboratory Science):** Sets **competency profiles** used for certification exams and program approval.
+*   **Chiropractic:** CCE (USA), CCEC (Canada), CCEA (Australasia), ECCE (Europe). **Competency-based** standards.
+*   **Optometry:** ACOE (USA), OAC (Canada - via universities), OCANZ (Australia/NZ), ECOO (Europe). **Outcome/competency** focus.
+*   **Podiatry:** CPME (USA), CPMA (Canada - provincial), Podiatry Board of Australia/AHPRA, COPPS (UK - via universities). **Competency-based**.
+*   **Dietetics:** ACEND (USA), PDEP (Canada - Dietitians of Canada), DA (Australia). **Competency-based** standards.
+*   **Athletic Training:** CAATE (USA), CATA (Canada). **Competency-based** education.
+*   **Audiology/Speech-Language Pathology:** CAA-ASHA (USA), SAC (Canada), SPA (Australia). **Competency-based** standards.
+
+### Veterinary Medicine
+
+*   **AVMA COE** (USA, global) - Standards include required **competencies & outcome assessment**.
+*   **EAEVE** (Europe) - Evaluation based on **Day One Competences**.
+*   **RCVS** (UK) - Defines **Day One Competences** framework for accredited programs.
+*   **AVBC** (Australia/NZ) - Standards include **graduate attributes/competencies**.
+*   **VCI** (Ireland) - Accredits based on meeting required **competencies**.
+*   **SAVC** (South Africa) - Sets standards including **Day-One skills/competencies**.
+*   **CVMA (Canadian Veterinary Medical Association)** (Canada) - Council on Education accredits based on **competency outcomes**.
+*   **Veterinary Council of India (VCI)** (India) - Sets minimum standards including practical **competencies**.
+
+## V. Law
+
+*   **ABA, Council of the Section of Legal Education and Admissions to the Bar** (USA) - Standards require established **outcomes (Std 302)** & **assessment (Std 315)**.
+*   **FLSC (Federation of Law Societies of Canada) National Requirement** (Canada) - Defines national **competencies** influencing law school **outcomes** focus. Provincial Law Societies accredit/approve.
+*   **SRA (Solicitors Regulation Authority) / BSB (Bar Standards Board)** (UK - England & Wales) - **Competency-based qualification (SQE, Bar Course standards)** drive **outcome** focus in providers.
+*   **Law Society of Scotland** (Scotland) - Accredits Diploma based on achieving **Professional Education Outcomes (PEOs)**.
+*   **Law Admissions Consultative Committee (LACC) / State/Territory Admission Boards** (Australia) - Priestley 11 implicitly include **outcomes**; state bodies accredit considering capabilities.
+*   **Council of Legal Education (CLE)** (Commonwealth Caribbean) - Focus on practice **outcomes** for CLE certificate.
+*   **Bar Council of India (BCI)** (India) - Rules/inspections increasingly consider **outcomes/competency**.
+*   **NQAs (Section XVI) & Specialized Accreditors** (e.g., FIBAA): Often cover Law, applying **outcome** criteria.
+*   **Japan Federation of Bar Associations (JFBA)** (Japan) - Oversees legal training institute, implicitly **outcome/competency** focused.
+*   **National Conference of Bar Examiners (NCBE)** (USA) - Develops licensing tests (MBE, MPRE, etc.) assessing core **competencies/outcomes** required for practice.
+*   **Various National Bar Exams Globally:** Assess **competency/knowledge outcomes** required for entry to practice.
+
+## VI. Education (Teacher Preparation)
+
+*   **CAEP** (USA) - Highly **outcome-driven** (candidate performance, P-12 impact).
+*   **AAQEP** (USA) - Focuses on evidence of **candidate competency** & program effectiveness (**outcomes**).
+*   **US State Departments of Education / Professional Standards Boards:** Often use state teacher **competencies/outcomes** (influenced by **InTASC** standards).
+*   **Canadian Provincial Ministries of Education / Teacher Regulation Bodies:** Set **competency-based** standards (e.g., OCT Ontario, BCTF BC).
+*   **Teaching Council** (Ireland) - Sets standards including required **outcomes & competencies** (**Céim** standards).
+*   **AITSL** (Australia) - Sets **Australian Professional Standards for Teachers (graduate outcomes)** used by State/Territory accreditors.
+*   **Teaching Council of Aotearoa New Zealand** (New Zealand) - Sets **Standards for the Teaching Profession (incl. graduate outcomes)**.
+*   **GTC Scotland** (UK) - Sets **Standards for Registration (incl. graduate outcomes)**.
+*   **DfE Standards / Ofsted Inspections** (UK - England) - Drive focus on trainee **outcomes** via **Teachers' Standards, ECF**.
+*   **SACE (South African Council for Educators) / CHE/DHET** (South Africa) - **MRTEQ** policy defines required **competencies**.
+*   **MOE / NIE (National Institute of Education)** (Singapore) - Teacher training framework emphasizes **competencies/outcomes**.
+*   **UNESCO:** Influences global teacher standards and **competency** discussions.
+*   **National Ministries of Education / Teacher Councils Globally:** Many set **competency frameworks** driving **OBA**.
+
+## VII. Architecture, Landscape Architecture & Design
+
+### Key Accrediting Bodies (Many align with Canberra Accord/UIA)
+
+*   **NAAB** (USA) - Requires achieving **Student Performance Criteria (SPCs) / outcomes**. (Signatory: **CA**)
+*   **CACB** (Canada) - Assessment of **learning outcomes** aligning with **SPCs**. (Signatory: **CA**)
+*   **RIBA** (UK, validates globally) - Mapping to RIBA Themes/Values including **graduate attributes/outcomes**. (Signatory: **CA**)
+*   **AACA** (Australia) - Programs must enable meeting **National Standard of Competency for Architects (NSCA) (outcomes)**. (Signatory: **CA**)
+*   **NZRAB** (New Zealand) - Programs must demonstrate graduates achieve **competency standards**. (Signatory: **CA**)
+*   **KAAB** (South Korea) - **Outcome standards (SPCs)** aligned with international norms. (Signatory: **CA**)
+*   **COMAEA** (Mexico) - Framework aligned with **Canberra/UIA OBA** standards. (Signatory: **CA**)
+*   **SACAP** (South Africa) - Validation based on **competency criteria**. (Signatory: **CA**)
+*   **NBA** (India) - Accredits Architecture using **OBA** parameters.
+*   **IEET** (Taiwan) - Accredits Architecture using **outcome-based** criteria.
+*   **ABEEK** (South Korea) - Accredits Architectural Design using **outcome** criteria.
+*   **Commonwealth Association of Architects (CAA):** Validates programs based on **outcome criteria**.
+*   **UIA / UNESCO-UIA Validation System:** Requires meeting UIA standards including **abilities/outcomes**.
+*   **Ordre des Architectes** (France) - Influences standards, CTI sometimes involved.
+*   **Bundesarchitektenkammer (BAK)** (Germany) - Federal Chamber influences standards. State chambers regulate.
+*   **Consejo Superior de los Colegios de Arquitectos de España (CSCAE)** (Spain) - Influences standards.
+
+### Landscape Architecture
+
+*   **LAAB (ASLA)** (USA) - Standards require assessment of student **learning outcomes**.
+*   **CSLA LAC** (Canada) - Standards include required **learning outcomes**.
+*   **LI (Landscape Institute)** (UK) - Accredits based on **competency/outcome** requirements.
+*   **IFLA (International Federation of Landscape Architects):** Promotes global standards influencing **outcome** focus.
+*   **AILA (Australian Institute of Landscape Architects):** Accredits programs based on **competency standards**.
+
+### Interior Design
+
+*   **CIDA** (USA/Canada, global) - Professional Standards structured around required student learning/achievement (**outcomes**).
+*   **ECIA (European Council of Interior Architects):** Promotes standards/Charter influencing **outcome** focus.
+*   **BIID (British Institute of Interior Design)** (UK) - Recognizes courses meeting professional **standards/outcomes**.
+
+### Art & Design (General/Other)
+
+*   **NASAD** (USA) - Requires assessment based on defined **competencies/outcomes**.
+*   **ELIA (European League of Institutes of the Arts):** Network fostering QA discussions, including **outcomes**.
+*   **Cumulus Association:** International association for art/design education, promotes standards discussion.
+*   **NQAs (Section XVI) & subject benchmarks** (e.g., QAA-UK): Often drive **OBA**.
+
+## VIII. Psychology
+
+*   **APA CoA** (USA/Canada) - Standards built around profession-wide **competencies**; mandate **outcome assessment**.
+*   **CPA** (Canada) - Accreditation standards focus on **competencies**; require demonstration of student **outcomes**.
+*   **BPS** (UK) - Accreditation based on meeting **GBC** requirements & skills/**competencies (outcomes)**. Postgraduate is explicitly **competency-based**.
+*   **APAC** (Australia) - Accreditation Standards define **graduate competencies (outcomes)**.
+*   **EFPA / EuroPsy** (Europe) - Sets European **standards of competence (outcomes)** influencing national education.
+*   **Psychology Board of Australia (PsyBA)** (Australia) - Works with APAC, requires programs meet **competency requirements**.
+*   **HPCSA** (South Africa) - Professional Board for Psychology accredits based on **competency standards**.
+*   **Colegio Oficial de Psicólogos (COP)** (Spain) / National Psychology Associations: Often influence standards towards **EuroPsy competencies**.
+
+## IX. Social Work
+
+*   **CSWE** (USA) - **EPAS** explicitly framed around 9 core **competencies**; requires **outcome measurement**.
+*   **CASWE-ACFTS** (Canada) - Standards include requirements related to **outcomes, competencies**, and evaluation.
+*   **Social Work England / SCW (Wales) / NISCC (NI) / SSSC (Scotland)** (UK) - Set **competency-based standards (outcomes)**.
+*   **AASW** (Australia) - Accredits based on **ASWEAS** standards (**graduate attributes/outcomes**).
+*   **SWRB** (New Zealand) - Sets core **competence standards (outcomes)**.
+*   **IASSW / IFSW:** Global Standards promote **outcome/competency** focus.
+*   **SACSSP** (South Africa) - Sets standards for education including **competency requirements**.
+*   **CORU** (Ireland) - Social Workers Registration Board approves programs based on meeting **standards of proficiency (outcomes)**.
+
+## X. Public Administration, Affairs & Policy
+
+*   **NASPAA** (Global) - Accreditation hinges on assessing student learning related to 5 **universal required competencies (outcomes)**.
+*   **EAPAA** (Europe) - Criteria include definition and assessment of **learning outcomes/competences**.
+*   **ANZSOG** (Australia/NZ) - Focuses on public sector leadership **capabilities (outcomes)**.
+*   **CLAD** (Latin America) - Influences standards towards **competencies/results**.
+*   **NISPAcee (Network of Institutes and Schools of Public Administration in Central and Eastern Europe):** Promotes standards development.
+*   Many **NQAs (Section XVI):** Cover this field within national QA systems.
+
+## XI. Journalism and Mass Communication
+
+*   **ACEJMC** (USA, international) - Requires **outcomes** related to 11 core **professional values/competencies** & assessment.
+*   **EJTA** (Europe) - Promotes standards (e.g., Tartu Declaration **competencies**) emphasizing required **outcomes**.
+*   **Orbicom (UNESCO Chairs in Communication):** Influences **competency-based** approaches.
+*   **BJTC (Broadcast Journalism Training Council)** (UK) - Accredits courses based on meeting practical **skills outcomes**.
+*   **NCTJ (National Council for the Training of Journalists)** (UK) - Accredits courses and provides qualifications based on achieving specific **journalism skills outcomes** (often exam-assessed).
+*   **NQAs (Section XVI) & subject benchmarks** (e.g., QAA-UK Communication, Media): Drive **OBA**.
+
+## XII. Library and Information Science
+
+*   **ALA CoA** (USA/Canada, global) - Standards require **student learning outcomes (SLOs)** & systematic assessment data.
+*   **CILIP** (UK, global) - Accreditation based on meeting **Professional Knowledge and Skills Base (PKSB)** (**outcome/competency** framework).
+*   **ALIA** (Australia) - Accredits based on demonstrating alignment with required knowledge, skills, attributes (**outcomes**).
+*   **IFLA Guidelines:** Influence **competency/outcome** focus globally.
+*   **LIANZA (Library and Information Association of New Zealand Aotearoa):** Influences standards.
+
+## XIII. Theology and Religious Studies
+
+*   **ATS (Association of Theological Schools)** (USA/Canada) - Standards require stated **outcomes** and demonstrated achievement.
+*   **ECTE (European Council for Theological Education):** Accredits based on standards including **outcome** requirements (ESG aligned).
+*   **Various Denominational Accrediting Bodies:** Many incorporate **outcome assessment**.
+*   **NQAs (Section XVI)** in some countries: Cover Theology/Religious Studies (e.g., QAA UK Subject Benchmark).
+
+## XIV. Professional Licensing / Certification Exams (Direct Outcome Assessment)
+
+This section highlights major examination systems that directly assess whether a candidate meets predefined **competency/knowledge outcomes** required for professional practice. Passing these exams is the primary outcome.
+
+### Medicine
+
+*   **USMLE** (United States Medical Licensing Examination) (USA)
+*   **MCCQE** (Medical Council of Canada Qualifying Examination) (Canada)
+*   **PLAB** (Professional and Linguistic Assessments Board) Test (UK)
+*   **AMC Examination** (Australia)
+*   National Board / Licensing Exams (Many countries, e.g., India - NExT proposed, Japan, Germany - Staatsexamen sections)
+
+### Nursing
+
+*   **NCLEX** (National Council Licensure Examination) (USA, Canada, Australia)
+*   **NMC Test of Competence** (CBT + OSCE) (UK)
+*   **NNAS** (National Nursing Assessment Service) (Canada - assessment for IENs)
+*   **CGFNS Qualifying Exam** (USA - assessment for foreign nurses)
+
+### Pharmacy
+
+*   **NAPLEX / MPJE** (North American Pharmacist Licensure Examination / Multistate Pharmacy Jurisprudence Examination) (USA)
+*   **PEBC Qualifying Examination (Pharmacist)** (Canada)
+*   **GPhC Registration Assessment** (UK)
+*   **KAPS** (Knowledge Assessment of Pharmaceutical Sciences) Exam (Australia)
+
+### Law
+
+*   State **Bar Examinations** (USA - e.g., UBE components: MBE, MEE, MPT)
+*   **Barrister and Solicitor Licensing Examinations** (Canada - Provincial)
+*   **SQE** (Solicitors Qualifying Examination) (UK - England & Wales)
+*   National **Bar Examination** (India, Japan, South Korea, etc.)
+
+### Engineering
+
+*   **FE** (Fundamentals of Engineering) / **PE** (Principles and Practice of Engineering) exams (NCEES) (USA)
+*   **Professional Practice Exam (PPE)** (Canada - part of P.Eng. licensure)
+*   **Chartered Engineer Professional Review** (UK, IE, AU, NZ etc. - often portfolio/interview based assessment against **competence outcomes**, may include technical report/exam elements depending on route).
+
+### Accounting
+
+*   **Uniform CPA Examination** (AICPA) (USA)
+*   **CPA Professional Education Program (PEP) / Common Final Examination (CFE)** (Canada)
+*   **ACA / ACCA / CIMA** Qualification Exams (UK / Global)
+*   **CA Program Exams** (Australia/NZ, India, South Africa, etc.)
+
+### IT / Computing
+
+*   Industry Certifications (**CompTIA, Cisco, Microsoft, AWS, Google Cloud, (ISC)², ISACA** etc.): Assess specific technical **skill/knowledge outcomes** via exams.
+*   **ICDL** (International Computer Driving Licence): Basic digital literacy **outcomes** assessment.
+
+### Finance
+
+*   **CFA** (Chartered Financial Analyst) Program Exams (Global)
+*   **FRM** (Financial Risk Manager) Exam (Global)
+
+### Project Management
+
+*   **PMP** (Project Management Professional) Exam (Global)
+*   **PRINCE2** Exams (Global)
+
+### Actuarial Science
+
+*   **SOA** (Society of Actuaries) Exams (North America / Global)
+*   **CAS** (Casualty Actuarial Society) Exams (North America / Global)
+*   **IFoA** (Institute and Faculty of Actuaries) Exams (UK / Global)
+
+### Other Professions
+
+*   Exams for Surveyors (e.g., PS/PLS in USA), Architects (e.g., ARE in USA), Psychologists (e.g., EPPP in USA/Canada), etc.
+
+## XV. Various Other Applied Fields (Often driven by Professional Bodies or NQAs)
+
+*   **Agriculture / Life Sciences:** APLU/AFA/AAAE (USA influence), ICA (Europe), JABEE (Japan), NQAs (Section XVI). Royal Agricultural University (UK) standards.
+*   **Forestry:** SAF (Society of American Foresters) (USA), CFAB (Canadian Forestry Accreditation Board) (Canada), ICF (Institute of Chartered Foresters) (UK), NQAs.
+*   **Construction Management:** ACCE (American Council for Construction Education) (USA, global), CIOB (Chartered Institute of Building) (UK, global), NQAs.
+*   **Planning (Urban/Regional):** PAB (Planning Accreditation Board) (USA/Canada), RTPI (Royal Town Planning Institute) (UK, global), PIA (Planning Institute Australia) (Australia), NZPI (New Zealand Planning Institute), ISOCARP influence, NQAs.
+*   **Food Science & Technology:** IFT (Institute of Food Technologists) (USA - education standards/approval), EFFoST (Europe influence), IFST (UK), NQAs.
+*   **Hospitality Management:** ACPHA (Accreditation Commission for Programs in Hospitality Administration) (USA, global), ICHRIE influence, Institute of Hospitality (UK - endorsements), NQAs.
+*   **Surveying / Geomatics:** ABET (USA - Geomatics), RICS (Royal Institution of Chartered Surveyors) (UK, global - **competency framework**/APC assessment), FIG influence, National Boards/Institutes (e.g., CICES-UK, CIS-Canada, SSSI-Australia).
+*   **Environmental Science:** Committee of Heads of Environmental Sciences (CHES) (UK - QAA benchmark influence), NQAs.
+*   **Criminology / Criminal Justice:** ACJS (Academy of Criminal Justice Sciences) (USA - certification, standards influence), NQAs (e.g., QAA benchmark UK).
+*   **Archaeology:** CIfA (Chartered Institute for Archaeologists) (UK/global - accreditation based on **competencies**), Register of Professional Archaeologists (RPA) (Americas - standards influence).
+*   **Actuarial Science:** Professional body exams (SOA, CAS, IFoA, IAA) define **outcomes**. University accreditation often linked (e.g., UCAP by SOA, CAE by CAS).
+
+## XVI. National / Regional Quality Assurance Agencies & Frameworks (Overarching Influence)
+
+These bodies often mandate or strongly promote **OBA** across all disciplines via national standards and **National Qualifications Frameworks (NQFs)** based on **learning outcome level descriptors**.
+
+### Global/Regional Networks
+
+*   **INQAAHE, CIQG, ENQA** (promotes **ESG**), **EUA, APQN, AQAN** (promotes **AQRF**), **HAQAA/AQRM** (Africa), **RIACES** (Ibero-America), **CANQATE** (Caribbean).
+
+### Key National/Regional Quality Agencies (Examples – many explicitly require OBA via frameworks/standards)
+
+*   **Australia:** **TEQSA** (Tertiary Education Quality and Standards Agency) - **HESF** (Higher Education Standards Framework) mandates **outcomes**; **AQF** (Australian Qualifications Framework) is **outcome-based**.
+*   **UK:** **QAA** (Quality Assurance Agency for Higher Education) - Quality Code, Subject Benchmark Statements define typical **outcomes**; **OfS** (Office for Students - England), **HEFCW** (Wales), **SFC** (Scotland), **DfE** (NI) oversee funding/regulation based on quality/**outcomes**. **FHEQ/FQHEIS** frameworks are **outcome-based**.
+*   **USA:** **CHEA** (Council for Higher Education Accreditation) - Recognizes accreditors, most of whom mandate **OBA**. Regional Accreditors (**MSCHE, NECHE, HLC, SACSCOC, WASC-SCUC, NWCCU**) all mandate institutional effectiveness processes including student **learning outcome assessment**. US Dept. of Education recognition requires this.
+*   **Canada:** Provincial QA Bodies (e.g., **OCQAS** - Ontario; **CAQC** - BC; **Campus Manitoba**; **MPHEC** - Maritimes) reference **outcomes** within frameworks. No single national framework, but pan-Canadian protocols exist (e.g., Ministerial Statement on Quality Assurance).
+*   **Netherlands/Belgium (Flanders):** **NVAO** (Accreditation Organisation of the Netherlands and Flanders) - Framework fundamentally based on assessment of **intended learning outcomes**. **NLQF/Flemish QF** aligned with **EQF**.
+*   **France:** **HCERES** (High Council for Evaluation of Research and Higher Education) - Criteria include **skills/competency objectives & assessment**. **CTI** (Engineering), **CGE** (Grandes Écoles) specific focus. **RNCP** (National Directory of Professional Certifications) is **competency-based**.
+*   **Germany:** **Akkreditierungsrat** (Accreditation Council) - Oversees agencies (**AQAS, FIBAA, ASIIN, ACQUIN, ZEvA, EVALAG**). Accreditation requires **outcome-based ('kompetenzorientiert')** qualification goals. **DQR** (German QF) aligned with **EQF**.
+*   **Spain:** **ANECA** (National Agency for Quality Assessment and Accreditation) - VERIFICA (program design), MONITOR (monitoring), ACREDITA (renewal) programs require definition/assessment of **competencies/outcomes**. Regional agencies (**AQU Catalunya, Unibasq**, etc.) operate similarly. **MECES** (Spanish QF).
+*   **Portugal:** **A3ES** (Agency for Assessment and Accreditation of Higher Education) - Emphasizes **learning outcomes** in assessment. **QNQ** (Portuguese QF).
+*   **Ireland:** **QQI** (Quality and Qualifications Ireland) - Maintains **outcome-based NFQ** (National Framework of Qualifications); QA guidelines require programmatic review focusing on **outcome achievement**.
+*   **Nordics:** **NOKUT** (Norway), **UKÄ** (Sweden - Swedish Higher Education Authority), **FINEEC** (Finland), **Danish Accreditation Institution** - All incorporate **outcome assessment** in QA procedures. National QFs aligned with **EQF**.
+*   **Switzerland:** **AAQ** (Swiss Agency of Accreditation and Quality Assurance) - Procedures consider **competence orientation** and **outcome assessment**. **NQF-CH** aligned with **EQF**.
+*   **Austria:** **AQ Austria** (Agency for Quality Assurance and Accreditation Austria) - Procedures incorporate **outcome orientation** (**ESG** aligned). **NQR** (Austrian QF).
+*   **Poland:** **PKA** (Polish Accreditation Committee) - Standards require definition and verification of **learning outcomes ('efekty uczenia się/kształcenia')**. **PRK** (Polish QF).
+*   **Italy:** **ANVUR** (Italian National Agency for the Evaluation of Universities and Research Institutes) - AVA system includes assessment based on **learning outcomes ('risultati di apprendimento attesi')**. **QTI** (Italian QF).
+*   **India:** **NAAC** (National Assessment and Accreditation Council) - Institutional criteria include Teaching-Learning & Evaluation (emphasizing **outcomes**). **NBA** (National Board of Accreditation) - Programmatic **OBA** specialist. **UGC** (University Grants Commission) - Promotes **LOCF** (Learning Outcomes-Based Curriculum Framework). **NSQF** (National Skills Qualification Framework) for VET.
+*   **Malaysia:** **MQA** (Malaysian Qualifications Agency) - **MQF** (Malaysian Qualifications Framework) is **outcome-based**; **COPIA/COPPA** (Codes of Practice) mandate **OBA / Continuous Quality Improvement (CQI)** based on **outcomes**.
+*   **Indonesia:** **BAN-PT / LAMs** - Reference National Standards for Higher Education (**SN-DIKTI**) requiring **Learning Outcomes ('Capaian Pembelajaran')**. **KKNI** (Indonesian NQF).
+*   **Thailand:** **ONESQA** (Office for National Education Standards and Quality Assessment) / **OHEC** (Office of Higher Education Commission) - Promote **outcome-based TQF** (Thai Qualifications Framework).
+*   **Philippines:** **CHED** (Commission on Higher Education) - Strong promotion of **OBA** via **CMOs** (CHED Memorandum Orders) across disciplines. **PQF** (Philippine Qualifications Framework).
+*   **Singapore:** **CPE** (Committee for Private Education) - EduTrust scheme requires **outcome measures**. Autonomous Universities (NUS, NTU etc.) have robust internal QA focused on **outcomes**. **SSG** manages **Skills Frameworks** (**outcome-based**).
+*   **Hong Kong SAR:** **HKCAAVQ** (Hong Kong Council for Accreditation of Academic and Vocational Qualifications) - Standards linked to **outcome-based QF** (Qualifications Framework). **UGC** QA processes for funded institutions emphasize **outcomes**.
+*   **China:** **MoE** (Ministry of Education) / **HEEC** (Higher Education Evaluation Center) / **CEEAA** (Engineering) - Increasing emphasis on **outcomes**, quality standards, and alignment with international practices (e.g., Engineering Education Certification Standards based on **outcomes**).
+*   **South Korea:** **KUAI** (Korean University Accreditation Institute) / **KEDI** (Korean Educational Development Institute) - Institutional accreditation considers **outcomes**. Professional bodies (**ABEEK, KAAB** etc.) strong on **OBA**. **KRQF** (Korean Qualifications Framework).
+*   **Japan:** **NIAD-QE** (National Institution for Academic Degrees and Quality Enhancement of Higher Education) - Institutional evaluation considers goals/**outcomes**. Professional bodies (**JABEE** etc.) drive **OBA** in specific fields.
+*   **Latin America:** **CNA** (Colombia - '**Resultados Académicos**'), **CONEAU** (Argentina - **competency profiles** for regulated professions), **INEP/SINAES/CAPES** (Brazil - evaluate programs considering **competencies/outcomes**), **CNA-Chile** (criteria include graduate profiles/**outcome assessment**), **COPAES** (Mexico - recognizes **OBA** accreditors like CACEI), **SINAES** (Costa Rica - **outcome** focus). Many countries developing NQFs based on **outcomes**.
+*   **Middle East:** **ETEC / NCAAA** (Saudi Arabia - **NQF**/standards require **outcomes**), **CAA / NQA** (UAE - standards/**QFEmirates** require **outcomes**), **OAAAQA** (Oman - standards require **outcomes**), **BQA** (Bahrain - reviews/**NQF** based on **outcomes**), **NQA / QNAR** (Qatar - **NQF** based on **outcomes**), **HEAC** (Jordan - standards include **outcomes**), **NAQAAE** (Egypt - standards require **ILOs**).
+*   **Africa:** **CHE / HEQC / SAQA** (South Africa - **HEQSF/NQF** based on **outcomes**), **CUE** (Kenya - standards include **outcomes**), **NUC** (Nigeria - **BMAS/CCMAS** emphasize **outcomes**), **GTEC** (Ghana - processes consider **outcomes**), **NCHE** (Uganda, Malawi, etc. - standards address **outcomes**), **HEC** (Mauritius - framework incorporates **outcomes**), **ANAQ-Sup** (Senegal), **NACTE/TCU** (Tanzania). Many NQFs emerging.
+*   **New Zealand:** **NZQA** (New Zealand Qualifications Authority) - Maintains **outcome-based NZQF** (New Zealand Qualifications Framework); **Universities NZ / CUAP** (Committee on University Academic Programmes) approve programs considering **graduate profiles/outcomes**.
+
+## XVII. Vocational Education and Training (VET) / Technical and Vocational Education and Training (TVET) Systems Globally
+
+Many national VET/TVET systems are fundamentally built on **Competency-Based Training and Assessment (CBTA)**, which is inherently **outcome-based**. Assessment directly measures the achievement of specified industry-derived **competencies**.
+
+*   **Australia:** **ASQA** (Australian Skills Quality Authority) - Regulates RTOs based on demonstrating delivery and assessment of **competency outcomes** defined in national **Training Packages**.
+*   **UK:** **Ofqual** (regulates qualifications based on **outcomes/standards**), **IfATE** (Institute for Apprenticeships and Technical Education - develops occupational standards defining **outcomes** for Apprenticeships and T-Levels). **ESFA** funds based on achieving **outcomes**.
+*   **Germany:** **Dual System** - Apprenticeships based on occupational training regulations ('Ausbildungsordnungen') defining required **skills/knowledge outcomes**, assessed via Chamber exams (IHK/HWK).
+*   **Canada:** Provincial/Territorial apprenticeship (**Red Seal Program** based on National Occupational Analyses defining **outcomes**) and college systems extensively use **competency/outcome** frameworks.
+*   **EU Countries:** **EQF** and **EQAVET** promote **learning outcomes** approach. National systems often use **competency standards** (e.g., France - **RNCP**, Netherlands - Qualification Dossiers).
+*   **Singapore:** **SkillsFuture Singapore (SSG) / WSQ** (Workforce Skills Qualifications) framework are **competency-based**.
+*   **South Korea:** **NQF** and **National Competency Standards (NCS)** drive TVET curriculum and assessment.
+*   **Malaysia:** **DSD** (Department of Skills Development) / **NOSS** (National Occupational Skills Standards) define **competency outcomes**.
+*   **Philippines:** **TESDA** (Technical Education and Skills Development Authority) - Implements **competency-based TVET** based on **Training Regulations** (defining **competency outcomes**). Assessment via National Certificates (NCs).
+*   **South Africa:** **QCTO** (Quality Council for Trades and Occupations) / **SETAs** (Sector Education and Training Authorities) - Use occupational qualifications based on **competency outcomes** defined in Occupational Curricula. **SAQA** oversees **NQF**.
+*   **India:** **NSDC** (National Skill Development Corporation) / **Sector Skill Councils (SSCs)** - Develop **Qualification Packs (QPs)** based on **National Occupational Standards (NOS)** defining **competency outcomes**, aligned with **NSQF**.
+*   **USA:** Dept. of Labor (**O*NET** defines occupational knowledge/skills), Industry-recognized credentials, some state CTE systems emphasize **competency attainment**. WIOA emphasizes skills gains.
+*   **Latin America:** **SENA** (Colombia), **SENAI/SENAC** (Brazil), **CONALEP** (Mexico), **INA** (Costa Rica), **INACAP** (Chile) - Major TVET providers often use **competency-based** models derived from industry needs. Regional frameworks like **CCT** (Marco de Cualificaciones para Centroamérica).
+*   **Africa:** **TVETA** (Kenya), **NAVTTC** (Pakistan - VET context), **NBTE** (Nigeria), **COTVET** (Ghana) - National bodies promoting/regulating **competency-based TVET**. SADC QF, EAC QF developing.
+*   Many others globally: National VET/TVET authorities utilize **competency standards** derived from industry as the basis for curriculum and assessment.
