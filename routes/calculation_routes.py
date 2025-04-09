@@ -1398,8 +1398,8 @@ def calculate_course_outcome_score_optimized(student_id, outcome_id, scores_dict
     if total_applied_weight == Decimal('0'):
         return Decimal('0')
         
-    # Return the weighted outcome score directly without normalizing again
-    return weighted_outcome_score
+    # Return the weighted outcome score normalized by the total applied weight
+    return weighted_outcome_score / total_applied_weight
 
 # Optimized helper function to calculate a student's score for a program outcome
 def calculate_program_outcome_score_optimized(student_id, outcome_id, course_id, scores_dict, 
