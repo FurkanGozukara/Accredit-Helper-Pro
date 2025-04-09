@@ -10,6 +10,7 @@ https://www.patreon.com/SECourses/shop/accredit-helper-pro-university-wide-14405
 
 ## ♾️ Licenses are lifetime (permanent) and you will receive app updates for life
 
+Click to Go [Supported Accreditations List](#supported-accreditations-list)
 Click to Go [Table of Contents](#table-of-contents)
 
 ## Screenshots of the Accredit Helper Pro
