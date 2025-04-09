@@ -2,9 +2,6 @@
 
 **Accredit Helper Pro** is a comprehensive tool designed for educational institutions to manage course data, track student performance against learning outcomes (POs and COs), and streamline the accreditation assessment process (e.g., ABET, MÜDEK).
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!-- Placeholder: Update with actual license -->
-[![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/) <!-- Placeholder: Update with actual version -->
-
 ---
 
 ## Table of Contents
