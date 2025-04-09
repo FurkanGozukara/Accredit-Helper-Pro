@@ -97,6 +97,17 @@
                                 </div>
                             </div>
 
+                            <h5><i class="fas fa-bolt me-2"></i>Recent Performance Improvements</h5>
+                            <div class="alert alert-success mb-3">
+                                <p class="mb-2"><i class="fas fa-rocket me-2"></i><strong>Optimized Calculation System</strong></p>
+                                <ul class="mb-0">
+                                    <li><strong>Faster Multi-Course Analysis:</strong> Significant speed improvements when calculating results across multiple courses</li>
+                                    <li><strong>Efficient Resource Usage:</strong> Minimized database queries for better performance with large datasets</li>
+                                    <li><strong>Consistent Makeup Exam Handling:</strong> Enhanced synchronization of makeup exam weights with original exams</li>
+                                    <li><strong>Standardized Student Exclusion:</strong> Improved logic for handling mandatory exam attendance</li>
+                                </ul>
+                            </div>
+
                             <h5><i class="fas fa-users me-2"></i>Who Should Use This Application?</h5>
                             <ul>
                                 <li><strong>Faculty Members</strong> - Track student performance and outcome achievement in their courses</li>
@@ -113,6 +124,7 @@
                                 <li><strong>Database</strong>: SQLite for portable, file-based data storage</li>
                                 <li><strong>Frontend</strong>: Bootstrap 5 with responsive design for all devices</li>
                                 <li><strong>Security</strong>: Protected file operations and data validation</li>
+                                <li><strong>Remote Access</strong>: Integrated Cloudflare Tunnel support for secure access from any device</li>
                             </ul>
 
                             <div class="alert alert-success mt-3">
@@ -475,7 +487,33 @@
                                             </div>
 
                                             <div class="alert alert-success">
-                                                <i class="fas fa-chart-line me-2"></i><strong>Continuous Improvement:</strong> Review these results regularly to identify strengths and areas for improvement in your course. The data provides valuable insights for enhancing teaching methods and course content.
+                                                <i class="fas fa-chart-line me-2"></i><strong>Multiple Calculation Methods:</strong> The system now supports choosing between <strong>Absolute</strong> (average score approach) and <strong>Relative</strong> (percentage of students above threshold) calculation methods. This can be set per course or globally for all courses in the "All Courses" view.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="headingNine">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNine" aria-expanded="false" aria-controls="collapseNine">
+                                            <strong>Step 9: Use "All Courses" Analysis for Program-Wide Assessment</strong>
+                                        </button>
+                                    </h2>
+                                    <div id="collapseNine" class="accordion-collapse collapse" aria-labelledby="headingNine" data-bs-parent="#workflowAccordion">
+                                        <div class="accordion-body">
+                                            <p>For program-level assessment and accreditation reporting, use the powerful "All Courses" analysis feature:</p>
+
+                                            <ol>
+                                                <li>From the main navigation, click on "Calculations" → "All Courses"</li>
+                                                <li>The system will process all courses and aggregate the program outcome results</li>
+                                                <li>Use the sorting options to organize courses by code, name, or semester</li>
+                                                <li>Toggle between display methods (Absolute vs. Relative) to see different assessment perspectives</li>
+                                                <li>View the comprehensive Program Outcome achievement table across all courses</li>
+                                                <li>Export the results for accreditation documentation</li>
+                                            </ol>
+
+                                            <div class="alert alert-info">
+                                                <i class="fas fa-rocket me-2"></i><strong>Performance Improvement:</strong> The "All Courses" analysis now uses an optimized calculation engine that significantly improves performance when processing multiple courses, especially in programs with large datasets.
                                             </div>
                                         </div>
                                     </div>
@@ -527,6 +565,7 @@
                                         <li>Enter a unique <strong>Course Code</strong> (e.g., <code>CENG301</code>) that matches your institutional code.</li>
                                         <li>Enter the full <strong>Course Name</strong> (e.g., <code>Software Engineering</code>).</li>
                                         <li>Enter the specific <strong>Semester</strong> or term (e.g., <code>Fall 2023</code>, <code>2023-2024 Spring</code>).</li>
+                                        <li>You can also set a <strong>Course Weight</strong> which determines how this course contributes to program-level outcome calculations (default is 1.0).</li>
                                         <li>Click "Save Course". You will be redirected to the new Course Detail page.</li>
                                     </ol>
                                     <div class="alert alert-info mt-2">
@@ -538,7 +577,7 @@
                                     <ol>
                                         <li>Navigate to the Course Detail page by clicking on a course name from the homepage.</li>
                                         <li>In the "Course Overview" section, click the "Edit" button.</li>
-                                        <li>Modify any of the course properties: Code, Name, or Semester.</li>
+                                        <li>Modify any of the course properties: Code, Name, Semester, or Course Weight.</li>
                                         <li>Click "Save Changes" to apply your modifications.</li>
                                     </ol>
 
@@ -570,6 +609,7 @@
                                                 <div class="card-body">
                                                     <ul>
                                                         <li>Course code, name, and semester</li>
+                                                        <li>Course weight for program calculations</li>
                                                         <li>Edit and Delete buttons</li>
                                                         <li>Creation and last update timestamps</li>
                                                     </ul>
@@ -601,6 +641,7 @@
                                                         <li>Add, Edit, Delete exam buttons</li>
                                                         <li>Manage Weights button</li>
                                                         <li>Access to exam details and score entry</li>
+                                                        <li>Indication of exam types (final, makeup, mandatory)</li>
                                                     </ul>
                                                 </div>
                                             </div>
@@ -616,6 +657,7 @@
                                                         <li>Add, Edit, Delete student buttons</li>
                                                         <li>Import/Export student data</li>
                                                         <li>Enter/Edit scores button</li>
+                                                        <li>Student exclusion management</li>
                                                     </ul>
                                                 </div>
                                             </div>
@@ -717,7 +759,7 @@
                                                     <h6><i class="fas fa-calculator me-2"></i>Success Rate Method</h6>
                                                     <ul class="list-group list-group-flush mb-3">
                                                         <li class="list-group-item">
-                                                            <strong>Absolute:</strong> Students pass if their final weighted score meets or exceeds a fixed threshold (typically 60%).
+                                                            <strong>Absolute:</strong> Students pass if their final weighted score meets or exceeds a fixed threshold (typically 60%). Course outcome achievement is calculated as the average score of all students.
                                                         </li>
                                                         <li class="list-group-item">
                                                             <strong>Relative:</strong> Students pass if their score is either:
@@ -725,6 +767,7 @@
                                                                 <li>Above the absolute threshold (e.g., 60%), OR</li>
                                                                 <li>Above a percentage of the class average (e.g., if set to 60% and class average is 70%, then passing is 0.6 × 70 = 42%)</li>
                                                             </ul>
+                                                            Course outcome achievement is calculated as the percentage of students who achieved the threshold.
                                                         </li>
                                                     </ul>
                                                 </div>
@@ -772,7 +815,7 @@
                                             <div class="form-check mt-3">
                                                 <input class="form-check-input" type="checkbox" disabled>
                                                 <label class="form-check-label">
-                                                    <strong>Exclude Course from Reports</strong> - Check this to exclude this course instance from aggregated program-level reports.
+                                                    <strong>Exclude Course from Reports</strong> - Check this to exclude this course instance from aggregated program-level reports. This is useful for old or experimental courses that shouldn't be included in official accreditation data.
                                                 </label>
                                             </div>
                                         </div>
@@ -801,6 +844,7 @@
                                                 <li><strong>New Course Code</strong> - Can be the same if it's the same course</li>
                                                 <li><strong>New Course Name</strong> - Can be the same or modified</li>
                                                 <li><strong>New Semester</strong> - Should be different (e.g., "Spring 2024" instead of "Fall 2023")</li>
+                                                <li><strong>Course Weight</strong> - Set the weight for program-level contributions</li>
                                             </ul>
                                         </li>
                                         <li>
@@ -875,7 +919,8 @@
                                             <ol>
                                                 <li>Navigate to <a href="{{ url_for('utility.index') }}">Utilities</a> → <a href="{{ url_for('outcome.list_program_outcomes') }}">Program Outcomes</a></li>
                                                 <li>View the complete list of defined POs with their codes and descriptions</li>
-                                                <li>Click "View" on any PO to see details, including which Course Outcomes map to it (if implemented)</li>
+                                                <li>Click "View" on any PO to see details, including which Course Outcomes map to it</li>
+                                                <li>View a visual representation of how each PO is supported across different courses</li>
                                             </ol>
 
                                             <h6><i class="fas fa-plus me-2"></i>Adding a New Program Outcome</h6>
@@ -975,6 +1020,7 @@
                                                 <li>All COs for a course are listed in the "Course Outcomes" section of the Course Detail page</li>
                                                 <li>Each listing shows the CO code, description, and linked POs</li>
                                                 <li>Click "View" on any CO to see its complete details, including which exam questions assess it</li>
+                                                <li>The CO detail view shows a breakdown of how this outcome is assessed throughout the course</li>
                                             </ul>
                                         </div>
                                         <div class="col-md-6">
@@ -2274,23 +2320,793 @@
                 </div>
 
             </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Exams & Questions -->
+<div class="tab-pane fade" id="exams">
+    <div class="card shadow-sm">
+        <div class="card-header bg-secondary text-white">
+            <h4 class="mb-0"><i class="fas fa-file-alt me-2"></i>Managing Exams & Questions</h4>
+        </div>
+        <div class="card-body">
+            <p>Exams represent any graded assessment within a course, while questions are the individual items within those exams. Both are essential components in measuring student achievement of course outcomes.</p>
+
+            <div class="card mb-4 border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>Managing Exams</h5>
+                </div>
+                <div class="card-body">
+                    <h6><i class="fas fa-plus me-2"></i>Adding an Exam</h6>
+                    <ol>
+                        <li>Go to the desired Course Detail page.</li>
+                        <li>In the "Exams" section, click "Add Exam".</li>
+                        <li><strong>Name:</strong> Give the exam a descriptive name (e.g., <code>Midterm 1</code>, <code>Final Exam</code>, <code>Homework 2</code>, <code>Quiz 3</code>).</li>
+                        <li><strong>Max Score:</strong> Enter the total possible score for the entire exam (e.g., <code>100</code>). <em>Note: This is informational; calculations primarily use individual question max scores.</em></li>
+                        <li><strong>Exam Date:</strong> Optional, for informational purposes.</li>
+                        <li>
+                            <strong>Exam Properties:</strong>
+                            <ul>
+                                <li><strong>Is Final Exam?</strong> Check if this is the official final exam.</li>
+                                <li><strong>Is Mandatory?</strong> Check if this exam is required for all students. When an exam is marked as mandatory, students who have a score of zero (or no score) for both the mandatory exam and its makeup version will be excluded from outcome calculations. This ensures that outcome achievements reflect only students who actively participated in key assessments.</li>
+                                <li><strong>Is Makeup Exam?</strong> Check if this is a makeup exam. If checked, you must select the original exam it replaces using the "Makeup For" dropdown. Makeup exams inherit the weight of the original exam.</li>
+                            </ul>
+                        </li>
+                        <li>Click "Save Exam".</li>
+                    </ol>
+
+                    <h6><i class="fas fa-edit me-2"></i>Editing an Exam</h6>
+                    <ol>
+                        <li>On the Course Detail page, find the exam in the "Exams" list.</li>
+                        <li>Click the "Edit" button next to the exam name.</li>
+                        <li>Update any of the exam properties as needed.</li>
+                        <li>Click "Save Changes".</li>
+                    </ol>
+
+                    <h6><i class="fas fa-trash-alt me-2"></i>Deleting an Exam</h6>
+                    <ol>
+                        <li>On the Course Detail page, find the exam in the "Exams" list.</li>
+                        <li>Click the "Delete" button next to the exam name.</li>
+                        <li>Confirm the deletion when prompted.</li>
+                    </ol>
+                    <div class="alert alert-danger mt-2">
+                        <i class="fas fa-skull-crossbones me-2"></i><strong>Warning:</strong> Deleting an exam permanently removes all its questions and associated student scores. This action cannot be undone.
+                    </div>
+
+                    <h6><i class="fas fa-balance-scale me-2"></i>Managing Exam Weights</h6>
+                    <ol>
+                        <li>On the Course Detail page, find the "Exams" section.</li>
+                        <li>Click "Manage Weights".</li>
+                        <li>Enter percentage weights for each exam (e.g., Midterm: 30%, Final: 40%).</li>
+                        <li>Ensure weights total exactly 100%.</li>
+                        <li>Click "Save Weights".</li>
+                    </ol>
+                    <div class="alert alert-info mt-2">
+                        <i class="fas fa-info-circle me-2"></i><strong>Note:</strong> Makeup exams automatically inherit the weight of their original exam. You don't need to set weights for makeup exams.
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4 border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-list-ol me-2"></i>Managing Questions</h5>
+                </div>
+                <div class="card-body">
+                    <p>Questions are the individual assessment items within each exam. They serve as the direct link between student performance and course outcomes.</p>
+
+                    <h6><i class="fas fa-plus me-2"></i>Adding Questions</h6>
+                    <ol>
+                        <li>Go to the Course Detail page, find the exam in the "Exams" list, and click on its name to go to the Exam Detail page.</li>
+                        <li>Click "Add Question".</li>
+                        <li><strong>Number:</strong> Assign a unique number or identifier for the question within this exam (e.g., <code>1</code>, <code>2a</code>, <code>3</code>).</li>
+                        <li><strong>Text (Optional):</strong> You can paste the question text here for reference.</li>
+                        <li><strong>Max Score:</strong> Enter the maximum points possible for this specific question (e.g., <code>10</code>, <code>25</code>). This value is crucial for weighting within outcome calculations.</li>
+                        <li id="exams-questions-link"><strong>Link to Course Outcomes (COs):</strong> This is the most critical step for outcome calculations. Select all Course Outcome(s) that this specific question assesses. A question can assess multiple COs.</li>
+                        <li>Click "Save Question".</li>
+                    </ol>
+
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i><strong>Important:</strong> Every question should be linked to at least one Course Outcome. Questions without CO links will not contribute to outcome achievement calculations.
+                    </div>
+
+                    <h6><i class="fas fa-edit me-2"></i>Editing Questions</h6>
+                    <ol>
+                        <li>On the Exam Detail page, find the question you want to modify.</li>
+                        <li>Click the "Edit" button next to the question.</li>
+                        <li>Update any of the question properties, including outcome mappings.</li>
+                        <li>Click "Save Changes".</li>
+                    </ol>
+
+                    <h6><i class="fas fa-trash-alt me-2"></i>Deleting Questions</h6>
+                    <ol>
+                        <li>On the Exam Detail page, find the question you want to remove.</li>
+                        <li>Click the "Delete" button next to the question.</li>
+                        <li>Confirm the deletion when prompted.</li>
+                    </ol>
+                    <div class="alert alert-danger mt-2">
+                        <i class="fas fa-exclamation-triangle me-2"></i><strong>Warning:</strong> Deleting a question also deletes all student scores associated with it. This action cannot be undone.
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4 border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-user-check me-2"></i>The Mandatory Exam System</h5>
+                </div>
+                <div class="card-body">
+                    <p>The Mandatory Exam system is a powerful feature that helps ensure the validity of your outcome achievement calculations by excluding students who did not participate in critical assessments.</p>
+
+                    <h6><i class="fas fa-cogs me-2"></i>How It Works</h6>
+                    <ul>
+                        <li>When you mark an exam as "Mandatory", the system tracks student participation in that exam</li>
+                        <li>Students who have a score of zero (or no score at all) for both the mandatory exam AND its makeup version (if any) will be automatically excluded from all outcome achievement calculations</li>
+                        <li>This prevents students who didn't participate in key assessments from skewing your outcome achievement results</li>
+                        <li>The system will show how many students were excluded due to mandatory exam requirements in the calculation results</li>
+                    </ul>
+
+                    <h6><i class="fas fa-lightbulb me-2"></i>Best Practices</h6>
+                    <ul>
+                        <li><strong>Final Exams:</strong> Typically mark your final exam as mandatory if it comprehensively assesses most course outcomes</li>
+                        <li><strong>Multiple Mandatory Exams:</strong> You can mark multiple exams as mandatory if necessary</li>
+                        <li><strong>Makeup Pairs:</strong> When using a mandatory exam with a makeup version, mark both - the system intelligently handles the relationship</li>
+                        <li><strong>Clear Communication:</strong> Inform students about which exams are mandatory for outcome assessment purposes</li>
+                    </ul>
+
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle me-2"></i><strong>Note:</strong> The mandatory exam system affects only outcome achievement calculations. It does not automatically determine course passing status or grades. Those decisions remain under your control as the instructor.
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4 border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-medkit me-2"></i>Managing Makeup Exams</h5>
+                </div>
+                <div class="card-body">
+                    <p>Makeup exams are special assessments given to students who missed the original exam. The system provides specialized handling for these exams.</p>
+
+                    <h6><i class="fas fa-plus me-2"></i>Creating a Makeup Exam</h6>
+                    <ol>
+                        <li>On the Course Detail page, click "Add Exam"</li>
+                        <li>Enter the exam details as usual</li>
+                        <li>Check the "Is Makeup Exam?" checkbox</li>
+                        <li>Select the original exam it replaces from the "Makeup For" dropdown</li>
+                        <li>Click "Save Exam"</li>
+                    </ol>
+
+                    <h6><i class="fas fa-link me-2"></i>Key Features of Makeup Exams</h6>
+                    <ul>
+                        <li><strong>Weight Inheritance:</strong> Makeup exams automatically use the weight of the original exam they replace</li>
+                        <li><strong>Selective Scoring:</strong> For students who took the makeup, the system uses their makeup scores; for those who took the original exam, it uses their original scores</li>
+                        <li><strong>Convenient Entry:</strong> When entering scores, you only need to enter values for students who took the makeup exam (leave the others blank)</li>
+                        <li><strong>Mandatory Handling:</strong> For mandatory exams, a student is considered to have "attended" if they have a non-zero score for EITHER the original OR the makeup version</li>
+                    </ul>
+
+                    <div class="alert alert-success mt-3">
+                        <i class="fas fa-check-circle me-2"></i><strong>Pro Tip:</strong> Structure your makeup exams with the same question types and outcome coverage as the original exam to ensure consistent assessment of course outcomes.
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-info mt-3">
+                <i class="fas fa-link me-2"></i><strong>Related Sections:</strong>
+                <ul class="mb-0">
+                    <li>See <a href="#outcomes" class="tab-link">Outcomes</a> for information on defining Course Outcomes that will be linked to questions.</li>
+                    <li>See <a href="#students-scores" class="tab-link">Students & Scores</a> for details on entering student scores for exam questions.</li>
+                    <li>See <a href="#calculation" class="tab-link">Calculations</a> to understand how question scores contribute to outcome achievement.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Students & Scores -->
+<div class="tab-pane fade" id="students">
+    <div class="card shadow-sm">
+        <div class="card-header" style="background-color: #6f42c1; color: white;">
+            <h4 class="mb-0"><i class="fas fa-user-graduate me-2"></i>Managing Students & Scores</h4>
+        </div>
+        <div class="card-body">
+            <div class="card mb-4 border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>Student Management</h5>
+                </div>
+                <div class="card-body">
+                    <p>Effectively managing your student roster is essential for accurate score tracking and outcome assessment.</p>
+
+                    <h6><i class="fas fa-plus me-2"></i>Adding Students Manually</h6>
+                    <ol>
+                        <li>From the Course Detail page, go to the "Students" section</li>
+                        <li>Click "Add Student"</li>
+                        <li>
+                            Enter the required information:
+                            <ul>
+                                <li><strong>Student ID:</strong> A unique identifier for the student (e.g., 123456789)</li>
+                                <li><strong>First Name:</strong> Student's first name</li>
+                                <li><strong>Last Name:</strong> Student's last name (optional)</li>
+                            </ul>
+                        </li>
+                        <li>Click "Save Student"</li>
+                    </ol>
+                    <div class="alert alert-info mt-2">
+                        <i class="fas fa-info-circle me-2"></i><strong>Note:</strong> Manual entry is recommended only for small classes or individual additions.
+                    </div>
+
+                    <h6 id="students-import"><i class="fas fa-file-import me-2"></i>Importing Multiple Students</h6>
+                    <p>The system supports several methods for batch importing students:</p>
+
+                    <h6><i class="fas fa-keyboard me-2"></i>Method 1: Text Import (Copy/Paste)</h6>
+                    <ol>
+                        <li>From the "Students" section, click "Import Students"</li>
+                        <li>Choose the "Paste Student List" option</li>
+                        <li>
+                            Paste your student data in one of the supported formats:
+                            <pre class="bg-light p-2 mt-2">
+11220030102  Name1  Surname
+11220030126  Name1 Name2  Surname</pre>
+                            <pre class="bg-light p-2">
+11220030102;Name1;Surname
+11220030126;Name1 Name2;Surname</pre>
+                            <pre class="bg-light p-2">
+11220030102	Name1	Surname
+11220030102	Name1	Surname
+
+11220030126	Name1 Name2	Surname</pre>
+                        </li>
+                        <li>Review the parsed data in the preview table</li>
+                        <li>Select the import mode (only add new students, or update existing ones)</li>
+                        <li>Click "Import Students"</li>
+                    </ol>
+
+                    <h6><i class="fas fa-file-csv me-2"></i>Method 2: CSV File Upload</h6>
+                    <ol>
+                        <li>Prepare a CSV file with columns for student ID, first name, and last name</li>
+                        <li>From the "Students" section, click "Import Students"</li>
+                        <li>Choose the "Upload CSV File" option</li>
+                        <li>Select your CSV file</li>
+                        <li>Map the columns to the required fields if necessary</li>
+                        <li>Select the import mode</li>
+                        <li>Click "Import"</li>
+                    </ol>
+
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i><strong>Important:</strong> Student IDs must be unique within a course. When importing, the system will detect duplicate IDs and ask how you want to handle them.
+                    </div>
+
+                    <h6><i class="fas fa-file-export me-2"></i>Exporting Student Data</h6>
+                    <ol>
+                        <li>From the "Students" section, click "Export Students"</li>
+                        <li>Choose the export format (typically CSV)</li>
+                        <li>The file will be downloaded to your computer</li>
+                    </ol>
+
+                    <h6><i class="fas fa-user-times me-2"></i>Student Exclusion</h6>
+                    <p>You can exclude specific students from outcome calculations without deleting them:</p>
+                    <ol>
+                        <li>From the "Students" section, find the student you want to exclude</li>
+                        <li>Click the "Edit" button for that student</li>
+                        <li>Check the "Exclude from Calculations" checkbox</li>
+                        <li>Click "Save Changes"</li>
+                    </ol>
+                    <div class="alert alert-info mt-2">
+                        <i class="fas fa-info-circle me-2"></i><strong>Use Case:</strong> Exclude exchange students, special cases, or students who withdrew but whose records you need to maintain.
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4 border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0" id="students-scores"><i class="fas fa-tasks me-2"></i>Managing Student Scores</h5>
+                </div>
+                <div class="card-body">
+                    <p>Recording student scores accurately is vital for proper outcome assessment. The system provides efficient tools for score entry and management.</p>
+
+                    <h6><i class="fas fa-table me-2"></i>Accessing the Score Entry Grid</h6>
+                    <p>You can access the score entry interface in two ways:</p>
+                    <ol>
+                        <li><strong>For all exams:</strong> From the Course Detail page → "Students" section → "Enter/Edit Scores" button</li>
+                        <li><strong>For a specific exam:</strong> From the Exam Detail page → "Enter Scores" button</li>
+                    </ol>
+
+                    <h6><i class="fas fa-edit me-2"></i>Entering Scores</h6>
+                    <ol>
+                        <li>The score grid displays students as rows and questions as columns</li>
+                        <li>Click on a cell to enter or edit a score</li>
+                        <li>Enter a numeric value (cannot exceed the question's max score)</li>
+                        <li>Press Tab, Enter, or click elsewhere to save the score</li>
+                    </ol>
+
+                    <div class="alert alert-success mt-3">
+                        <i class="fas fa-keyboard me-2"></i><strong>Keyboard Navigation:</strong> Use these shortcuts for faster data entry:
+                        <ul class="mb-0">
+                            <li>Tab: Move to next cell</li>
+                            <li>Shift+Tab: Move to previous cell</li>
+                            <li>Arrow keys: Navigate between cells</li>
+                            <li>Enter: Save current cell and move down</li>
+                        </ul>
+                    </div>
+
+                    <h6><i class="fas fa-bell me-2"></i>Auto-Save Functionality</h6>
+                    <p>Scores are automatically saved when:</p>
+                    <ul>
+                        <li>You navigate to another cell (click, tab, arrows)</li>
+                        <li>You press Enter</li>
+                        <li>You click the "Save All" button (for bulk changes)</li>
+                    </ul>
+                    <div class="alert alert-info mt-2">
+                        <i class="fas fa-info-circle me-2"></i><strong>Note:</strong> The system will give visual feedback (green highlight) when a score is successfully saved.
+                    </div>
+
+                    <h6><i class="fas fa-medkit me-2"></i>Handling Makeup Exam Scores</h6>
+                    <ol>
+                        <li>When entering scores for a makeup exam, only enter values for students who took the makeup</li>
+                        <li>Leave cells blank for students who took the original exam</li>
+                        <li>The system will automatically use the appropriate score for each student during calculations</li>
+                    </ol>
+
+                    <h6><i class="fas fa-ban me-2"></i>Managing Absences</h6>
+                    <p>For students who were absent from an exam:</p>
+                    <ol>
+                        <li>Leave their scores blank (preferred) or enter zeros</li>
+                        <li>If the exam is marked as "Mandatory" and a student has no score for both the exam and its makeup, they will be excluded from outcome calculations</li>
+                    </ol>
+
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i><strong>Data Validation:</strong> The system prevents entering scores higher than a question's maximum score. If you try to enter an invalid value, it will be rejected.
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4 border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Viewing Student Performance</h5>
+                </div>
+                <div class="card-body">
+                    <p>The system provides several ways to review student performance:</p>
+
+                    <h6><i class="fas fa-user me-2"></i>Individual Student View</h6>
+                    <ol>
+                        <li>From the "Students" section, click on a student's name</li>
+                        <li>
+                            View their complete performance profile:
+                            <ul>
+                                <li>Scores on all exams and questions</li>
+                                <li>Achievement levels for each Course Outcome</li>
+                                <li>Overall weighted score</li>
+                            </ul>
+                        </li>
+                    </ol>
+
+                    <h6><i class="fas fa-list me-2"></i>Score Summary</h6>
+                    <p>From the Calculation Results page, you can access:</p>
+                    <ul>
+                        <li>Student achievement table showing overall performance</li>
+                        <li>Distribution of student success across outcomes</li>
+                        <li>Detailed performance breakdowns by exam and question</li>
+                    </ul>
+
+                    <div class="alert alert-success mt-3">
+                        <i class="fas fa-download me-2"></i><strong>Export Options:</strong> Student performance data can be exported in various formats for further analysis, record-keeping, or submission to accreditation bodies.
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-info mt-3">
+                <i class="fas fa-link me-2"></i><strong>Related Sections:</strong>
+                <ul class="mb-0">
+                    <li>See <a href="#exams" class="tab-link">Exams & Questions</a> for information on creating the assessment components that scores are recorded against.</li>
+                    <li>See <a href="#calculation" class="tab-link">Calculations</a> to understand how student scores contribute to outcome achievement calculations.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Accredit Calculations -->
+<div class="tab-pane fade" id="calculation">
+    <div class="card shadow-sm">
+        <div class="card-header bg-info text-white">
+            <h4 class="mb-0"><i class="fas fa-calculator me-2"></i>Accredit Calculations</h4>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-primary">
+                <i class="fas fa-info-circle me-2"></i><strong>What Are Accredit Calculations?</strong> These are automated analyses that determine how well students are achieving the defined learning outcomes at both the course level (COs) and program level (POs).
+            </div>
+
+            <div class="card mb-4 border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Optimized Calculation System</h5>
+                </div>
+                <div class="card-body">
+                    <p>The calculation system has been significantly enhanced to improve performance and consistency:</p>
+                    <ul>
+                        <li><strong>Efficient Multi-Course Analysis:</strong> The "All Courses" analysis now uses a centralized calculation function that computes each course's results once and reuses them for program-wide aggregation.</li>
+                        <li><strong>Reduced Database Queries:</strong> Optimized data loading minimizes database hits, especially when processing large numbers of courses.</li>
+                        <li><strong>Consistent Makeup Exam Handling:</strong> Improved synchronization of makeup exam weights with their original exams ensures calculation accuracy.</li>
+                        <li><strong>Standardized Student Exclusion Logic:</strong> Enhanced handling of student exclusions based on mandatory exam attendance applies consistently across all calculation methods.</li>
+                        <li><strong>Unified Calculation Core:</strong> Single-course and all-courses views now share the same core calculation logic, ensuring consistent results regardless of where you view the data.</li>
+                    </ul>
+                    <div class="alert alert-info">
+                        <i class="fas fa-lightbulb me-2"></i><strong>Benefit:</strong> These improvements provide faster performance, more consistent results, and better memory usage, especially when working with multiple courses or large datasets.
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4 border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Calculation Methods</h5>
+                </div>
+                <div class="card-body">
+                    <p>The system supports two primary calculation methods for outcome achievement:</p>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0"><i class="fas fa-calculator me-2"></i>Absolute Method</h6>
                                 </div>
-                                
+                                <div class="card-body">
+                                    <p><strong>How it works:</strong></p>
+                                    <ol>
+                                        <li>Calculate the average score for each question linked to a CO</li>
+                                        <li>Apply question weights based on max score</li>
+                                        <li>Apply exam weights from the weight settings</li>
+                                        <li>Calculate weighted average across all questions for each CO</li>
+                                    </ol>
+                                    <p><strong>Result:</strong> The CO achievement is the average score percentage achieved by all students.</p>
+                                    <div class="alert alert-info mt-2">
+                                        <i class="fas fa-info-circle me-2"></i><strong>Example:</strong> If students averaged 72% on questions assessing CO1, then CO1's achievement level is 72%.
+                                    </div>
+                                    <p><strong>Best for:</strong> Directly measuring student performance levels regardless of threshold.</p>
+                                </div>
                             </div>
                         </div>
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0"><i class="fas fa-percentage me-2"></i>Relative Method</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>How it works:</strong></p>
+                                    <ol>
+                                        <li>Calculate each student's overall score for each CO</li>
+                                        <li>Determine how many students achieved above the threshold</li>
+                                        <li>Calculate the percentage of students who succeeded</li>
+                                    </ol>
+                                    <p><strong>Result:</strong> The CO achievement is the percentage of students who met or exceeded the success threshold.</p>
+                                    <div class="alert alert-info mt-2">
+                                        <i class="fas fa-info-circle me-2"></i><strong>Example:</strong> If 80% of students scored at or above 60% on CO1, then CO1's achievement level is 80%.
+                                    </div>
+                                    <p><strong>Best for:</strong> Measuring success rates based on a defined threshold, emphasizing the proportion of students who achieve the outcome.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
- 
+                    <div class="alert alert-success mt-3">
+                        <i class="fas fa-exchange-alt me-2"></i><strong>Method Switching:</strong> You can switch between methods at any time without recalculating. In the "All Courses" view, you can toggle the calculation method using the radio buttons at the top of the page, and all courses will update instantly.
+                    </div>
 
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i><strong>Important:</strong> The calculation method you choose can significantly impact your outcome achievement results. Consider your accreditation requirements and assessment philosophy when selecting a method.
+                    </div>
+                </div>
+            </div>
 
+            <div class="card mb-4 border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Running Calculations</h5>
+                </div>
+                <div class="card-body">
+                    <h6><i class="fas fa-play-circle me-2"></i>Single Course Calculation</h6>
+                    <ol>
+                        <li>Ensure all necessary data is entered: Course Outcomes linked to Program Outcomes, Exams created with Weights, Questions linked to Course Outcomes, Students added, and Scores entered.</li>
+                        <li>Navigate to the Course Detail page for the course you want to assess.</li>
+                        <li>Click the "Calculate Results" button.</li>
+                        <li>The system will process the scores based on the links and settings you've defined.</li>
+                        <li>You will be redirected to the Calculation Results page.</li>
+                    </ol>
+
+                    <h6><i class="fas fa-layer-group me-2"></i>All Courses Calculation</h6>
+                    <ol>
+                        <li>From the main navigation, go to "Calculations" → "All Courses"</li>
+                        <li>The system will automatically process all courses using the optimized calculation engine</li>
+                        <li>You can sort courses by various criteria using the dropdown at the top</li>
+                        <li>Toggle between Absolute and Relative display methods using the radio buttons</li>
+                        <li>View both course-level and program-level outcome achievements</li>
+                    </ol>
+
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-filter me-2"></i><strong>Filtering:</strong> The "All Courses" view respects course exclusion settings. Any courses marked as "Exclude from Reports" in their settings will not be included in program-level aggregations.
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4 border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Understanding Calculation Results</h5>
+                </div>
+                <div class="card-body">
+                    <p>The results page presents several key metrics and visualizations:</p>
+
+                    <h6><i class="fas fa-list-alt me-2"></i>Course Outcome (CO) Achievement</h6>
+                    <ul>
+                        <li>Shows achievement level for each CO defined in the course</li>
+                        <li>Displays raw percentage and corresponding achievement level (e.g., Excellent, Good)</li>
+                        <li>Visualizes achievement using color-coded bars</li>
+                        <li>Provides details about the number of questions and exams assessing each CO</li>
+                    </ul>
+
+                    <h6><i class="fas fa-sitemap me-2"></i>Program Outcome (PO) Contribution</h6>
+                    <ul>
+                        <li>Shows how this course contributes to each program-level outcome</li>
+                        <li>Derived from the COs mapped to each PO</li>
+                        <li>The weighted average of all CO achievements feeding into each PO</li>
+                        <li>In "All Courses" view, shows aggregated PO achievement across all courses</li>
+                    </ul>
+
+                    <h6><i class="fas fa-user-check me-2"></i>Student Success Rate</h6>
+                    <ul>
+                        <li>Shows the percentage of students deemed "successful" based on the chosen calculation method</li>
+                        <li>Details the number of students who met or exceeded the threshold</li>
+                        <li>Displays any students excluded from calculations due to mandatory exam requirements</li>
+                    </ul>
+
+                    <h6><i class="fas fa-table me-2"></i>Detailed Data Tables</h6>
+                    <ul>
+                        <li>Student-level outcome achievement breakdown</li>
+                        <li>Question-by-question performance analysis</li>
+                        <li>Exam-level summary statistics</li>
+                    </ul>
+
+                    <div class="alert alert-success mt-3">
+                        <i class="fas fa-file-export me-2"></i><strong>Export Options:</strong> The calculation results can be exported in various formats:
+                        <ul class="mb-0">
+                            <li><strong>PDF Report:</strong> Formatted document suitable for accreditation evidence</li>
+                            <li><strong>Excel/CSV:</strong> Raw data for further analysis or record-keeping</li>
+                            <li><strong>Charts:</strong> Visualization images for presentations</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-info mt-3">
+                <i class="fas fa-link me-2"></i><strong>Related Sections:</strong>
+                <ul class="mb-0">
+                    <li>See <a href="#outcomes" class="tab-link">Outcomes</a> for details on setting up the outcome structure needed for calculations.</li>
+                    <li>See <a href="#exams" class="tab-link">Exams & Questions</a> for information on linking questions to outcomes.</li>
+                    <li>See <a href="#students" class="tab-link">Students & Scores</a> for understanding how student data feeds into calculations.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Utilities -->
+<div class="tab-pane fade" id="utilities">
+    <div class="card shadow-sm">
+        <div class="card-header" style="background-color: #fd7e14; color: white;">
+            <h4 class="mb-0"><i class="fas fa-tools me-2"></i>Utilities: Data Management & More</h4>
+        </div>
+        <div class="card-body">
+            <p>The Utilities section provides essential tools for managing your application data, accessing logs, and performing system operations.</p>
+            <a href="{{ url_for('utility.index') }}" class="btn btn-sm btn-outline-primary mb-3"><i class="fas fa-cog"></i> Go to Utilities Index</a>
+
+            <div class="card mb-4 border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-database me-2"></i>Database Management</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-download me-2"></i>Backup Database</h6>
+                            <p>Create a safe copy of your entire application database:</p>
+                            <ol>
+                                <li>Navigate to Utilities → Backup Database</li>
+                                <li>Enter an optional description for your backup</li>
+                                <li>Click "Create Backup"</li>
+                                <li>The system will create a timestamped backup file</li>
+                                <li>You can download the backup file or access it later</li>
+                            </ol>
+                            <div class="alert alert-info mt-2">
+                                <i class="fas fa-info-circle me-2"></i><strong>Tip:</strong> Create regular backups, especially before significant changes or at the end of each term. Add clear descriptions that will help you identify the backup's purpose later.
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-upload me-2"></i>Restore Database</h6>
+                            <p>Recover your database from a previously created backup:</p>
+                            <ol>
+                                <li>Navigate to Utilities → Restore Database</li>
+                                <li>Browse the list of available backups</li>
+                                <li>Select the backup you want to restore</li>
+                                <li>Click "Restore"</li>
+                                <li>Confirm the restoration when prompted</li>
+                            </ol>
+                            <div class="alert alert-warning mt-2">
+                                <i class="fas fa-exclamation-triangle me-2"></i><strong>Important:</strong> Restoring a database will replace all current data with the data from the backup. The system will automatically create a backup of your current database before restoration as a safety measure.
+                            </div>
+                        </div>
+                    </div>
+
+                    <h6><i class="fas fa-list me-2"></i>List Backups</h6>
+                    <p>View and manage all your database backups:</p>
+                    <ol>
+                        <li>Navigate to Utilities → List Backups</li>
+                        <li>
+                            View a complete list of all backups with:
+                            <ul>
+                                <li>Timestamp</li>
+                                <li>Description</li>
+                                <li>File size</li>
+                            </ul>
+                        </li>
+                        <li>Download or restore any backup from this interface</li>
+                        <li>Delete old or unnecessary backups</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="card mb-4 border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Data Import & Export</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-file-import me-2"></i>Import Database</h6>
+                            <p>Import data from an external database file:</p>
+                            <ol>
+                                <li>Navigate to Utilities → Import Database</li>
+                                <li>Upload an Accredit Helper Pro database file (.db)</li>
+                                <li>
+                                    Select which components to import:
+                                    <ul>
+                                        <li>Courses</li>
+                                        <li>Students</li>
+                                        <li>Exams</li>
+                                        <li>Outcomes</li>
+                                        <li>Program Outcomes</li>
+                                        <li>Achievement Levels</li>
+                                    </ul>
+                                </li>
+                                <li>Choose whether to merge with existing data or replace it</li>
+                                <li>Click "Import" and confirm when prompted</li>
+                            </ol>
+                            <div class="alert alert-info mt-2">
+                                <i class="fas fa-info-circle me-2"></i><strong>Use Case:</strong> Import data from a colleague's database or from a different computer. Great for department-wide standardization of Program Outcomes.
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-object-group me-2"></i>Merge Courses</h6>
+                            <p>Combine data from multiple related courses:</p>
+                            <ol>
+                                <li>Navigate to Utilities → Merge Courses</li>
+                                <li>Select a destination course that will receive the merged data</li>
+                                <li>Select one or more source courses to merge from</li>
+                                <li>Preview the merge results before proceeding</li>
+                                <li>Confirm the merge operation</li>
+                            </ol>
+                            <div class="alert alert-warning mt-2">
+                                <i class="fas fa-exclamation-triangle me-2"></i><strong>Important:</strong> The merge preview will show potential conflicts such as duplicate student IDs. Review these carefully before proceeding.
+                            </div>
+                        </div>
+                    </div>
+
+                    <h6><i class="fas fa-hand-point-right me-2"></i>Other Export Options</h6>
+                    <p>In addition to full database backups, you can export specific data:</p>
+                    <ul>
+                        <li><strong>Student Lists:</strong> Export students from a course as CSV files</li>
+                        <li><strong>Calculation Results:</strong> Export outcome achievements as PDF, Excel, or CSV</li>
+                        <li><strong>Program Outcomes:</strong> Export PO lists for sharing across departments</li>
+                    </ul>
+                    <div class="alert alert-success mt-3">
+                        <i class="fas fa-lightbulb me-2"></i><strong>Tip:</strong> For large datasets, consider exporting and working with specific components rather than entire database backups when possible.
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4 border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-cloud me-2"></i>Remote Access with Cloudflared</h5>
+                </div>
+                <div class="card-body">
+                    <p>Access your Accredit Helper Pro application from anywhere with our cloudflared integration:</p>
+                    <ul>
+                        <li><strong>Share with Colleagues:</strong> Generate a secure public URL for collaboration</li>
+                        <li><strong>Remote Access:</strong> Use your application from any device with internet</li>
+                        <li><strong>Simple Setup:</strong> Just install cloudflared and run with the <code>--cloud</code> flag</li>
+                    </ul>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>For detailed instructions on setting up and using cloudflared,
+                        <a href="{{ url_for('utility.cloud_help_page') }}" class="alert-link">visit our dedicated Remote Access guide</a>.
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4 border-secondary">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-list-alt me-2"></i>System Logs</h5>
+                </div>
+                <div class="card-body">
+                    <p>Track and review system activities and changes made in the application:</p>
+                    <ol>
+                        <li>Navigate to Utilities → System Logs</li>
+                        <li>Browse the chronological list of application actions</li>
+                        <li>
+                            Filter logs by:
+                            <ul>
+                                <li>Date range</li>
+                                <li>Action type (create, update, delete, etc.)</li>
+                                <li>Description contains specific text</li>
+                            </ul>
+                        </li>
+                        <li>Export log data for record-keeping</li>
+                    </ol>
+                    <div class="alert alert-info mt-2">
+                        <i class="fas fa-search me-2"></i><strong>Use Cases:</strong> Logs are useful for troubleshooting issues, tracking changes, identifying when specific actions occurred, and generating activity reports for administrative purposes.
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-info mt-3">
+                <i class="fas fa-link me-2"></i><strong>Related Sections:</strong>
+                <ul class="mb-0">
+                    <li>See <a href="#troubleshooting" class="tab-link">Troubleshooting</a> for help with common issues related to utilities.</li>
+                    <li>For Remote Access help, visit the dedicated <a href="{{ url_for('utility.cloud_help_page') }}">Remote Access Guide</a>.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header bg-light">
+            <h6 class="mb-0">Missing or Unexpected Data</h6>
+        </div>
+        <div class="card-body">
+            <p><strong>Symptoms:</strong> Courses, exams, or students that should be present are missing, or data appears incorrect.</p>
+
+            <p><strong>Possible Causes & Solutions:</strong></p>
+            <ul>
+                <li>
+                    <strong>Accidental Deletion:</strong>
+                    <ul>
+                        <li>Restore from a recent backup if available</li>
+                        <li>Check the system logs for deletion actions: Utilities → View Logs</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>Wrong Database File:</strong>
+                    <ul>
+                        <li>Ensure you're using the correct database file (particularly if you use multiple databases)</li>
+                        <li>Check the backup list to verify which database is currently active</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>Data Import Issues:</strong>
+                    <ul>
+                        <li>If data appears after an import operation, verify the import settings were correct</li>
+                        <li>You may need to restore from a pre-import backup and retry with different settings</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Add CSS to fix tab pane display and add search highlight style
-    const style = document.createElement('style');
-    style.textContent = `
+    document.addEventListener('DOMContentLoaded', function () {
+        // Add CSS to fix tab pane display and add search highlight style
+        const style = document.createElement('style');
+        style.textContent = `
         /* Remove any display:none from tab-panes outside the container */
         .tab-pane {
             display: none;
@@ -2316,204 +3132,204 @@ document.addEventListener('DOMContentLoaded', function() {
             display: block !important;
         }
     `;
-    document.head.appendChild(style);
+        document.head.appendChild(style);
 
-    // Get the hash from the URL (without the # symbol)
-    let hash = window.location.hash;
-    
-    // Initialize all tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl)
-    });
-    
-    // Function to activate tab based on hash
-    function activateTabFromHash(hash) {
-        if (!hash || hash === '') return;
-        
-        // Ensure hash has a # at the beginning
-        if (!hash.startsWith('#')) {
-            hash = '#' + hash;
-        }
-        
-        // Get the tab link
-        const tabSelector = `#helpNav a[href="${hash}"]`;
-        const tabElement = document.querySelector(tabSelector);
-        
-        if (tabElement) {
-            // Manually handle the tab activation
-            // 1. Remove active class from all tab links
-            document.querySelectorAll('#helpNav a').forEach(el => {
-                el.classList.remove('active');
-            });
-            
-            // 2. Add active class to selected tab link
-            tabElement.classList.add('active');
-            
-            // 3. Hide all tab panes in the tab-content container only
-            document.querySelectorAll('#helpContent .tab-pane').forEach(pane => {
-                pane.style.display = 'none'; // Explicitly hide
-                pane.classList.remove('show', 'active');
-            });
-            
-            // 4. Show the selected tab pane inside the container only
-            const targetPane = document.querySelector('#helpContent ' + hash);
-            if (targetPane) {
-                targetPane.style.display = 'block'; // Explicitly show with block display
-                // Add show/active classes immediately without delay
-                targetPane.classList.add('show', 'active');
+        // Get the hash from the URL (without the # symbol)
+        let hash = window.location.hash;
 
-                // Scroll to the top of the tab content area, not the pane itself
-                setTimeout(() => {
-                    // Scroll to the top of the content area
-                    document.querySelector('.tab-content').scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                }, 50);
-            } else {
-                // Log error if the target pane wasn't found
-                console.warn('Hash link target pane not found inside tab content:', hash);
+        // Initialize all tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+
+        // Function to activate tab based on hash
+        function activateTabFromHash(hash) {
+            if (!hash || hash === '') return;
+
+            // Ensure hash has a # at the beginning
+            if (!hash.startsWith('#')) {
+                hash = '#' + hash;
             }
-            
-            // Important fix: Hide any tab panes with the same ID that might be outside the container
-            const outsidePanes = document.querySelectorAll(':not(#helpContent) > .tab-pane, :not(#helpContent) [role="tabpanel"]');
-            outsidePanes.forEach(pane => {
-                pane.style.display = 'none';
-            });
+
+            // Get the tab link
+            const tabSelector = `#helpNav a[href="${hash}"]`;
+            const tabElement = document.querySelector(tabSelector);
+
+            if (tabElement) {
+                // Manually handle the tab activation
+                // 1. Remove active class from all tab links
+                document.querySelectorAll('#helpNav a').forEach(el => {
+                    el.classList.remove('active');
+                });
+
+                // 2. Add active class to selected tab link
+                tabElement.classList.add('active');
+
+                // 3. Hide all tab panes in the tab-content container only
+                document.querySelectorAll('#helpContent .tab-pane').forEach(pane => {
+                    pane.style.display = 'none'; // Explicitly hide
+                    pane.classList.remove('show', 'active');
+                });
+
+                // 4. Show the selected tab pane inside the container only
+                const targetPane = document.querySelector('#helpContent ' + hash);
+                if (targetPane) {
+                    targetPane.style.display = 'block'; // Explicitly show with block display
+                    // Add show/active classes immediately without delay
+                    targetPane.classList.add('show', 'active');
+
+                    // Scroll to the top of the tab content area, not the pane itself
+                    setTimeout(() => {
+                        // Scroll to the top of the content area
+                        document.querySelector('.tab-content').scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }, 50);
+                } else {
+                    // Log error if the target pane wasn't found
+                    console.warn('Hash link target pane not found inside tab content:', hash);
+                }
+
+                // Important fix: Hide any tab panes with the same ID that might be outside the container
+                const outsidePanes = document.querySelectorAll(':not(#helpContent) > .tab-pane, :not(#helpContent) [role="tabpanel"]');
+                outsidePanes.forEach(pane => {
+                    pane.style.display = 'none';
+                });
+            } else {
+                console.warn('Hash link navigation element not found:', tabSelector);
+            }
+        }
+
+        // Initial activation based on URL hash
+        if (hash) {
+            activateTabFromHash(hash);
         } else {
-            console.warn('Hash link navigation element not found:', tabSelector);
+            // If no hash, activate the overview tab
+            activateTabFromHash('#overview');
         }
-    }
 
-    // Initial activation based on URL hash
-    if (hash) {
-        activateTabFromHash(hash);
-    } else {
-        // If no hash, activate the overview tab
-        activateTabFromHash('#overview');
-    }
-
-    // Make sure any outside tab-panes are hidden on page load
-    const outsidePanes = document.querySelectorAll(':not(#helpContent) > .tab-pane, :not(#helpContent) [role="tabpanel"]');
-    outsidePanes.forEach(pane => {
-        pane.style.display = 'none';
-    });
-
-    // Handle all intra-document tab links
-    document.querySelectorAll('.tab-link').forEach(link => {
-        link.addEventListener('click', function(event) {
-            event.preventDefault();
-            const newHash = this.getAttribute('href');
-            
-            // Update URL hash
-            if (history.pushState) {
-                history.pushState(null, null, newHash);
-            } else {
-                window.location.hash = newHash;
-            }
-            
-            // Activate the tab manually
-            activateTabFromHash(newHash);
+        // Make sure any outside tab-panes are hidden on page load
+        const outsidePanes = document.querySelectorAll(':not(#helpContent) > .tab-pane, :not(#helpContent) [role="tabpanel"]');
+        outsidePanes.forEach(pane => {
+            pane.style.display = 'none';
         });
-    });
 
-    // Update URL hash when tabs change for bookmarking/linking
-    const tabLinks = document.querySelectorAll('#helpNav a[data-bs-toggle="list"]');
-    tabLinks.forEach(link => {
-        link.addEventListener('click', function(event) {
-            // Prevent the default behavior to manage navigation manually
-            event.preventDefault();
-            
-            // Get the href attribute which contains the hash
-            const newHash = this.getAttribute('href');
-            
-            // Update URL hash
-            if (history.pushState) {
-                history.pushState(null, null, newHash);
-            } else {
-                window.location.hash = newHash;
-            }
-            
-            // Activate the tab manually
-            activateTabFromHash(newHash);
-        });
-    });
+        // Handle all intra-document tab links
+        document.querySelectorAll('.tab-link').forEach(link => {
+            link.addEventListener('click', function (event) {
+                event.preventDefault();
+                const newHash = this.getAttribute('href');
 
-    // Handle browser back/forward buttons
-    window.addEventListener('popstate', function(event) {
-        const newHash = window.location.hash;
-        activateTabFromHash(newHash);
-    });
-    
-    // Search functionality
-    const searchInput = document.getElementById('helpSearchInput');
-    const searchBtn = document.getElementById('helpSearchBtn');
-    const searchResults = document.getElementById('searchResults');
-    const searchResultsList = document.getElementById('searchResultsList');
-    const resultCount = document.getElementById('resultCount');
-    const closeSearchResults = document.getElementById('closeSearchResults');
-    
-    // Function to perform search
-    function performSearch() {
-        const searchTerm = searchInput.value.toLowerCase().trim();
-        if (searchTerm === '') {
-            searchResults.classList.add('d-none');
-            return;
-        }
-        
-        // Clear previous results
-        searchResultsList.innerHTML = '';
-        
-        // Get all the content from tab panes
-        const tabPanes = document.querySelectorAll('.tab-pane');
-        let results = [];
-        
-        tabPanes.forEach(pane => {
-            const paneId = pane.id;
-            if (!paneId) return; // Skip panes without IDs
-            
-            const tabLink = document.querySelector(`#helpNav a[href="#${paneId}"]`);
-            const sectionTitle = tabLink ? tabLink.textContent.trim() : 'Unknown Section';
-            
-            // Get headings within the pane
-            const headings = pane.querySelectorAll('h4, h5, h6');
-            headings.forEach(heading => {
-                const headingText = heading.textContent.trim();
-                if (headingText.toLowerCase().includes(searchTerm)) {
-                    results.push({
-                        section: sectionTitle,
-                        title: headingText,
-                        paneId: paneId,
-                        element: heading
-                    });
+                // Update URL hash
+                if (history.pushState) {
+                    history.pushState(null, null, newHash);
+                } else {
+                    window.location.hash = newHash;
                 }
-            });
-            
-            // Get paragraphs and list items
-            const textElements = pane.querySelectorAll('p, li, .alert');
-            textElements.forEach(el => {
-                const text = el.textContent.trim();
-                if (text.toLowerCase().includes(searchTerm)) {
-                    results.push({
-                        section: sectionTitle,
-                        title: text.length > 100 ? text.substring(0, 100) + '...' : text,
-                        paneId: paneId,
-                        element: el
-                    });
-                }
+
+                // Activate the tab manually
+                activateTabFromHash(newHash);
             });
         });
-        
-        // Update results count
-        resultCount.textContent = results.length;
-        
-        // Display results
-        if (results.length > 0) {
-            results.forEach(result => {
-                const listItem = document.createElement('li');
-                listItem.className = 'list-group-item';
-                listItem.innerHTML = `
+
+        // Update URL hash when tabs change for bookmarking/linking
+        const tabLinks = document.querySelectorAll('#helpNav a[data-bs-toggle="list"]');
+        tabLinks.forEach(link => {
+            link.addEventListener('click', function (event) {
+                // Prevent the default behavior to manage navigation manually
+                event.preventDefault();
+
+                // Get the href attribute which contains the hash
+                const newHash = this.getAttribute('href');
+
+                // Update URL hash
+                if (history.pushState) {
+                    history.pushState(null, null, newHash);
+                } else {
+                    window.location.hash = newHash;
+                }
+
+                // Activate the tab manually
+                activateTabFromHash(newHash);
+            });
+        });
+
+        // Handle browser back/forward buttons
+        window.addEventListener('popstate', function (event) {
+            const newHash = window.location.hash;
+            activateTabFromHash(newHash);
+        });
+
+        // Search functionality
+        const searchInput = document.getElementById('helpSearchInput');
+        const searchBtn = document.getElementById('helpSearchBtn');
+        const searchResults = document.getElementById('searchResults');
+        const searchResultsList = document.getElementById('searchResultsList');
+        const resultCount = document.getElementById('resultCount');
+        const closeSearchResults = document.getElementById('closeSearchResults');
+
+        // Function to perform search
+        function performSearch() {
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            if (searchTerm === '') {
+                searchResults.classList.add('d-none');
+                return;
+            }
+
+            // Clear previous results
+            searchResultsList.innerHTML = '';
+
+            // Get all the content from tab panes
+            const tabPanes = document.querySelectorAll('.tab-pane');
+            let results = [];
+
+            tabPanes.forEach(pane => {
+                const paneId = pane.id;
+                if (!paneId) return; // Skip panes without IDs
+
+                const tabLink = document.querySelector(`#helpNav a[href="#${paneId}"]`);
+                const sectionTitle = tabLink ? tabLink.textContent.trim() : 'Unknown Section';
+
+                // Get headings within the pane
+                const headings = pane.querySelectorAll('h4, h5, h6');
+                headings.forEach(heading => {
+                    const headingText = heading.textContent.trim();
+                    if (headingText.toLowerCase().includes(searchTerm)) {
+                        results.push({
+                            section: sectionTitle,
+                            title: headingText,
+                            paneId: paneId,
+                            element: heading
+                        });
+                    }
+                });
+
+                // Get paragraphs and list items
+                const textElements = pane.querySelectorAll('p, li, .alert');
+                textElements.forEach(el => {
+                    const text = el.textContent.trim();
+                    if (text.toLowerCase().includes(searchTerm)) {
+                        results.push({
+                            section: sectionTitle,
+                            title: text.length > 100 ? text.substring(0, 100) + '...' : text,
+                            paneId: paneId,
+                            element: el
+                        });
+                    }
+                });
+            });
+
+            // Update results count
+            resultCount.textContent = results.length;
+
+            // Display results
+            if (results.length > 0) {
+                results.forEach(result => {
+                    const listItem = document.createElement('li');
+                    listItem.className = 'list-group-item';
+                    listItem.innerHTML = `
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <small class="text-muted">Section: ${result.section}</small>
@@ -2522,96 +3338,96 @@ document.addEventListener('DOMContentLoaded', function() {
                         <button class="btn btn-sm btn-primary">View</button>
                     </div>
                 `;
-                
-                // Add click handler to go to result
-                listItem.querySelector('button').addEventListener('click', () => {
-                    // Activate the tab
-                    activateTabFromHash(`#${result.paneId}`);
-                    
-                    // Update URL hash
-                    if (history.pushState) {
-                        history.pushState(null, null, `#${result.paneId}`);
-                    } else {
-                        window.location.hash = `#${result.paneId}`;
-                    }
-                    
-                    // Scroll to the specific element and highlight it
-                    setTimeout(() => {
-                        // Check if the element is inside an accordion collapse
-                        const accordionCollapse = result.element.closest('.accordion-collapse');
-                        if (accordionCollapse && !accordionCollapse.classList.contains('show')) {
-                            // Find the button that controls this collapse
-                            const accordionId = accordionCollapse.id;
-                            const accordionButton = document.querySelector(`button[data-bs-target="#${accordionId}"]`);
-                            if (accordionButton) {
-                                // Click the button to expand the accordion
-                                accordionButton.click();
-                            }
+
+                    // Add click handler to go to result
+                    listItem.querySelector('button').addEventListener('click', () => {
+                        // Activate the tab
+                        activateTabFromHash(`#${result.paneId}`);
+
+                        // Update URL hash
+                        if (history.pushState) {
+                            history.pushState(null, null, `#${result.paneId}`);
+                        } else {
+                            window.location.hash = `#${result.paneId}`;
                         }
 
-                        // Now scroll to the element
-                        result.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        
-                        // Add highlight effect
-                        result.element.classList.add('highlight-search');
+                        // Scroll to the specific element and highlight it
                         setTimeout(() => {
-                            result.element.classList.remove('highlight-search');
-                        }, 3000);
-                    }, 300);
-                    
-                    // Hide search results
-                    searchResults.classList.add('d-none');
+                            // Check if the element is inside an accordion collapse
+                            const accordionCollapse = result.element.closest('.accordion-collapse');
+                            if (accordionCollapse && !accordionCollapse.classList.contains('show')) {
+                                // Find the button that controls this collapse
+                                const accordionId = accordionCollapse.id;
+                                const accordionButton = document.querySelector(`button[data-bs-target="#${accordionId}"]`);
+                                if (accordionButton) {
+                                    // Click the button to expand the accordion
+                                    accordionButton.click();
+                                }
+                            }
+
+                            // Now scroll to the element
+                            result.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                            // Add highlight effect
+                            result.element.classList.add('highlight-search');
+                            setTimeout(() => {
+                                result.element.classList.remove('highlight-search');
+                            }, 3000);
+                        }, 300);
+
+                        // Hide search results
+                        searchResults.classList.add('d-none');
+                    });
+
+                    searchResultsList.appendChild(listItem);
                 });
-                
-                searchResultsList.appendChild(listItem);
-            });
-            searchResults.classList.remove('d-none');
-        } else {
-            // Show no results message
-            const noResults = document.createElement('li');
-            noResults.className = 'list-group-item text-center';
-            noResults.textContent = 'No results found. Try different keywords.';
-            searchResultsList.appendChild(noResults);
-            searchResults.classList.remove('d-none');
-        }
-    }
-    
-    // Search button click event
-    searchBtn.addEventListener('click', performSearch);
-    
-    // Search on Enter key
-    searchInput.addEventListener('keyup', function(event) {
-        if (event.key === 'Enter') {
-            performSearch();
-        }
-    });
-    
-    // Close search results
-    closeSearchResults.addEventListener('click', function() {
-        searchResults.classList.add('d-none');
-    });
-    
-    // Form validation for feedback form
-    const feedbackForm = document.getElementById('feedbackForm');
-    if (feedbackForm) {
-        feedbackForm.addEventListener('submit', function(event) {
-            event.preventDefault();
-            // Basic validation
-            const name = document.getElementById('feedbackName').value;
-            const email = document.getElementById('feedbackEmail').value;
-            const message = document.getElementById('feedbackMessage').value;
-            const feedbackType = document.getElementById('feedbackType').value;
-            
-            if (!name || !email || !message || !feedbackType) {
-                alert('Please fill out all required fields');
-                return;
+                searchResults.classList.remove('d-none');
+            } else {
+                // Show no results message
+                const noResults = document.createElement('li');
+                noResults.className = 'list-group-item text-center';
+                noResults.textContent = 'No results found. Try different keywords.';
+                searchResultsList.appendChild(noResults);
+                searchResults.classList.remove('d-none');
             }
-            
-            // This would normally submit the form - for now just show a success message
-            alert('Thank you for your feedback! We will review it shortly.');
-            feedbackForm.reset();
+        }
+
+        // Search button click event
+        searchBtn.addEventListener('click', performSearch);
+
+        // Search on Enter key
+        searchInput.addEventListener('keyup', function (event) {
+            if (event.key === 'Enter') {
+                performSearch();
+            }
         });
-    }
-});
+
+        // Close search results
+        closeSearchResults.addEventListener('click', function () {
+            searchResults.classList.add('d-none');
+        });
+
+        // Form validation for feedback form
+        const feedbackForm = document.getElementById('feedbackForm');
+        if (feedbackForm) {
+            feedbackForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                // Basic validation
+                const name = document.getElementById('feedbackName').value;
+                const email = document.getElementById('feedbackEmail').value;
+                const message = document.getElementById('feedbackMessage').value;
+                const feedbackType = document.getElementById('feedbackType').value;
+
+                if (!name || !email || !message || !feedbackType) {
+                    alert('Please fill out all required fields');
+                    return;
+                }
+
+                // This would normally submit the form - for now just show a success message
+                alert('Thank you for your feedback! We will review it shortly.');
+                feedbackForm.reset();
+            });
+        }
+    });
 </script>
 {% endblock %} 
