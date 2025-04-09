@@ -72,11 +72,6 @@
     *   [Import/Export & Data Transfer Issues](#importexport--data-transfer-issues)
     *   [Performance & Responsiveness Issues](#performance--responsiveness-issues)
     *   [Common Application Issues](#troubleshooting--common-issues)
-13. [Privacy Policy](#privacy-policy-)
-14. [Terms of Use](#terms-of-use-)
-15. [Contact & Support](#contact--support-)
-16. [Contributing](#contributing-)
-17. [License](#license-)
 
 ---
 
