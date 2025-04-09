@@ -1,5 +1,7 @@
 # Accredit Helper Pro
 
+**Accredit Helper Pro** is a comprehensive tool designed for educational institutions to manage course data, track student performance against learning outcomes (POs and COs), and streamline the accreditation assessment process (e.g., ABET, MÜDEK).
+
 ## 🛒 Purchase Department License here (all department staff can use): 
 https://www.patreon.com/SECourses/shop/accredit-helper-pro-10x-speed-up-your-1440486
 
@@ -8,7 +10,10 @@ https://www.patreon.com/SECourses/shop/accredit-helper-pro-university-wide-14405
 
 ## ♾️ Licenses are lifetime (permanent) and you will receive app updates for life
 
-**Accredit Helper Pro** is a comprehensive tool designed for educational institutions to manage course data, track student performance against learning outcomes (POs and COs), and streamline the accreditation assessment process (e.g., ABET, MÜDEK).
+## Screenshots of the Accredit Helper Pro
+
+![b0](https://github.com/user-attachments/assets/c9d6dff4-a79e-4892-9958-e08370ee86b0)
+
 
 ---
 
