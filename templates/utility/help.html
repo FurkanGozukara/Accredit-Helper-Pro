@@ -52,7 +52,7 @@
                 <a class="list-group-item list-group-item-action" href="#students" data-bs-toggle="list"><i class="fas fa-user-graduate me-2"></i>Students & Scores</a>
                 <a class="list-group-item list-group-item-action" href="#calculation" data-bs-toggle="list"><i class="fas fa-calculator me-2"></i>Accredit Calculations</a>
                 <a class="list-group-item list-group-item-action" href="#utilities" data-bs-toggle="list"><i class="fas fa-tools me-2"></i>Utilities</a>
-                <a class="list-group-item list-group-item-action" href="{{ url_for('utility.cloud_help_page') }}"><i class="fas fa-cloud me-2"></i>Remote Access</a>
+                <a class="list-group-item list-group-item-action" href="#remote-access" data-bs-toggle="list"><i class="fas fa-cloud me-2"></i>Remote Access</a>
                 <a class="list-group-item list-group-item-action" href="#troubleshooting" data-bs-toggle="list"><i class="fas fa-wrench me-2"></i>Troubleshooting</a>
                 <a class="list-group-item list-group-item-action" href="#privacy-policy" data-bs-toggle="list"><i class="fas fa-shield-alt me-2"></i>Privacy Policy</a>
                 <a class="list-group-item list-group-item-action" href="#terms-of-use" data-bs-toggle="list"><i class="fas fa-gavel me-2"></i>Terms of Use</a>
@@ -84,6 +84,14 @@
                                         <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Exam Management</strong> - Organize assessments with flexible weighting systems</li>
                                         <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Question-Outcome Mapping</strong> - Link individual questions to specific learning outcomes</li>
                                         <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Student Management</strong> - Import and track individual students across courses</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Attendance Tracking</strong> - Record and manage student attendance for exams with automated import</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Student Exclusion Control</strong> - Manually exclude/include specific students from outcome calculations</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>API Functionality</strong> - Access data programmatically via REST endpoints</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Advanced Exam Features</strong> - Support for makeup exams, final exam designation, and mandatory exam attendance</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Advanced API Integration</strong> - Query student scores, outcome data, and more via REST endpoints</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Enhanced Search</strong> - Find specific information across courses with the built-in search functionality</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Data Visualization</strong> - View interactive charts and graphs for outcome achievements</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Course Duplication</strong> - Quickly set up new courses based on existing templates</li>
                                     </ul>
                                 </div>
                                 <div class="col-md-6">
@@ -93,6 +101,15 @@
                                         <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Custom Achievement Levels</strong> - Define your own performance categories</li>
                                         <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Reporting</strong> - Generate accreditation-ready reports and exports</li>
                                         <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Data Management</strong> - Backup, restore, merge, and import data seamlessly</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Multiple Calculation Methods</strong> - Choose between absolute and relative achievement models</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Activity Logging</strong> - Track all significant actions within the system</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Batch Operations</strong> - Add and manage multiple questions, outcomes, students (including deletion), and attendance records efficiently</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Mass Association Tool</strong> - Quickly connect multiple questions to outcomes using simple syntax</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>AJAX-based Interface</strong> - Responsive, real-time updates for score entry and attendance tracking</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Secure Remote Access</strong> - Use Cloudflare Tunnel for accessing the application from anywhere</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Multi-course Analysis</strong> - Analyze program outcomes across all courses with optimized performance</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Student Score Export</strong> - Export detailed student performance data in multiple formats</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Detailed Exam Data Exports</strong> - Export exam structure, questions, outcomes, and scores for analysis or backup</li>
                                     </ul>
                                 </div>
                             </div>
@@ -105,6 +122,8 @@
                                     <li><strong>Efficient Resource Usage:</strong> Minimized database queries for better performance with large datasets</li>
                                     <li><strong>Consistent Makeup Exam Handling:</strong> Enhanced synchronization of makeup exam weights with original exams</li>
                                     <li><strong>Standardized Student Exclusion:</strong> Improved logic for handling mandatory exam attendance</li>
+                                    <li><strong>Enhanced Attendance Management:</strong> AJAX-based attendance tracking with bulk import/export capabilities</li>
+                                    <li><strong>Robust Remote Access:</strong> Improved Cloudflare Tunnel integration for seamless remote usage</li>
                                 </ul>
                             </div>
 
@@ -199,11 +218,11 @@
                                 <!-- Step 2 -->
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingTwo">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="true" aria-controls="collapseTwo">
                                             <strong>Step 2: Create a Course</strong>
                                         </button>
                                     </h2>
-                                    <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#workflowAccordion">
+                                    <div id="collapseTwo" class="accordion-collapse collapse show" aria-labelledby="headingTwo" data-bs-parent="#workflowAccordion">
                                         <div class="accordion-body">
                                             <p>Each course instance represents a specific offering of a course in a particular semester or term.</p>
 
@@ -229,11 +248,11 @@
                                 <!-- Step 3 -->
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingThree">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="true" aria-controls="collapseThree">
                                             <strong>Step 3: Define Course Outcomes (COs)</strong>
                                         </button>
                                     </h2>
-                                    <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#workflowAccordion">
+                                    <div id="collapseThree" class="accordion-collapse collapse show" aria-labelledby="headingThree" data-bs-parent="#workflowAccordion">
                                         <div class="accordion-body">
                                             <p>Course Outcomes are specific, measurable learning objectives for your course. Each CO must be linked to one or more Program Outcomes it supports.</p>
 
@@ -263,11 +282,11 @@
                                 <!-- Steps 4-8 -->
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingFour">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="true" aria-controls="collapseFour">
                                             <strong>Step 4: Add Exams and Set Weights</strong>
                                         </button>
                                     </h2>
-                                    <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#workflowAccordion">
+                                    <div id="collapseFour" class="accordion-collapse collapse show" aria-labelledby="headingFour" data-bs-parent="#workflowAccordion">
                                         <div class="accordion-body">
                                             <p>Exams represent all assessed activities in your course, including traditional exams, quizzes, projects, and assignments.</p>
 
@@ -281,7 +300,7 @@
                                                     Check appropriate options if applicable:
                                                     <ul>
                                                         <li><strong>Is Final Exam?</strong> - Check for the final examination</li>
-                                                        <li><strong>Is Mandatory?</strong> - Check if required for all students. When an exam is marked as mandatory, students who have a score of zero (or no score) for both the mandatory exam and its makeup exam (if any) will be excluded from all outcome calculations. This feature helps ensure that only students who participated in required assessments are included in the final outcome achievement calculations.</li>
+                                                        <li><strong>Is Mandatory?</strong> - Check if required for all students. The mandatory exam system excludes students from outcome calculations if they have not completed ANY mandatory exams (including their makeup versions). Students will only be included in calculations if they have a non-zero score for at least one mandatory exam or its makeup. This helps ensure that outcome achievements reflect only students who actively participated in key assessments.</li>
                                                         <li><strong>Is Makeup Exam?</strong> - Check for makeup exams (and select which exam it replaces)</li>
                                                     </ul>
                                                 </li>
@@ -300,17 +319,30 @@
                                             <div class="alert alert-warning">
                                                 <i class="fas fa-balance-scale me-2"></i><strong>Note:</strong> Exam weights determine how each assessment contributes to the final course grade and outcome calculations. Makeup exams automatically inherit the weight of the original exam they replace.
                                             </div>
+
+                                            <h6 class="mt-3">Managing Makeup Exams:</h6>
+                                            <ol>
+                                                <li>When creating an exam, check the "Is Makeup Exam?" option and select which exam it replaces</li>
+                                                <li>Makeup exams automatically inherit the weight of the original exam they replace</li>
+                                                <li>When entering scores, only record scores for students who took the makeup exam</li>
+                                                <li>The system automatically uses a student's makeup score if available, otherwise it uses their original exam score</li>
+                                                <li>If makeup relationships become inconsistent, use the "Fix Makeup Relations" button in the Exams section to automatically repair them</li>
+                                            </ol>
+
+                                            <div class="alert alert-info">
+                                                <i class="fas fa-tools me-2"></i><strong>Maintenance Tool:</strong> The "Fix Makeup Relations" feature automatically repairs any inconsistencies in makeup exam relationships, ensuring that calculations work correctly.
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingFive">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFive" aria-expanded="false" aria-controls="collapseFive">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFive" aria-expanded="true" aria-controls="collapseFive">
                                             <strong>Step 5: Add Questions & Link to Course Outcomes</strong>
                                         </button>
                                     </h2>
-                                    <div id="collapseFive" class="accordion-collapse collapse" aria-labelledby="headingFive" data-bs-parent="#workflowAccordion">
+                                    <div id="collapseFive" class="accordion-collapse collapse show" aria-labelledby="headingFive" data-bs-parent="#workflowAccordion">
                                         <div class="accordion-body">
                                             <p>Questions are the individual assessment items within each exam. This critical step links specific questions to the Course Outcomes they assess.</p>
 
@@ -326,6 +358,10 @@
                                                 <li>Repeat this process for all exams in the course</li>
                                             </ol>
 
+                                            <div class="alert alert-secondary mt-3">
+                                                <i class="fas fa-layer-group me-2"></i><strong>Batch Operations:</strong> For efficiency, you can use the "Batch Add Questions" feature on the Exam Detail page to create multiple questions at once. See the <a href="#exams" class="tab-link">Exams & Questions</a> section for details. The Mass Association Tool (covered later) is also useful here.
+                                            </div>
+
                                             <div class="alert alert-danger">
                                                 <i class="fas fa-link me-2"></i><strong>Critical Mapping:</strong> The link between questions and COs is the foundation of outcome assessment. Each question should be carefully mapped to the specific COs it measures. A question can assess multiple COs if appropriate.
                                             </div>
@@ -339,11 +375,11 @@
 
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingSix">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSix" aria-expanded="false" aria-controls="collapseSix">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSix" aria-expanded="true" aria-controls="collapseSix">
                                             <strong>Step 6: Add Students to the Course</strong>
                                         </button>
                                     </h2>
-                                    <div id="collapseSix" class="accordion-collapse collapse" aria-labelledby="headingSix" data-bs-parent="#workflowAccordion">
+                                    <div id="collapseSix" class="accordion-collapse collapse show" aria-labelledby="headingSix" data-bs-parent="#workflowAccordion">
                                         <div class="accordion-body">
                                             <p>Add all students enrolled in your course. The application offers multiple methods for adding students.</p>
 
@@ -389,6 +425,12 @@
                                                 <li>Click "Import"</li>
                                             </ol>
 
+                                            <h6 class="mt-3"><i class="fas fa-user-slash me-2"></i>Managing Student Exclusion</h6>
+                                            <p>You can manually exclude specific students from outcome calculations if needed (e.g., students who dropped the course late). From the "Students" list on the Course Detail page, use the "Exclude/Include" toggle next to the student's name. Excluded students will not be counted in the results generated in Step 8.</p>
+
+                                            <h6 class="mt-3"><i class="fas fa-clipboard-check me-2"></i>Tracking Attendance</h6>
+                                            <p>Optionally, you can track student attendance for each exam. Access this via the "Manage Attendance" button on the Exam Detail page. Attendance data can be factored into calculations depending on course settings. Batch import of attendance is also available. See the <a href="#student-attendance" class="tab-link">Student Attendance</a> section for details.</p>
+
                                             <div class="alert alert-info">
                                                 <i class="fas fa-file-export me-2"></i><strong>Student Export:</strong> You can export your student list at any time using the "Export Students" button. This creates a CSV file you can open in Excel or other spreadsheet applications.
                                             </div>
@@ -398,11 +440,11 @@
 
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingSeven">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSeven" aria-expanded="false" aria-controls="collapseSeven">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSeven" aria-expanded="true" aria-controls="collapseSeven">
                                             <strong>Step 7: Enter Student Scores</strong>
                                         </button>
                                     </h2>
-                                    <div id="collapseSeven" class="accordion-collapse collapse" aria-labelledby="headingSeven" data-bs-parent="#workflowAccordion">
+                                    <div id="collapseSeven" class="accordion-collapse collapse show" aria-labelledby="headingSeven" data-bs-parent="#workflowAccordion">
                                         <div class="accordion-body">
                                             <p>Record each student's performance on each question of every exam.</p>
 
@@ -438,12 +480,57 @@
                                 </div>
 
                                 <div class="accordion-item">
+                                    <h2 class="accordion-header" id="headingMassAssociation">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMassAssociation" aria-expanded="true" aria-controls="collapseMassAssociation">
+                                            <strong>Advanced Feature: Mass Association Tool</strong>
+                                        </button>
+                                    </h2>
+                                    <div id="collapseMassAssociation" class="accordion-collapse collapse show" aria-labelledby="headingMassAssociation" data-bs-parent="#workflowAccordion">
+                                        <div class="accordion-body">
+                                            <p>For exams with many questions, mapping each question to course outcomes individually can be time-consuming. The Mass Association Tool allows you to quickly connect multiple questions to outcomes using a simple syntax.</p>
+
+                                            <h6><i class="fas fa-cogs me-2"></i>How to Use the Mass Association Tool</h6>
+                                            <ol>
+                                                <li>From an Exam's detail page, look for the "Mass Associate Outcomes" button</li>
+                                                <li>In the dialog that appears, you'll see a text area where you can enter associations using the following syntax:</li>
+                                            </ol>
+                                            <pre class="bg-light p-2">q1:oc1;q2:oc2:oc3;q3:oc1:oc4</pre>
+                                            <p>Where:</p>
+                                            <ul>
+                                                <li><code>q#</code> represents the question number (e.g., q1 is question 1)</li>
+                                                <li><code>oc#</code> represents the course outcome number (e.g., oc1 is CO1)</li>
+                                                <li>Use colon <code>:</code> to separate the question from its outcomes</li>
+                                                <li>Use multiple colons to associate a question with multiple outcomes</li>
+                                                <li>Use semicolon <code>;</code> to separate different question associations</li>
+                                            </ul>
+                                            <ol start="3">
+                                                <li>Click "Apply Associations" to update all question-outcome mappings at once</li>
+                                            </ol>
+
+                                            <div class="alert alert-success">
+                                                <i class="fas fa-lightbulb me-2"></i><strong>Example:</strong> <code>q1:oc1:oc2;q2:oc3;q3:oc1:oc3:oc4;</code><br>
+                                                This will:
+                                                <ul class="mb-0">
+                                                    <li>Associate Question 1 with Course Outcomes 1 and 2</li>
+                                                    <li>Associate Question 2 with Course Outcome 3</li>
+                                                    <li>Associate Question 3 with Course Outcomes 1, 3, and 4</li>
+                                                </ul>
+                                            </div>
+
+                                            <div class="alert alert-warning">
+                                                <i class="fas fa-exclamation-triangle me-2"></i><strong>Important:</strong> This tool will replace any existing outcome associations for the questions specified. If you want to keep existing associations, include them in your syntax.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingEight">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseEight" aria-expanded="false" aria-controls="collapseEight">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseEight" aria-expanded="true" aria-controls="collapseEight">
                                             <strong>Step 8: Calculate Results & Generate Reports</strong>
                                         </button>
                                     </h2>
-                                    <div id="collapseEight" class="accordion-collapse collapse" aria-labelledby="headingEight" data-bs-parent="#workflowAccordion">
+                                    <div id="collapseEight" class="accordion-collapse collapse show" aria-labelledby="headingEight" data-bs-parent="#workflowAccordion">
                                         <div class="accordion-body">
                                             <p>The final step - calculate outcome achievement levels and generate reports for accreditation purposes.</p>
 
@@ -464,14 +551,16 @@
                                                         <li>Course Outcome (CO) achievement percentages</li>
                                                         <li>Program Outcome (PO) contributions from this course</li>
                                                         <li>Student success rates</li>
-                                                        <li>Detailed breakdowns and visualizations</li>
+                                                        <li>Detailed breakdowns and interactive visualizations (charts/graphs)</li>
                                                     </ul>
                                                 </li>
                                                 <li>
-                                                    Export the results in various formats:
+                                                    Export the results in various formats for reporting and analysis:
                                                     <ul>
-                                                        <li><strong>PDF Report</strong> - Formatted for accreditation documentation</li>
-                                                        <li><strong>CSV/Excel</strong> - Raw data for further analysis</li>
+                                                        <li><strong>PDF Report:</strong> Formatted summary for accreditation</li>
+                                                        <li><strong>CSV/Excel:</strong> Raw calculation data</li>
+                                                        <li><strong>Student Score Export:</strong> Detailed performance data per student</li>
+                                                        <li><strong>Detailed Exam Data Export:</strong> Full exam structure, questions, outcomes, and scores</li>
                                                     </ul>
                                                 </li>
                                             </ol>
@@ -495,11 +584,11 @@
 
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingNine">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNine" aria-expanded="false" aria-controls="collapseNine">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNine" aria-expanded="true" aria-controls="collapseNine">
                                             <strong>Step 9: Use "All Courses" Analysis for Program-Wide Assessment</strong>
                                         </button>
                                     </h2>
-                                    <div id="collapseNine" class="accordion-collapse collapse" aria-labelledby="headingNine" data-bs-parent="#workflowAccordion">
+                                    <div id="collapseNine" class="accordion-collapse collapse show" aria-labelledby="headingNine" data-bs-parent="#workflowAccordion">
                                         <div class="accordion-body">
                                             <p>For program-level assessment and accreditation reporting, use the powerful "All Courses" analysis feature:</p>
 
@@ -588,7 +677,7 @@
                                         <li>Confirm the deletion when prompted.</li>
                                     </ol>
                                     <div class="alert alert-danger mt-2">
-                                        <i class="fas fa-exclamation-triangle me-2"></i><strong>Warning:</strong> Deleting a course permanently removes ALL associated data: exams, questions, outcomes, students, and scores. This action cannot be undone. Consider using the "Backup Database" utility before deletion.
+                                        <i class="fas fa-exclamation-triangle me-2"></i><strong>Warning:</strong> Deleting a course permanently removes ALL associated data: exams, questions, outcomes, students, and scores. **The application prevents deletion if the course has related Exams, Students, or Course Outcomes.** You must delete this related data first or use the Merge Courses utility. This action cannot be undone. Consider using the "Backup Database" utility before deletion.
                                     </div>
                                 </div>
                             </div>
@@ -883,6 +972,65 @@
                                 </div>
                             </div>
 
+                            <div class="card mb-4 border-primary">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0"><i class="fas fa-search me-2"></i>Searching for Courses</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p>The course search feature allows you to quickly find specific courses in your database using keywords.</p>
+                                    
+                                    <h6><i class="fas fa-search me-2"></i>How to Search for Courses</h6>
+                                    <ol>
+                                        <li>Navigate to the <a href="{{ url_for('course.list_courses') }}">Courses</a> page.</li>
+                                        <li>Locate the search box at the top of the course list.</li>
+                                        <li>Enter a search term related to the course you're looking for. You can search by:</li>
+                                        <ul>
+                                            <li>Course Code (e.g., "CENG301")</li>
+                                            <li>Course Name (e.g., "Software")</li>
+                                            <li>Semester (e.g., "Fall 2023")</li>
+                                        </ul>
+                                        <li>The results will automatically filter to show courses matching your search criteria.</li>
+                                    </ol>
+                                    
+                                    <div class="alert alert-info mt-3">
+                                        <i class="fas fa-info-circle me-2"></i><strong>Search Tips:</strong> The search is not case-sensitive and will match partial terms. For example, searching for "software" will find "Software Engineering" and "Advanced Software Development."
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card mb-4 border-secondary">
+                                <div class="card-header bg-secondary text-white">
+                                    <h5 class="mb-0"><i class="fas fa-file-export me-2"></i>Exporting Courses</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p>The Export Courses feature allows you to export a summary of all your courses to CSV or Excel format for reporting and archiving purposes.</p>
+                                    
+                                    <h6><i class="fas fa-download me-2"></i>How to Export Courses</h6>
+                                    <ol>
+                                        <li>Navigate to the <a href="{{ url_for('course.list_courses') }}">Courses</a> page.</li>
+                                        <li>Look for the "Export" button at the top of the courses list.</li>
+                                        <li>Click the "Export" button to download a CSV/Excel file with all course data.</li>
+                                    </ol>
+                                    
+                                    <div class="alert alert-info mt-3">
+                                        <i class="fas fa-info-circle me-2"></i><strong>Exported Data:</strong> The export includes the following information for each course:
+                                        <ul class="mb-0">
+                                            <li>Course Code</li>
+                                            <li>Course Name</li>
+                                            <li>Semester</li>
+                                            <li>Course Weight</li>
+                                            <li>Student Count</li>
+                                            <li>Exam Count</li>
+                                            <li>Number of Course Outcomes</li>
+                                        </ul>
+                                    </div>
+                                    
+                                    <div class="alert alert-success mt-3">
+                                        <i class="fas fa-chart-bar me-2"></i><strong>Data Analysis:</strong> The exported course data can be used for program-level analysis and reporting, allowing you to track course statistics across semesters and identify trends in student enrollment and assessment coverage.
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="alert alert-info mt-3">
                                 <i class="fas fa-link me-2"></i><strong>Related Sections:</strong>
                                 <ul class="mb-0">
@@ -1153,6 +1301,7 @@
 
                                     <div class="alert alert-success mt-3">
                                         <i class="fas fa-check-circle me-2"></i><strong>Best Practice:</strong> When setting up a new course, define the Course Outcomes and their PO mappings first, before creating exams and questions. This ensures a clear assessment plan aligned with program goals.
+                                        <br><i class="fas fa-link me-2"></i><strong>Efficiency Tip:</strong> For linking many questions to outcomes efficiently, refer to the <a href="#exams" class="tab-link">Mass Association Tool</a> described in the Exams & Questions section.
                                     </div>
                                 </div>
                             </div>
@@ -1163,6 +1312,51 @@
                                     <li>See <a href="#exams" class="tab-link">Exams & Questions</a> for details on linking questions to Course Outcomes.</li>
                                     <li>See <a href="#calculation" class="tab-link">Calculations</a> to understand how CO achievement and PO contribution are calculated.</li>
                                 </ul>
+                            </div>
+
+                            <div class="card mb-4 border-warning">
+                                <div class="card-header bg-warning text-dark">
+                                    <h5 class="mb-0"><i class="fas fa-calculator me-2"></i>Outcome Calculation Methods</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p>Accredit Helper Pro offers two different methods for calculating outcome achievement levels, which can be selected in the Course Settings. The results are often presented with <a href="#calculation" class="tab-link">charts and visualizations</a> for easier interpretation.</p>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6><i class="fas fa-percentage me-2"></i>Absolute Method</h6>
+                                            <p>In the absolute method, outcome achievement is calculated as the average of all student scores for questions linked to the outcome.</p>
+                                            <ul>
+                                                <li><strong>Course Outcome (CO) Achievement:</strong> The average score of all students across all questions linked to that CO, weighted by question max scores and exam weights.</li>
+                                                <li><strong>Program Outcome (PO) Contribution:</strong> The average of all CO scores that are linked to that PO.</li>
+                                                <li><strong>Best For:</strong> Getting an overall view of class performance regardless of passing thresholds.</li>
+                                            </ul>
+                                            <div class="alert alert-info">
+                                                <i class="fas fa-info-circle me-2"></i>Example: If students average 78% on questions linked to CO1, then CO1's achievement is 78%.
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6><i class="fas fa-users me-2"></i>Relative Method</h6>
+                                            <p>In the relative method, outcome achievement is calculated as the percentage of students who achieved the success threshold for questions linked to the outcome.</p>
+                                            <ul>
+                                                <li><strong>Course Outcome (CO) Achievement:</strong> The percentage of students who scored at or above the threshold on questions linked to that CO.</li>
+                                                <li><strong>Program Outcome (PO) Contribution:</strong> The percentage of students who achieved the threshold for COs linked to that PO.</li>
+                                                <li><strong>Success Threshold:</strong> Typically set to 60% but can be adjusted in Course Settings.</li>
+                                                <li><strong>Best For:</strong> Accreditation reports that focus on the percentage of students achieving competency.</li>
+                                            </ul>
+                                            <div class="alert alert-info">
+                                                <i class="fas fa-info-circle me-2"></i>Example: If 85% of students score above the threshold on questions linked to CO1, then CO1's achievement is 85%.
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="alert alert-success mt-3">
+                                        <i class="fas fa-lightbulb me-2"></i><strong>Pro Tip:</strong> The calculation method significantly impacts your outcome achievement results. Choose the method that best aligns with your program's accreditation requirements. Many institutions prefer the relative method for accreditation purposes because it clearly shows the percentage of students achieving competency.
+                                    </div>
+                                    
+                                    <div class="alert alert-warning mt-3">
+                                        <i class="fas fa-exclamation-triangle me-2"></i><strong>Important Note:</strong> Students who have not taken any mandatory exams are automatically excluded from outcome calculations. This ensures that your results reflect only active participants in the course.
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1198,6 +1392,31 @@
                             <p>Edit or delete exams using the buttons next to them on the Course Detail page. Deleting an exam also deletes all its questions and associated scores.</p>
                             <div class="alert alert-danger mt-2"><i class="fas fa-skull-crossbones me-1"></i> Deleting an exam permanently removes its questions and scores.</div>
 
+                            <div id="exams-mandatory-logic-detail" class="alert alert-info mt-3">
+                                <i class="fas fa-exclamation-circle me-2"></i><strong>Understanding Mandatory Exams:</strong> The "Is Mandatory" flag serves an important role in outcome calculations. When an exam is marked as mandatory:
+                                <ol>
+                                    <li>Students who have zero scores (or no scores) on <strong>all</strong> mandatory exams <strong>and</strong> their makeup versions will be excluded from outcome calculations</li>
+                                    <li>This ensures that only students who participated in key assessments are included in your outcome achievement statistics</li>
+                                    <li>Typically used for exams that all enrolled students are expected to take (like midterms and finals)</li>
+                                    <li>Not marking any exams as mandatory will include all students in calculations, regardless of participation</li>
+                                </ol>
+                            </div>
+
+                            <h6 class="mt-4">Managing Multiple Exams Overview</h6>
+                            <p>For a consolidated view of all exams within a course, including their types (regular, makeup), weights, and mandatory status, you can use the "Manage Exams" page. Access this page from the course detail view.</p>
+                            <ul>
+                                <li>Provides a quick overview of all assessments.</li>
+                                <li>Allows easy comparison of exam settings.</li>
+                                <li>Includes a link to the "Fix Makeup Relations" utility.</li>
+                            </ul>
+
+                            <h6 class="mt-4">Fixing Makeup Exam Relations</h6>
+                            <p>If makeup exam relationships become inconsistent (e.g., a makeup exam isn't correctly linked to its original exam), you can use the "Fix Makeup Relations" utility. This tool attempts to automatically link makeup exams to their original counterparts based on naming conventions (e.g., finding "Midterm 1" for an exam named "Midterm 1 Makeup").</p>
+                            <ul>
+                                <li>Accessed from the "Manage Exams" page.</li>
+                                <li>Useful if you create makeup exams before their originals or change exam names.</li>
+                            </ul>
+
                             <h6>Managing Questions</h6>
                             <p>Questions are added/edited within a specific exam.</p>
                             <ol>
@@ -1211,6 +1430,90 @@
                             </ol>
                             <p>Edit or delete questions using the buttons on the Exam Detail page. Deleting a question also deletes all student scores associated with it.</p>
                             <div class="alert alert-warning mt-2"><i class="fas fa-exclamation-triangle me-1"></i> Ensure the sum of Max Scores for all questions in an exam reasonably relates to the overall Exam Max Score, but the individual question Max Scores are what drive the outcome calculations. Linking questions to COs is essential.</div>
+                            
+                            <h6 class="mt-4">Batch Question Operations</h6>
+                            <p>For more efficient question management, especially for exams with many questions, Accredit Helper Pro offers powerful batch operations:</p>
+                            
+                            <div class="card mb-4 bg-light">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-plus-square me-2"></i>Batch Add Questions</h6>
+                                </div>
+                                <div class="card-body">
+                                    <ol>
+                                        <li>From an Exam's detail page, click the "Batch Add Questions" button</li>
+                                        <li>Specify the number of questions you want to create (up to 100)</li>
+                                        <li>For each question, enter:
+                                            <ul>
+                                                <li>Question text (optional)</li>
+                                                <li>Maximum score</li>
+                                                <li>Course outcomes to associate</li>
+                                            </ul>
+                                        </li>
+                                        <li>Use the "Distribute Points Equally" button to automatically divide the exam's total points among all questions</li>
+                                        <li>Use "Mark All Outcomes" or "Unmark All Outcomes" buttons for quick selection</li>
+                                        <li>Click "Save All Questions" to create all questions at once</li>
+                                    </ol>
+                                    <div class="alert alert-success">
+                                        <i class="fas fa-lightbulb me-2"></i><strong>Time-Saving Tip:</strong> This feature is especially useful for standardized exams where you've already designed the assessment structure.
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card mb-4 bg-light">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-project-diagram me-2"></i>Mass Association Tool</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p>The Mass Association Tool allows you to quickly connect multiple questions to outcomes using a simple text format:</p>
+                                    <pre class="bg-light p-2">q1:oc1:oc3:oc5;q2:oc2;q3:oc3:oc4</pre>
+                                    <p>Where:</p>
+                                    <ul>
+                                        <li><code>q1</code> is question 1</li>
+                                        <li><code>oc1</code> is course outcome 1</li>
+                                        <li>Use colons (<code>:</code>) to separate questions from outcomes and to list multiple outcomes</li>
+                                        <li>Use semicolons (<code>;</code>) to separate different question mappings</li>
+                                    </ul>
+                                    <p>This feature can be accessed:</p>
+                                    <ul>
+                                        <li>During batch question creation in the "Mass Import Relationships" section</li>
+                                        <li>From the Exam Detail page via the "Mass Associate Outcomes" button</li>
+                                    </ul>
+                                    <div class="alert alert-warning">
+                                        <i class="fas fa-exclamation-triangle me-2"></i><strong>Important:</strong> This feature will replace existing outcome associations for the specified questions. Include all desired associations in your import syntax.
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card mb-4 bg-light">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-file-export me-2"></i>Exporting Exam Data</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p>Accredit Helper Pro offers several export options for exam-related data:</p>
+                                    <ul>
+                                        <li><strong>Export All Exams:</strong> From the Course Detail page, click "Export Exams" in the Exams section to download a CSV file containing:
+                                            <ul>
+                                                <li>All exam details (name, max score, date, question count)</li>
+                                                <li>Makeup exam relationships</li>
+                                                <li>Exam weights</li>
+                                                <li>Achievement levels</li>
+                                                <li>Course outcomes summary</li>
+                                            </ul>
+                                        </li>
+                                        <li><strong>Export Exam Scores:</strong> From any Exam Detail page, click "Export Scores" to download a CSV file containing:
+                                            <ul>
+                                                <li>Student details</li>
+                                                <li>Individual question scores</li>
+                                                <li>Total scores and percentages</li>
+                                            </ul>
+                                        </li>
+                                        <li><strong>Export Questions and Outcomes:</strong> From the Exam Detail page, click "Export Questions" to download a CSV file with question details and their linked outcomes.</li>
+                                    </ul>
+                                    <div class="alert alert-success">
+                                        <i class="fas fa-lightbulb me-2"></i><strong>Pro Tip:</strong> These exports are Excel-compatible and can be used for backup, documentation, and external analysis.
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1240,7 +1543,21 @@
                                 </li>
                                 <li><strong>View/Edit/Delete Students:</strong> Use the list view on the Course Detail page. Click "Edit" or "Delete" next to a student's name. Deleting a student also removes all their scores for that course.</li>
                                 <li><strong>Export Students:</strong> Click "Export Students" to get a CSV file of the current student list for the course.</li>
+                                <li><strong>Batch Delete Students:</strong> Click "Batch Delete" to enter batch delete mode. Select multiple students using checkboxes, then click "Delete Selected" to remove them in one operation.</li>
+                                <li><strong>Student Exclusion:</strong> Toggle a student's inclusion in calculations by clicking the "Exclude" button (or "Include" to reverse). Excluded students won't be counted in course outcome calculations, which is useful for students who dropped the course or have special circumstances. <strong class="text-danger">Note:</strong> Students may also be automatically excluded if they have no scores recorded for any mandatory exams (or their makeups). See the <a href="#exams-mandatory-logic-detail" class="tab-link">Mandatory Exam Logic</a> details in the Exams section.</li>
                             </ul>
+
+                            <h6 id="student-attendance">Managing Student Attendance</h6>
+                            <p>Track which students attended each exam:</p>
+                            <ul>
+                                <li><strong>Access Attendance:</strong> From the Exam Detail page, click "Manage Attendance".</li>
+                                <li><strong>Mark Attendance:</strong> Toggle the attendance switch for each student. Changes save automatically.</li>
+                                <li><strong>Bulk Actions:</strong> Use "All" or "None" buttons to quickly mark all students as attended or not attended.</li>
+                                <li><strong>Import Attendance:</strong> Upload CSV files containing attendance records with student IDs and attendance status.</li>
+                            </ul>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i><strong>Note:</strong> Attendance records, along with recorded scores, are crucial for the mandatory exam logic. Students marked as not attending a mandatory exam (and having no score) might contribute to automatic exclusion from outcome calculations if they miss all mandatory assessments. See the <a href="#exams-mandatory-logic-detail" class="tab-link">Mandatory Exam Logic</a> details in the Exams section for specifics.
+                            </div>
 
                             <h6 id="students-scores">Entering/Editing Scores</h6>
                             <p>Recording student scores accurately is vital.</p>
@@ -1255,8 +1572,9 @@
                                 <li>The grid displays students as rows and questions as columns.</li>
                                 <li>Enter the score each student received for each question in the corresponding cell.</li>
                                 <li>Scores should not exceed the "Max Score" defined for that question. The interface may provide validation.</li>
-                                <li>Scores are saved automatically as you enter them (or via a "Save" button, depending on implementation).</li>
-                                <li>You can navigate the grid using keyboard arrows and Tab.</li>
+                                <li>Scores are saved automatically as you enter them - you'll see a confirmation indicator when data is saved.</li>
+                                <li>You can navigate the grid using keyboard arrows and Tab for efficient data entry.</li>
+                                <li><strong>Mass Import Scores:</strong> Use the "Import Scores" button on the score entry page to upload scores from a CSV file.</li>
                             </ol>
                             <div class="alert alert-info mt-2"><i class="fas fa-keyboard me-1"></i> The score entry grid is designed for efficiency. Use keyboard navigation for faster input.</div>
 
@@ -1326,7 +1644,8 @@
                                     <ul>
                                         <li>Shows the POs that are linked to the COs of this course.</li>
                                         <li>Calculates the contribution of this course towards the achievement of each linked PO.</li>
-                                        <li><strong>Calculation Method:</strong> This is typically derived from the achievement levels of the COs that link to a specific PO. If multiple COs link to the same PO, their contributions might be averaged or weighted.</li>
+                                        <li><strong>Calculation Method (Absolute):</strong> This is the simple average of the achievement scores of all contributing COs linked to this PO.</li>
+                                        <li><strong>Calculation Method (Relative):</strong> This is the percentage of students whose average score across contributing COs meets or exceeds the success threshold.</li>
                                     </ul>
                                 </li>
                                 <li>
@@ -1340,13 +1659,66 @@
                                 <li><strong>Charts & Visualizations:</strong> May include bar charts or other graphics to visually represent outcome achievement levels.</li>
                             </ul>
 
+                            <h6>Advanced Calculation Features</h6>
+                            <ul>
+                                <li>
+                                    <strong>Makeup Exam Handling:</strong>
+                                    <ul>
+                                        <li>The system automatically uses the makeup exam score if a student attended the makeup exam.</li>
+                                        <li>Makeup exams inherit the weight of their original exams in overall calculations.</li>
+                                        <li>Students who attended neither the original exam nor its makeup may be excluded from calculations based on course settings.</li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    <strong>Mandatory Exam Settings & Student Exclusion:</strong>
+                                    <ul>
+                                        <li>Students manually marked as "Excluded" on the Students page are always removed from calculations first.</li>
+                                        <li>Exams can be marked as "Mandatory". If mandatory exams are defined, any remaining student who did not attend (or has no score for) <strong>at least one</strong> mandatory exam <strong>and</strong> its corresponding makeup exam (if one exists) will also be automatically excluded from outcome calculations.</li>
+                                        <li>This ensures results reflect only active participants who completed critical assessments.</li>
+                                        <li>If no exams are marked mandatory, only manually excluded students are removed.</li>
+                                        <li><strong>Note:</strong> Courses themselves can be excluded from program-level aggregation via the "Exclude Course from Reports" option in <a href="#course-settings" class="tab-link">Course Settings</a>.</li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    <strong>Precision Control:</strong>
+                                    <ul>
+                                        <li>The system uses Decimal type for calculations to ensure consistent precision and avoid floating-point errors.</li>
+                                        <li>Achievement level boundaries are carefully handled to ensure scores exactly at boundary values are properly categorized.</li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    <strong>Debugging Tools:</strong>
+                                    <ul>
+                                        <li>Access detailed calculation breakdowns using the "Debug Calculations" feature (available on the calculation results page).</li>
+                                        <li>View step-by-step calculations for individual students (including their raw exam scores, weighted score, CO/PO scores, and exclusion status/reason), exams, and outcomes.</li>
+                                        <li>Identify and resolve issues with weights, linking, or score entry.</li>
+                                    </ul>
+                                </li>
+                            </ul>
+
                             <h6>Exporting Results</h6>
                             <p>The results page usually provides options to export the analysis:</p>
                             <ul>
                                 <li><strong>PDF Report:</strong> Generates a formatted PDF document summarizing the CO and PO achievements, success rate, and potentially charts. Suitable for inclusion in accreditation reports.</li>
                                 <li><strong>CSV/Excel Export:</strong> Exports the raw calculation data (e.g., achievement percentages per outcome) for further analysis in other tools.</li>
+                                <li><strong>Student Results Export:</strong> Generate detailed reports of individual student performance against course outcomes.</li>
+                                <li><strong>Course Exams Export:</strong> Export structured data about exams, questions, and their connections to course outcomes.</li>
+                            </ul>
+                            
+                            <h6>Multi-Course Analysis ("All Courses" View)</h6>
+                            <p>The "All Courses" view provides program-level insights:</p>
+                            <ul>
+                                <li>Aggregates results across multiple non-excluded courses to show program-wide achievement of Program Outcomes.</li>
+                                <li>Calculates the average PO achievement across courses using a <strong>weighted average</strong> based on the `course.course_weight` set for each contributing course.</li>
+                                <li>Visualizes contributions of individual courses to each Program Outcome.</li>
+                                <li>Identifies patterns and areas for improvement across the curriculum.</li>
+                                <li>Uses the same optimized calculation core as single-course views to ensure consistency.</li>
                             </ul>
                             <div class="alert alert-success mt-2"><i class="fas fa-check-circle me-1"></i> Regularly running calculations and reviewing the results provides valuable feedback for continuous improvement of the course and program.</div>
+
+                            <div class="alert alert-secondary mt-3">
+                                <i class="fas fa-balance-scale me-2"></i><strong>Note on Exam Weights:</strong> While it's best practice to ensure exam weights sum to 100% on the "Manage Weights" page, the calculation engine is resilient. If weights don't sum to 100%, they will be automatically normalized during calculation (scaled proportionally so they do sum to 100%) to ensure accurate relative contributions. If no weights are defined at all, exams will be weighted equally.
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1362,8 +1734,9 @@
                             <a href="{{ url_for('utility.index') }}" class="btn btn-sm btn-outline-primary mb-3"><i class="fas fa-cog"></i> Go to Utilities Index</a>
 
                             <h5 class="mt-4"><i class="fas fa-cloud me-2"></i>Remote Access with Cloudflared</h5>
-                            <p>Access your Accredit Helper Pro application from anywhere with our new cloudflared integration:</p>
                             <ul>
+                                <li><strong>Purpose:</strong> Access your Accredit Helper Pro instance from anywhere.</li>
+                                <li><strong>Secure Cloud Integration:</strong> Uses Cloudflare's secure tunnel technology</li>
                                 <li><strong>Share with Colleagues:</strong> Generate a secure public URL for collaboration</li>
                                 <li><strong>Remote Access:</strong> Use your application from any device with internet</li>
                                 <li><strong>Simple Setup:</strong> Just install cloudflared and run with the <code>--cloud</code> flag</li>
@@ -1371,6 +1744,28 @@
                             <div class="alert alert-info">
                                 <i class="fas fa-info-circle me-2"></i>For detailed instructions on setting up and using cloudflared,
                                 <a href="{{ url_for('utility.cloud_help_page') }}" class="alert-link">visit our dedicated Remote Access guide</a>.
+                            </div>
+
+                            <h5 class="mt-4"><i class="fas fa-code me-2"></i>API Integration</h5>
+                            <ul>
+                                <li><strong>Purpose:</strong> Programmatically access and integrate your accreditation data with other systems.</li>
+                                <li>
+                                    <strong>Available Endpoints:</strong>
+                                    <ul>
+                                        <li><code>/api/exam/{exam_id}/question-outcomes</code> - Get all questions for an exam with their associated course outcomes</li>
+                                        <li><code>/api/student/{student_id}/abet-scores?course_id={course_id}</code> - Get a student's achievement scores for all course outcomes</li>
+                                        <li><code>/api/batch-add-questions/{exam_id}</code> - Add multiple questions at once</li>
+                                        <li><code>/api/mass-associate-outcomes</code> - Associate multiple questions with course outcomes using simple syntax</li>
+                                        <li><code>/api/update-question-outcome</code> - Update connections between questions and outcomes</li>
+                                        <li><code>/api/course/{course_id}/achievement-levels</code> - Get achievement level definitions for a course</li>
+                                    </ul>
+                                </li>
+                                <li><strong>Data Format:</strong> All API endpoints return data in JSON format</li>
+                                <li><strong>Authentication:</strong> Currently intended for local use; implement your own authentication if exposed externally</li>
+                                <li><strong>Use Cases:</strong> Integration with your LMS, custom reporting tools, or department-wide dashboards</li>
+                            </ul>
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i><strong>Security Note:</strong> The API does not implement authentication by default. If you expose the application outside your local network, consider implementing additional security measures.
                             </div>
 
                             <h5 class="mt-4"><i class="fas fa-download me-2"></i>Backup Database</h5>
@@ -1404,6 +1799,22 @@
                                 <li><strong>Access:</strong> Utilities → Restore Database</li>
                             </ul>
 
+                            <h5 class="mt-4"><i class="fas fa-file-import me-2"></i>Import Database</h5>
+                            <ul>
+                                <li><strong>Purpose:</strong> Import and merge data from backup files without replacing existing data.</li>
+                                <li>
+                                    <strong>Features:</strong>
+                                    <ul>
+                                        <li>Select specific data types to import (courses, students, exams, etc.)</li>
+                                        <li>Preview changes before importing</li>
+                                        <li>Automatic backup of current database before import (safety measure)</li>
+                                        <li>Detailed import summary showing added records and any conflicts</li>
+                                    </ul>
+                                </li>
+                                <li><strong>When to Use:</strong> When adding new data from another database instance, migrating courses from a colleague, or consolidating data from multiple sources.</li>
+                                <li><strong>Access:</strong> Utilities → Import Database</li>
+                            </ul>
+
                             <h5 class="mt-4"><i class="fas fa-object-group me-2"></i>Merge Courses</h5>
                             <ul>
                                 <li><strong>Purpose:</strong> Combine data from multiple related courses into a single course.</li>
@@ -1428,10 +1839,39 @@
                                         <li>Filter logs by action type</li>
                                         <li>Filter by date range</li>
                                         <li>Export log data</li>
+                                        <li>Color-coded action types for easy identification</li>
+                                        <li>Paginated results for improved performance</li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    <strong>Log Action Types:</strong>
+                                    <ul>
+                                        <li><span class="badge bg-success">ADD</span> - Creation of new items (courses, students, exams, etc.)</li>
+                                        <li><span class="badge bg-info">EDIT</span> - Modification of existing items</li>
+                                        <li><span class="badge bg-danger">DELETE</span> - Removal of items from the database</li>
+                                        <li><span class="badge bg-warning">IMPORT</span> - Data import operations</li>
+                                        <li><span class="badge bg-primary">BACKUP/RESTORE</span> - Database backup and restore operations</li>
+                                        <li><span class="badge bg-secondary">OTHER</span> - Other system operations</li>
                                     </ul>
                                 </li>
                                 <li><strong>When to Use:</strong> When troubleshooting issues, tracking changes, or generating activity reports.</li>
                                 <li><strong>Access:</strong> Utilities → System Logs</li>
+                            </ul>
+
+                            <h5 class="mt-4"><i class="fas fa-life-ring me-2"></i>Support & Feedback</h5>
+                            <ul>
+                                <li><strong>Purpose:</strong> Report issues, submit feature requests, and get assistance with Accredit Helper Pro.</li>
+                                <li>
+                                    <strong>Features:</strong>
+                                    <ul>
+                                        <li>Submit bug reports and error notifications</li>
+                                        <li>Request new features or enhancements</li>
+                                        <li>Provide general feedback on your experience</li>
+                                        <li>Contact the development team directly</li>
+                                    </ul>
+                                </li>
+                                <li><strong>When to Use:</strong> When you encounter issues, have suggestions for improvements, or need assistance with specific functionality.</li>
+                                <li><strong>Access:</strong> Utilities → Support & Feedback or Help → Contact & Support section</li>
                             </ul>
 
                             </li>
@@ -1870,11 +2310,11 @@
                                 <!-- Database & File Issues -->
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingDatabase">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDatabase" aria-expanded="false" aria-controls="collapseDatabase">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDatabase" aria-expanded="true" aria-controls="collapseDatabase">
                                             <i class="fas fa-database me-2"></i><strong>Database & File Issues</strong>
                                         </button>
                                     </h2>
-                                    <div id="collapseDatabase" class="accordion-collapse collapse" aria-labelledby="headingDatabase" data-bs-parent="#troubleshootingAccordion">
+                                    <div id="collapseDatabase" class="accordion-collapse collapse show" aria-labelledby="headingDatabase" data-bs-parent="#troubleshootingAccordion">
                                         <div class="accordion-body">
                                             <div class="card mb-3">
                                                 <div class="card-header bg-light">
@@ -1987,11 +2427,11 @@
                                 <!-- Calculation & Results Issues -->
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingCalculation">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCalculation" aria-expanded="false" aria-controls="collapseCalculation">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCalculation" aria-expanded="true" aria-controls="collapseCalculation">
                                             <i class="fas fa-calculator me-2"></i><strong>Calculation & Results Issues</strong>
                                         </button>
                                     </h2>
-                                    <div id="collapseCalculation" class="accordion-collapse collapse" aria-labelledby="headingCalculation" data-bs-parent="#troubleshootingAccordion">
+                                    <div id="collapseCalculation" class="accordion-collapse collapse show" aria-labelledby="headingCalculation" data-bs-parent="#troubleshootingAccordion">
                                         <div class="accordion-body">
                                             <div class="card mb-3">
                                                 <div class="card-header bg-light">
@@ -2093,11 +2533,11 @@
                                 <!-- Import/Export Issues -->
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingImport">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseImport" aria-expanded="false" aria-controls="collapseImport">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseImport" aria-expanded="true" aria-controls="collapseImport">
                                             <i class="fas fa-file-import me-2"></i><strong>Import/Export & Data Transfer Issues</strong>
                                         </button>
                                     </h2>
-                                    <div id="collapseImport" class="accordion-collapse collapse" aria-labelledby="headingImport" data-bs-parent="#troubleshootingAccordion">
+                                    <div id="collapseImport" class="accordion-collapse collapse show" aria-labelledby="headingImport" data-bs-parent="#troubleshootingAccordion">
                                         <div class="accordion-body">
                                             <div class="card mb-3">
                                                 <div class="card-header bg-light">
@@ -2218,11 +2658,11 @@
                                 <!-- Performance Issues -->
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingPerformance">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePerformance" aria-expanded="false" aria-controls="collapsePerformance">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePerformance" aria-expanded="true" aria-controls="collapsePerformance">
                                             <i class="fas fa-tachometer-alt me-2"></i><strong>Performance & Responsiveness Issues</strong>
                                         </button>
                                     </h2>
-                                    <div id="collapsePerformance" class="accordion-collapse collapse" aria-labelledby="headingPerformance" data-bs-parent="#troubleshootingAccordion">
+                                    <div id="collapsePerformance" class="accordion-collapse collapse show" aria-labelledby="headingPerformance" data-bs-parent="#troubleshootingAccordion">
                                         <div class="accordion-body">
                                             <div class="card mb-3">
                                                 <div class="card-header bg-light">
@@ -2304,13 +2744,116 @@
                                 <!-- Troubleshooting -->
                                 <div class="accordion-item">
                                     <h2 class="accordion-header" id="headingTroubleshooting">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTroubleshooting" aria-expanded="false" aria-controls="collapseTroubleshooting">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTroubleshooting" aria-expanded="true" aria-controls="collapseTroubleshooting">
                                             <i class="fas fa-wrench me-2"></i><strong>Troubleshooting & Common Issues</strong>
                                         </button>
                                     </h2>
-                                    <div id="collapseTroubleshooting" class="accordion-collapse collapse" aria-labelledby="headingTroubleshooting" data-bs-parent="#troubleshootingAccordion">
+                                    <div id="collapseTroubleshooting" class="accordion-collapse collapse show" aria-labelledby="headingTroubleshooting" data-bs-parent="#troubleshootingAccordion">
                                         <div class="accordion-body">
-                                            <!-- Content is already here, just making sure the HTML structure is correct -->
+                                            <div class="card mb-3">
+                                                <div class="card-header bg-light">
+                                                    <h6 class="mb-0">Application Won't Start</h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <p><strong>Symptoms:</strong> Application fails to launch or crashes immediately after starting.</p>
+
+                                                    <p><strong>Possible Causes & Solutions:</strong></p>
+                                                    <ul>
+                                                        <li>
+                                                            <strong>Missing Dependencies:</strong>
+                                                            <ul>
+                                                                <li>Ensure Python and all required packages are installed correctly</li>
+                                                                <li>Try reinstalling using the requirements.txt file</li>
+                                                                <li>Check console or log files for specific error messages</li>
+                                                            </ul>
+                                                        </li>
+                                                        <li>
+                                                            <strong>Database Corruption:</strong>
+                                                            <ul>
+                                                                <li>Rename or move your existing database file and let the application create a new one</li>
+                                                                <li>Restore from a known good backup</li>
+                                                            </ul>
+                                                        </li>
+                                                        <li>
+                                                            <strong>Port Conflict:</strong>
+                                                            <ul>
+                                                                <li>Check if another application is already using port 5000</li>
+                                                                <li>Try starting the application with a different port: <code>python app.py --port 5001</code></li>
+                                                            </ul>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+
+                                            <div class="card mb-3">
+                                                <div class="card-header bg-light">
+                                                    <h6 class="mb-0">Charts and Graphs Not Displaying</h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <p><strong>Symptoms:</strong> Reports generate but charts or graphs are blank or don't appear.</p>
+
+                                                    <p><strong>Possible Causes & Solutions:</strong></p>
+                                                    <ul>
+                                                        <li>
+                                                            <strong>Browser Compatibility:</strong>
+                                                            <ul>
+                                                                <li>Try using a different modern browser (Chrome, Firefox, Edge)</li>
+                                                                <li>Ensure JavaScript is enabled in your browser</li>
+                                                                <li>Clear browser cache and reload the page</li>
+                                                            </ul>
+                                                        </li>
+                                                        <li>
+                                                            <strong>Insufficient Data:</strong>
+                                                            <ul>
+                                                                <li>Charts require at least some data to display</li>
+                                                                <li>Check that you have entered student scores and mapped questions to outcomes</li>
+                                                            </ul>
+                                                        </li>
+                                                        <li>
+                                                            <strong>Network Issues:</strong>
+                                                            <ul>
+                                                                <li>If using remote access, ensure stable internet connection</li>
+                                                                <li>Check browser developer console for specific JavaScript errors</li>
+                                                            </ul>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+
+                                            <div class="card mb-3">
+                                                <div class="card-header bg-light">
+                                                    <h6 class="mb-0">Unexpected Error Messages</h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <p><strong>Symptoms:</strong> Error messages appear during normal operation.</p>
+
+                                                    <p><strong>Possible Causes & Solutions:</strong></p>
+                                                    <ul>
+                                                        <li>
+                                                            <strong>Application Bug:</strong>
+                                                            <ul>
+                                                                <li>Take a screenshot of the error message</li>
+                                                                <li>Check system logs for additional information</li>
+                                                                <li>Report the issue through the feedback form with detailed steps to reproduce</li>
+                                                            </ul>
+                                                        </li>
+                                                        <li>
+                                                            <strong>Data Format Issues:</strong>
+                                                            <ul>
+                                                                <li>Ensure input data follows expected formats (percentages, text lengths, etc.)</li>
+                                                                <li>Watch for special characters that might cause problems</li>
+                                                            </ul>
+                                                        </li>
+                                                        <li>
+                                                            <strong>Version Mismatch:</strong>
+                                                            <ul>
+                                                                <li>Check if you're using the latest version of the application</li>
+                                                                <li>Update if a newer version is available</li>
+                                                            </ul>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -2319,783 +2862,222 @@
                     </div>
                 </div>
 
-            </div>
-        </div>
-
-    </div>
-</div>
-
-<!-- Exams & Questions -->
-<div class="tab-pane fade" id="exams">
-    <div class="card shadow-sm">
-        <div class="card-header bg-secondary text-white">
-            <h4 class="mb-0"><i class="fas fa-file-alt me-2"></i>Managing Exams & Questions</h4>
-        </div>
-        <div class="card-body">
-            <p>Exams represent any graded assessment within a course, while questions are the individual items within those exams. Both are essential components in measuring student achievement of course outcomes.</p>
-
-            <div class="card mb-4 border-primary">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>Managing Exams</h5>
-                </div>
-                <div class="card-body">
-                    <h6><i class="fas fa-plus me-2"></i>Adding an Exam</h6>
-                    <ol>
-                        <li>Go to the desired Course Detail page.</li>
-                        <li>In the "Exams" section, click "Add Exam".</li>
-                        <li><strong>Name:</strong> Give the exam a descriptive name (e.g., <code>Midterm 1</code>, <code>Final Exam</code>, <code>Homework 2</code>, <code>Quiz 3</code>).</li>
-                        <li><strong>Max Score:</strong> Enter the total possible score for the entire exam (e.g., <code>100</code>). <em>Note: This is informational; calculations primarily use individual question max scores.</em></li>
-                        <li><strong>Exam Date:</strong> Optional, for informational purposes.</li>
-                        <li>
-                            <strong>Exam Properties:</strong>
-                            <ul>
-                                <li><strong>Is Final Exam?</strong> Check if this is the official final exam.</li>
-                                <li><strong>Is Mandatory?</strong> Check if this exam is required for all students. When an exam is marked as mandatory, students who have a score of zero (or no score) for both the mandatory exam and its makeup version will be excluded from outcome calculations. This ensures that outcome achievements reflect only students who actively participated in key assessments.</li>
-                                <li><strong>Is Makeup Exam?</strong> Check if this is a makeup exam. If checked, you must select the original exam it replaces using the "Makeup For" dropdown. Makeup exams inherit the weight of the original exam.</li>
-                            </ul>
-                        </li>
-                        <li>Click "Save Exam".</li>
-                    </ol>
-
-                    <h6><i class="fas fa-edit me-2"></i>Editing an Exam</h6>
-                    <ol>
-                        <li>On the Course Detail page, find the exam in the "Exams" list.</li>
-                        <li>Click the "Edit" button next to the exam name.</li>
-                        <li>Update any of the exam properties as needed.</li>
-                        <li>Click "Save Changes".</li>
-                    </ol>
-
-                    <h6><i class="fas fa-trash-alt me-2"></i>Deleting an Exam</h6>
-                    <ol>
-                        <li>On the Course Detail page, find the exam in the "Exams" list.</li>
-                        <li>Click the "Delete" button next to the exam name.</li>
-                        <li>Confirm the deletion when prompted.</li>
-                    </ol>
-                    <div class="alert alert-danger mt-2">
-                        <i class="fas fa-skull-crossbones me-2"></i><strong>Warning:</strong> Deleting an exam permanently removes all its questions and associated student scores. This action cannot be undone.
-                    </div>
-
-                    <h6><i class="fas fa-balance-scale me-2"></i>Managing Exam Weights</h6>
-                    <ol>
-                        <li>On the Course Detail page, find the "Exams" section.</li>
-                        <li>Click "Manage Weights".</li>
-                        <li>Enter percentage weights for each exam (e.g., Midterm: 30%, Final: 40%).</li>
-                        <li>Ensure weights total exactly 100%.</li>
-                        <li>Click "Save Weights".</li>
-                    </ol>
-                    <div class="alert alert-info mt-2">
-                        <i class="fas fa-info-circle me-2"></i><strong>Note:</strong> Makeup exams automatically inherit the weight of their original exam. You don't need to set weights for makeup exams.
-                    </div>
-                </div>
-            </div>
-
-            <div class="card mb-4 border-success">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0"><i class="fas fa-list-ol me-2"></i>Managing Questions</h5>
-                </div>
-                <div class="card-body">
-                    <p>Questions are the individual assessment items within each exam. They serve as the direct link between student performance and course outcomes.</p>
-
-                    <h6><i class="fas fa-plus me-2"></i>Adding Questions</h6>
-                    <ol>
-                        <li>Go to the Course Detail page, find the exam in the "Exams" list, and click on its name to go to the Exam Detail page.</li>
-                        <li>Click "Add Question".</li>
-                        <li><strong>Number:</strong> Assign a unique number or identifier for the question within this exam (e.g., <code>1</code>, <code>2a</code>, <code>3</code>).</li>
-                        <li><strong>Text (Optional):</strong> You can paste the question text here for reference.</li>
-                        <li><strong>Max Score:</strong> Enter the maximum points possible for this specific question (e.g., <code>10</code>, <code>25</code>). This value is crucial for weighting within outcome calculations.</li>
-                        <li id="exams-questions-link"><strong>Link to Course Outcomes (COs):</strong> This is the most critical step for outcome calculations. Select all Course Outcome(s) that this specific question assesses. A question can assess multiple COs.</li>
-                        <li>Click "Save Question".</li>
-                    </ol>
-
-                    <div class="alert alert-warning mt-3">
-                        <i class="fas fa-exclamation-triangle me-2"></i><strong>Important:</strong> Every question should be linked to at least one Course Outcome. Questions without CO links will not contribute to outcome achievement calculations.
-                    </div>
-
-                    <h6><i class="fas fa-edit me-2"></i>Editing Questions</h6>
-                    <ol>
-                        <li>On the Exam Detail page, find the question you want to modify.</li>
-                        <li>Click the "Edit" button next to the question.</li>
-                        <li>Update any of the question properties, including outcome mappings.</li>
-                        <li>Click "Save Changes".</li>
-                    </ol>
-
-                    <h6><i class="fas fa-trash-alt me-2"></i>Deleting Questions</h6>
-                    <ol>
-                        <li>On the Exam Detail page, find the question you want to remove.</li>
-                        <li>Click the "Delete" button next to the question.</li>
-                        <li>Confirm the deletion when prompted.</li>
-                    </ol>
-                    <div class="alert alert-danger mt-2">
-                        <i class="fas fa-exclamation-triangle me-2"></i><strong>Warning:</strong> Deleting a question also deletes all student scores associated with it. This action cannot be undone.
-                    </div>
-                </div>
-            </div>
-
-            <div class="card mb-4 border-info">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0"><i class="fas fa-user-check me-2"></i>The Mandatory Exam System</h5>
-                </div>
-                <div class="card-body">
-                    <p>The Mandatory Exam system is a powerful feature that helps ensure the validity of your outcome achievement calculations by excluding students who did not participate in critical assessments.</p>
-
-                    <h6><i class="fas fa-cogs me-2"></i>How It Works</h6>
-                    <ul>
-                        <li>When you mark an exam as "Mandatory", the system tracks student participation in that exam</li>
-                        <li>Students who have a score of zero (or no score at all) for both the mandatory exam AND its makeup version (if any) will be automatically excluded from all outcome achievement calculations</li>
-                        <li>This prevents students who didn't participate in key assessments from skewing your outcome achievement results</li>
-                        <li>The system will show how many students were excluded due to mandatory exam requirements in the calculation results</li>
-                    </ul>
-
-                    <h6><i class="fas fa-lightbulb me-2"></i>Best Practices</h6>
-                    <ul>
-                        <li><strong>Final Exams:</strong> Typically mark your final exam as mandatory if it comprehensively assesses most course outcomes</li>
-                        <li><strong>Multiple Mandatory Exams:</strong> You can mark multiple exams as mandatory if necessary</li>
-                        <li><strong>Makeup Pairs:</strong> When using a mandatory exam with a makeup version, mark both - the system intelligently handles the relationship</li>
-                        <li><strong>Clear Communication:</strong> Inform students about which exams are mandatory for outcome assessment purposes</li>
-                    </ul>
-
-                    <div class="alert alert-info mt-3">
-                        <i class="fas fa-info-circle me-2"></i><strong>Note:</strong> The mandatory exam system affects only outcome achievement calculations. It does not automatically determine course passing status or grades. Those decisions remain under your control as the instructor.
-                    </div>
-                </div>
-            </div>
-
-            <div class="card mb-4 border-warning">
-                <div class="card-header bg-warning text-dark">
-                    <h5 class="mb-0"><i class="fas fa-medkit me-2"></i>Managing Makeup Exams</h5>
-                </div>
-                <div class="card-body">
-                    <p>Makeup exams are special assessments given to students who missed the original exam. The system provides specialized handling for these exams.</p>
-
-                    <h6><i class="fas fa-plus me-2"></i>Creating a Makeup Exam</h6>
-                    <ol>
-                        <li>On the Course Detail page, click "Add Exam"</li>
-                        <li>Enter the exam details as usual</li>
-                        <li>Check the "Is Makeup Exam?" checkbox</li>
-                        <li>Select the original exam it replaces from the "Makeup For" dropdown</li>
-                        <li>Click "Save Exam"</li>
-                    </ol>
-
-                    <h6><i class="fas fa-link me-2"></i>Key Features of Makeup Exams</h6>
-                    <ul>
-                        <li><strong>Weight Inheritance:</strong> Makeup exams automatically use the weight of the original exam they replace</li>
-                        <li><strong>Selective Scoring:</strong> For students who took the makeup, the system uses their makeup scores; for those who took the original exam, it uses their original scores</li>
-                        <li><strong>Convenient Entry:</strong> When entering scores, you only need to enter values for students who took the makeup exam (leave the others blank)</li>
-                        <li><strong>Mandatory Handling:</strong> For mandatory exams, a student is considered to have "attended" if they have a non-zero score for EITHER the original OR the makeup version</li>
-                    </ul>
-
-                    <div class="alert alert-success mt-3">
-                        <i class="fas fa-check-circle me-2"></i><strong>Pro Tip:</strong> Structure your makeup exams with the same question types and outcome coverage as the original exam to ensure consistent assessment of course outcomes.
-                    </div>
-                </div>
-            </div>
-
-            <div class="alert alert-info mt-3">
-                <i class="fas fa-link me-2"></i><strong>Related Sections:</strong>
-                <ul class="mb-0">
-                    <li>See <a href="#outcomes" class="tab-link">Outcomes</a> for information on defining Course Outcomes that will be linked to questions.</li>
-                    <li>See <a href="#students-scores" class="tab-link">Students & Scores</a> for details on entering student scores for exam questions.</li>
-                    <li>See <a href="#calculation" class="tab-link">Calculations</a> to understand how question scores contribute to outcome achievement.</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Students & Scores -->
-<div class="tab-pane fade" id="students">
-    <div class="card shadow-sm">
-        <div class="card-header" style="background-color: #6f42c1; color: white;">
-            <h4 class="mb-0"><i class="fas fa-user-graduate me-2"></i>Managing Students & Scores</h4>
-        </div>
-        <div class="card-body">
-            <div class="card mb-4 border-primary">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>Student Management</h5>
-                </div>
-                <div class="card-body">
-                    <p>Effectively managing your student roster is essential for accurate score tracking and outcome assessment.</p>
-
-                    <h6><i class="fas fa-plus me-2"></i>Adding Students Manually</h6>
-                    <ol>
-                        <li>From the Course Detail page, go to the "Students" section</li>
-                        <li>Click "Add Student"</li>
-                        <li>
-                            Enter the required information:
-                            <ul>
-                                <li><strong>Student ID:</strong> A unique identifier for the student (e.g., 123456789)</li>
-                                <li><strong>First Name:</strong> Student's first name</li>
-                                <li><strong>Last Name:</strong> Student's last name (optional)</li>
-                            </ul>
-                        </li>
-                        <li>Click "Save Student"</li>
-                    </ol>
-                    <div class="alert alert-info mt-2">
-                        <i class="fas fa-info-circle me-2"></i><strong>Note:</strong> Manual entry is recommended only for small classes or individual additions.
-                    </div>
-
-                    <h6 id="students-import"><i class="fas fa-file-import me-2"></i>Importing Multiple Students</h6>
-                    <p>The system supports several methods for batch importing students:</p>
-
-                    <h6><i class="fas fa-keyboard me-2"></i>Method 1: Text Import (Copy/Paste)</h6>
-                    <ol>
-                        <li>From the "Students" section, click "Import Students"</li>
-                        <li>Choose the "Paste Student List" option</li>
-                        <li>
-                            Paste your student data in one of the supported formats:
-                            <pre class="bg-light p-2 mt-2">
-11220030102  Name1  Surname
-11220030126  Name1 Name2  Surname</pre>
-                            <pre class="bg-light p-2">
-11220030102;Name1;Surname
-11220030126;Name1 Name2;Surname</pre>
-                            <pre class="bg-light p-2">
-11220030102	Name1	Surname
-11220030102	Name1	Surname
-
-11220030126	Name1 Name2	Surname</pre>
-                        </li>
-                        <li>Review the parsed data in the preview table</li>
-                        <li>Select the import mode (only add new students, or update existing ones)</li>
-                        <li>Click "Import Students"</li>
-                    </ol>
-
-                    <h6><i class="fas fa-file-csv me-2"></i>Method 2: CSV File Upload</h6>
-                    <ol>
-                        <li>Prepare a CSV file with columns for student ID, first name, and last name</li>
-                        <li>From the "Students" section, click "Import Students"</li>
-                        <li>Choose the "Upload CSV File" option</li>
-                        <li>Select your CSV file</li>
-                        <li>Map the columns to the required fields if necessary</li>
-                        <li>Select the import mode</li>
-                        <li>Click "Import"</li>
-                    </ol>
-
-                    <div class="alert alert-warning mt-3">
-                        <i class="fas fa-exclamation-triangle me-2"></i><strong>Important:</strong> Student IDs must be unique within a course. When importing, the system will detect duplicate IDs and ask how you want to handle them.
-                    </div>
-
-                    <h6><i class="fas fa-file-export me-2"></i>Exporting Student Data</h6>
-                    <ol>
-                        <li>From the "Students" section, click "Export Students"</li>
-                        <li>Choose the export format (typically CSV)</li>
-                        <li>The file will be downloaded to your computer</li>
-                    </ol>
-
-                    <h6><i class="fas fa-user-times me-2"></i>Student Exclusion</h6>
-                    <p>You can exclude specific students from outcome calculations without deleting them:</p>
-                    <ol>
-                        <li>From the "Students" section, find the student you want to exclude</li>
-                        <li>Click the "Edit" button for that student</li>
-                        <li>Check the "Exclude from Calculations" checkbox</li>
-                        <li>Click "Save Changes"</li>
-                    </ol>
-                    <div class="alert alert-info mt-2">
-                        <i class="fas fa-info-circle me-2"></i><strong>Use Case:</strong> Exclude exchange students, special cases, or students who withdrew but whose records you need to maintain.
-                    </div>
-                </div>
-            </div>
-
-            <div class="card mb-4 border-success">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0" id="students-scores"><i class="fas fa-tasks me-2"></i>Managing Student Scores</h5>
-                </div>
-                <div class="card-body">
-                    <p>Recording student scores accurately is vital for proper outcome assessment. The system provides efficient tools for score entry and management.</p>
-
-                    <h6><i class="fas fa-table me-2"></i>Accessing the Score Entry Grid</h6>
-                    <p>You can access the score entry interface in two ways:</p>
-                    <ol>
-                        <li><strong>For all exams:</strong> From the Course Detail page → "Students" section → "Enter/Edit Scores" button</li>
-                        <li><strong>For a specific exam:</strong> From the Exam Detail page → "Enter Scores" button</li>
-                    </ol>
-
-                    <h6><i class="fas fa-edit me-2"></i>Entering Scores</h6>
-                    <ol>
-                        <li>The score grid displays students as rows and questions as columns</li>
-                        <li>Click on a cell to enter or edit a score</li>
-                        <li>Enter a numeric value (cannot exceed the question's max score)</li>
-                        <li>Press Tab, Enter, or click elsewhere to save the score</li>
-                    </ol>
-
-                    <div class="alert alert-success mt-3">
-                        <i class="fas fa-keyboard me-2"></i><strong>Keyboard Navigation:</strong> Use these shortcuts for faster data entry:
-                        <ul class="mb-0">
-                            <li>Tab: Move to next cell</li>
-                            <li>Shift+Tab: Move to previous cell</li>
-                            <li>Arrow keys: Navigate between cells</li>
-                            <li>Enter: Save current cell and move down</li>
-                        </ul>
-                    </div>
-
-                    <h6><i class="fas fa-bell me-2"></i>Auto-Save Functionality</h6>
-                    <p>Scores are automatically saved when:</p>
-                    <ul>
-                        <li>You navigate to another cell (click, tab, arrows)</li>
-                        <li>You press Enter</li>
-                        <li>You click the "Save All" button (for bulk changes)</li>
-                    </ul>
-                    <div class="alert alert-info mt-2">
-                        <i class="fas fa-info-circle me-2"></i><strong>Note:</strong> The system will give visual feedback (green highlight) when a score is successfully saved.
-                    </div>
-
-                    <h6><i class="fas fa-medkit me-2"></i>Handling Makeup Exam Scores</h6>
-                    <ol>
-                        <li>When entering scores for a makeup exam, only enter values for students who took the makeup</li>
-                        <li>Leave cells blank for students who took the original exam</li>
-                        <li>The system will automatically use the appropriate score for each student during calculations</li>
-                    </ol>
-
-                    <h6><i class="fas fa-ban me-2"></i>Managing Absences</h6>
-                    <p>For students who were absent from an exam:</p>
-                    <ol>
-                        <li>Leave their scores blank (preferred) or enter zeros</li>
-                        <li>If the exam is marked as "Mandatory" and a student has no score for both the exam and its makeup, they will be excluded from outcome calculations</li>
-                    </ol>
-
-                    <div class="alert alert-warning mt-3">
-                        <i class="fas fa-exclamation-triangle me-2"></i><strong>Data Validation:</strong> The system prevents entering scores higher than a question's maximum score. If you try to enter an invalid value, it will be rejected.
-                    </div>
-                </div>
-            </div>
-
-            <div class="card mb-4 border-info">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Viewing Student Performance</h5>
-                </div>
-                <div class="card-body">
-                    <p>The system provides several ways to review student performance:</p>
-
-                    <h6><i class="fas fa-user me-2"></i>Individual Student View</h6>
-                    <ol>
-                        <li>From the "Students" section, click on a student's name</li>
-                        <li>
-                            View their complete performance profile:
-                            <ul>
-                                <li>Scores on all exams and questions</li>
-                                <li>Achievement levels for each Course Outcome</li>
-                                <li>Overall weighted score</li>
-                            </ul>
-                        </li>
-                    </ol>
-
-                    <h6><i class="fas fa-list me-2"></i>Score Summary</h6>
-                    <p>From the Calculation Results page, you can access:</p>
-                    <ul>
-                        <li>Student achievement table showing overall performance</li>
-                        <li>Distribution of student success across outcomes</li>
-                        <li>Detailed performance breakdowns by exam and question</li>
-                    </ul>
-
-                    <div class="alert alert-success mt-3">
-                        <i class="fas fa-download me-2"></i><strong>Export Options:</strong> Student performance data can be exported in various formats for further analysis, record-keeping, or submission to accreditation bodies.
-                    </div>
-                </div>
-            </div>
-
-            <div class="alert alert-info mt-3">
-                <i class="fas fa-link me-2"></i><strong>Related Sections:</strong>
-                <ul class="mb-0">
-                    <li>See <a href="#exams" class="tab-link">Exams & Questions</a> for information on creating the assessment components that scores are recorded against.</li>
-                    <li>See <a href="#calculation" class="tab-link">Calculations</a> to understand how student scores contribute to outcome achievement calculations.</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Accredit Calculations -->
-<div class="tab-pane fade" id="calculation">
-    <div class="card shadow-sm">
-        <div class="card-header bg-info text-white">
-            <h4 class="mb-0"><i class="fas fa-calculator me-2"></i>Accredit Calculations</h4>
-        </div>
-        <div class="card-body">
-            <div class="alert alert-primary">
-                <i class="fas fa-info-circle me-2"></i><strong>What Are Accredit Calculations?</strong> These are automated analyses that determine how well students are achieving the defined learning outcomes at both the course level (COs) and program level (POs).
-            </div>
-
-            <div class="card mb-4 border-success">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Optimized Calculation System</h5>
-                </div>
-                <div class="card-body">
-                    <p>The calculation system has been significantly enhanced to improve performance and consistency:</p>
-                    <ul>
-                        <li><strong>Efficient Multi-Course Analysis:</strong> The "All Courses" analysis now uses a centralized calculation function that computes each course's results once and reuses them for program-wide aggregation.</li>
-                        <li><strong>Reduced Database Queries:</strong> Optimized data loading minimizes database hits, especially when processing large numbers of courses.</li>
-                        <li><strong>Consistent Makeup Exam Handling:</strong> Improved synchronization of makeup exam weights with their original exams ensures calculation accuracy.</li>
-                        <li><strong>Standardized Student Exclusion Logic:</strong> Enhanced handling of student exclusions based on mandatory exam attendance applies consistently across all calculation methods.</li>
-                        <li><strong>Unified Calculation Core:</strong> Single-course and all-courses views now share the same core calculation logic, ensuring consistent results regardless of where you view the data.</li>
-                    </ul>
-                    <div class="alert alert-info">
-                        <i class="fas fa-lightbulb me-2"></i><strong>Benefit:</strong> These improvements provide faster performance, more consistent results, and better memory usage, especially when working with multiple courses or large datasets.
-                    </div>
-                </div>
-            </div>
-
-            <div class="card mb-4 border-primary">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Calculation Methods</h5>
-                </div>
-                <div class="card-body">
-                    <p>The system supports two primary calculation methods for outcome achievement:</p>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="card mb-3">
-                                <div class="card-header bg-light">
-                                    <h6 class="mb-0"><i class="fas fa-calculator me-2"></i>Absolute Method</h6>
-                                </div>
-                                <div class="card-body">
-                                    <p><strong>How it works:</strong></p>
-                                    <ol>
-                                        <li>Calculate the average score for each question linked to a CO</li>
-                                        <li>Apply question weights based on max score</li>
-                                        <li>Apply exam weights from the weight settings</li>
-                                        <li>Calculate weighted average across all questions for each CO</li>
-                                    </ol>
-                                    <p><strong>Result:</strong> The CO achievement is the average score percentage achieved by all students.</p>
-                                    <div class="alert alert-info mt-2">
-                                        <i class="fas fa-info-circle me-2"></i><strong>Example:</strong> If students averaged 72% on questions assessing CO1, then CO1's achievement level is 72%.
-                                    </div>
-                                    <p><strong>Best for:</strong> Directly measuring student performance levels regardless of threshold.</p>
-                                </div>
-                            </div>
+                <!-- Remote Access -->
+                <div class="tab-pane fade" id="remote-access">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h4 class="mb-0"><i class="fas fa-globe me-2"></i>About Remote Access</h4>
                         </div>
-                        <div class="col-md-6">
-                            <div class="card mb-3">
-                                <div class="card-header bg-light">
-                                    <h6 class="mb-0"><i class="fas fa-percentage me-2"></i>Relative Method</h6>
-                                </div>
-                                <div class="card-body">
-                                    <p><strong>How it works:</strong></p>
-                                    <ol>
-                                        <li>Calculate each student's overall score for each CO</li>
-                                        <li>Determine how many students achieved above the threshold</li>
-                                        <li>Calculate the percentage of students who succeeded</li>
-                                    </ol>
-                                    <p><strong>Result:</strong> The CO achievement is the percentage of students who met or exceeded the success threshold.</p>
-                                    <div class="alert alert-info mt-2">
-                                        <i class="fas fa-info-circle me-2"></i><strong>Example:</strong> If 80% of students scored at or above 60% on CO1, then CO1's achievement level is 80%.
-                                    </div>
-                                    <p><strong>Best for:</strong> Measuring success rates based on a defined threshold, emphasizing the proportion of students who achieve the outcome.</p>
-                                </div>
+                        <div class="card-body">
+                            <p class="lead">Accredit Helper Pro supports secure remote access via Cloudflare Tunnel, allowing you to access your application from anywhere and share it with colleagues without complex network configuration.</p>
+
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i><strong>What is Cloudflared?</strong> Cloudflared is a lightweight tunneling client from Cloudflare that creates a secure connection between your local application and Cloudflare's edge network. This tunnel allows you to expose your locally running app to the internet securely through a randomly generated URL.
                             </div>
-                        </div>
-                    </div>
 
-                    <div class="alert alert-success mt-3">
-                        <i class="fas fa-exchange-alt me-2"></i><strong>Method Switching:</strong> You can switch between methods at any time without recalculating. In the "All Courses" view, you can toggle the calculation method using the radio buttons at the top of the page, and all courses will update instantly.
-                    </div>
-
-                    <div class="alert alert-warning mt-3">
-                        <i class="fas fa-exclamation-triangle me-2"></i><strong>Important:</strong> The calculation method you choose can significantly impact your outcome achievement results. Consider your accreditation requirements and assessment philosophy when selecting a method.
-                    </div>
-                </div>
-            </div>
-
-            <div class="card mb-4 border-info">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Running Calculations</h5>
-                </div>
-                <div class="card-body">
-                    <h6><i class="fas fa-play-circle me-2"></i>Single Course Calculation</h6>
-                    <ol>
-                        <li>Ensure all necessary data is entered: Course Outcomes linked to Program Outcomes, Exams created with Weights, Questions linked to Course Outcomes, Students added, and Scores entered.</li>
-                        <li>Navigate to the Course Detail page for the course you want to assess.</li>
-                        <li>Click the "Calculate Results" button.</li>
-                        <li>The system will process the scores based on the links and settings you've defined.</li>
-                        <li>You will be redirected to the Calculation Results page.</li>
-                    </ol>
-
-                    <h6><i class="fas fa-layer-group me-2"></i>All Courses Calculation</h6>
-                    <ol>
-                        <li>From the main navigation, go to "Calculations" → "All Courses"</li>
-                        <li>The system will automatically process all courses using the optimized calculation engine</li>
-                        <li>You can sort courses by various criteria using the dropdown at the top</li>
-                        <li>Toggle between Absolute and Relative display methods using the radio buttons</li>
-                        <li>View both course-level and program-level outcome achievements</li>
-                    </ol>
-
-                    <div class="alert alert-info mt-3">
-                        <i class="fas fa-filter me-2"></i><strong>Filtering:</strong> The "All Courses" view respects course exclusion settings. Any courses marked as "Exclude from Reports" in their settings will not be included in program-level aggregations.
-                    </div>
-                </div>
-            </div>
-
-            <div class="card mb-4 border-warning">
-                <div class="card-header bg-warning text-dark">
-                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Understanding Calculation Results</h5>
-                </div>
-                <div class="card-body">
-                    <p>The results page presents several key metrics and visualizations:</p>
-
-                    <h6><i class="fas fa-list-alt me-2"></i>Course Outcome (CO) Achievement</h6>
-                    <ul>
-                        <li>Shows achievement level for each CO defined in the course</li>
-                        <li>Displays raw percentage and corresponding achievement level (e.g., Excellent, Good)</li>
-                        <li>Visualizes achievement using color-coded bars</li>
-                        <li>Provides details about the number of questions and exams assessing each CO</li>
-                    </ul>
-
-                    <h6><i class="fas fa-sitemap me-2"></i>Program Outcome (PO) Contribution</h6>
-                    <ul>
-                        <li>Shows how this course contributes to each program-level outcome</li>
-                        <li>Derived from the COs mapped to each PO</li>
-                        <li>The weighted average of all CO achievements feeding into each PO</li>
-                        <li>In "All Courses" view, shows aggregated PO achievement across all courses</li>
-                    </ul>
-
-                    <h6><i class="fas fa-user-check me-2"></i>Student Success Rate</h6>
-                    <ul>
-                        <li>Shows the percentage of students deemed "successful" based on the chosen calculation method</li>
-                        <li>Details the number of students who met or exceeded the threshold</li>
-                        <li>Displays any students excluded from calculations due to mandatory exam requirements</li>
-                    </ul>
-
-                    <h6><i class="fas fa-table me-2"></i>Detailed Data Tables</h6>
-                    <ul>
-                        <li>Student-level outcome achievement breakdown</li>
-                        <li>Question-by-question performance analysis</li>
-                        <li>Exam-level summary statistics</li>
-                    </ul>
-
-                    <div class="alert alert-success mt-3">
-                        <i class="fas fa-file-export me-2"></i><strong>Export Options:</strong> The calculation results can be exported in various formats:
-                        <ul class="mb-0">
-                            <li><strong>PDF Report:</strong> Formatted document suitable for accreditation evidence</li>
-                            <li><strong>Excel/CSV:</strong> Raw data for further analysis or record-keeping</li>
-                            <li><strong>Charts:</strong> Visualization images for presentations</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            <div class="alert alert-info mt-3">
-                <i class="fas fa-link me-2"></i><strong>Related Sections:</strong>
-                <ul class="mb-0">
-                    <li>See <a href="#outcomes" class="tab-link">Outcomes</a> for details on setting up the outcome structure needed for calculations.</li>
-                    <li>See <a href="#exams" class="tab-link">Exams & Questions</a> for information on linking questions to outcomes.</li>
-                    <li>See <a href="#students" class="tab-link">Students & Scores</a> for understanding how student data feeds into calculations.</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Utilities -->
-<div class="tab-pane fade" id="utilities">
-    <div class="card shadow-sm">
-        <div class="card-header" style="background-color: #fd7e14; color: white;">
-            <h4 class="mb-0"><i class="fas fa-tools me-2"></i>Utilities: Data Management & More</h4>
-        </div>
-        <div class="card-body">
-            <p>The Utilities section provides essential tools for managing your application data, accessing logs, and performing system operations.</p>
-            <a href="{{ url_for('utility.index') }}" class="btn btn-sm btn-outline-primary mb-3"><i class="fas fa-cog"></i> Go to Utilities Index</a>
-
-            <div class="card mb-4 border-primary">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="fas fa-database me-2"></i>Database Management</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6><i class="fas fa-download me-2"></i>Backup Database</h6>
-                            <p>Create a safe copy of your entire application database:</p>
-                            <ol>
-                                <li>Navigate to Utilities → Backup Database</li>
-                                <li>Enter an optional description for your backup</li>
-                                <li>Click "Create Backup"</li>
-                                <li>The system will create a timestamped backup file</li>
-                                <li>You can download the backup file or access it later</li>
-                            </ol>
-                            <div class="alert alert-info mt-2">
-                                <i class="fas fa-info-circle me-2"></i><strong>Tip:</strong> Create regular backups, especially before significant changes or at the end of each term. Add clear descriptions that will help you identify the backup's purpose later.
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <h6><i class="fas fa-upload me-2"></i>Restore Database</h6>
-                            <p>Recover your database from a previously created backup:</p>
-                            <ol>
-                                <li>Navigate to Utilities → Restore Database</li>
-                                <li>Browse the list of available backups</li>
-                                <li>Select the backup you want to restore</li>
-                                <li>Click "Restore"</li>
-                                <li>Confirm the restoration when prompted</li>
-                            </ol>
-                            <div class="alert alert-warning mt-2">
-                                <i class="fas fa-exclamation-triangle me-2"></i><strong>Important:</strong> Restoring a database will replace all current data with the data from the backup. The system will automatically create a backup of your current database before restoration as a safety measure.
-                            </div>
-                        </div>
-                    </div>
-
-                    <h6><i class="fas fa-list me-2"></i>List Backups</h6>
-                    <p>View and manage all your database backups:</p>
-                    <ol>
-                        <li>Navigate to Utilities → List Backups</li>
-                        <li>
-                            View a complete list of all backups with:
-                            <ul>
-                                <li>Timestamp</li>
-                                <li>Description</li>
-                                <li>File size</li>
-                            </ul>
-                        </li>
-                        <li>Download or restore any backup from this interface</li>
-                        <li>Delete old or unnecessary backups</li>
-                    </ol>
-                </div>
-            </div>
-
-            <div class="card mb-4 border-success">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Data Import & Export</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6><i class="fas fa-file-import me-2"></i>Import Database</h6>
-                            <p>Import data from an external database file:</p>
-                            <ol>
-                                <li>Navigate to Utilities → Import Database</li>
-                                <li>Upload an Accredit Helper Pro database file (.db)</li>
-                                <li>
-                                    Select which components to import:
-                                    <ul>
-                                        <li>Courses</li>
-                                        <li>Students</li>
-                                        <li>Exams</li>
-                                        <li>Outcomes</li>
-                                        <li>Program Outcomes</li>
-                                        <li>Achievement Levels</li>
+                            <h5><i class="fas fa-star me-2"></i>Key Benefits</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <ul class="list-group list-group-flush mb-3">
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Access from Anywhere</strong> - Use your application from any device with an internet connection</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Easy Sharing</strong> - Share your application with colleagues by sharing the URL</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>No Firewall Configuration</strong> - Works without changing network settings or router configuration</li>
                                     </ul>
-                                </li>
-                                <li>Choose whether to merge with existing data or replace it</li>
-                                <li>Click "Import" and confirm when prompted</li>
-                            </ol>
-                            <div class="alert alert-info mt-2">
-                                <i class="fas fa-info-circle me-2"></i><strong>Use Case:</strong> Import data from a colleague's database or from a different computer. Great for department-wide standardization of Program Outcomes.
+                                </div>
+                                <div class="col-md-6">
+                                    <ul class="list-group list-group-flush mb-3">
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Secure Connection</strong> - Traffic is encrypted between your device and Cloudflare's network</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>No Account Required</strong> - Use the basic tunneling feature without creating an account</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Simple Setup</strong> - Just install cloudflared and run with the --cloud flag</li>
+                                    </ul>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <h6><i class="fas fa-object-group me-2"></i>Merge Courses</h6>
-                            <p>Combine data from multiple related courses:</p>
+                    </div>
+
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h4 class="mb-0"><i class="fas fa-download me-2"></i>Installation Guide</h4>
+                        </div>
+                        <div class="card-body">
+                            <p>Before you can use the remote access feature, you need to install the cloudflared client on your computer:</p>
+
+                            <h5 class="mt-4"><i class="fab fa-windows me-2"></i>Windows Installation</h5>
                             <ol>
-                                <li>Navigate to Utilities → Merge Courses</li>
-                                <li>Select a destination course that will receive the merged data</li>
-                                <li>Select one or more source courses to merge from</li>
-                                <li>Preview the merge results before proceeding</li>
-                                <li>Confirm the merge operation</li>
+                                <li>Download the installer from <a href="https://github.com/cloudflare/cloudflared/releases" target="_blank">Cloudflare's official website</a></li>
+                                <li>
+                                    Run the installer and follow the on-screen instructions - cloudflared-windows-386.msi and cloudflared-windows-amd64.exe
+                                </li>
+                                <li>After installation, verify it works by opening a Command Prompt and typing: <code>cloudflared --version</code></li>
                             </ol>
-                            <div class="alert alert-warning mt-2">
-                                <i class="fas fa-exclamation-triangle me-2"></i><strong>Important:</strong> The merge preview will show potential conflicts such as duplicate student IDs. Review these carefully before proceeding.
+
+                            <h5 class="mt-4"><i class="fab fa-apple me-2"></i>macOS Installation</h5>
+                            <ol>
+                                <li>Using Homebrew: <code>brew install cloudflare/cloudflare/cloudflared</code></li>
+                                <li>Alternatively, download the package from <a href="https://github.com/cloudflare/cloudflared/releases" target="_blank">Cloudflare's official website</a></li>
+                                <li>Verify the installation by opening Terminal and typing: <code>cloudflared --version</code></li>
+                            </ol>
+
+                            <h5 class="mt-4"><i class="fab fa-linux me-2"></i>Linux Installation</h5>
+                            <ol>
+                                <li>For Debian/Ubuntu: <pre class="bg-light p-2">curl -L https://pkg.cloudflare.com/cloudflared-stable-linux-amd64.deb -o cloudflared.deb
+sudo dpkg -i cloudflared.deb</pre></li>
+                                <li>For other distributions, follow the instructions on <a href="https://github.com/cloudflare/cloudflared/releases" target="_blank">Cloudflare's website</a></li>
+                                <li>Verify the installation: <code>cloudflared --version</code></li>
+                            </ol>
+
+                            <div class="alert alert-warning mt-3">
+                                <i class="fas fa-exclamation-triangle me-2"></i><strong>Important:</strong> The cloudflared executable must be in your system's PATH for the application to use it automatically. If you installed it but the application can't find it, you may need to restart your computer or adjust your PATH environment variable.
                             </div>
                         </div>
                     </div>
 
-                    <h6><i class="fas fa-hand-point-right me-2"></i>Other Export Options</h6>
-                    <p>In addition to full database backups, you can export specific data:</p>
-                    <ul>
-                        <li><strong>Student Lists:</strong> Export students from a course as CSV files</li>
-                        <li><strong>Calculation Results:</strong> Export outcome achievements as PDF, Excel, or CSV</li>
-                        <li><strong>Program Outcomes:</strong> Export PO lists for sharing across departments</li>
-                    </ul>
-                    <div class="alert alert-success mt-3">
-                        <i class="fas fa-lightbulb me-2"></i><strong>Tip:</strong> For large datasets, consider exporting and working with specific components rather than entire database backups when possible.
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h4 class="mb-0"><i class="fas fa-play-circle me-2"></i>Using Remote Access</h4>
+                        </div>
+                        <div class="card-body">
+                            <p>Once you have cloudflared installed, you can start Accredit Helper Pro with remote access enabled:</p>
+
+                            <h5><i class="fas fa-terminal me-2"></i>Starting with Remote Access</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <h6 class="mb-0">Option 1: Using Windows Batch File</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <ol>
+                                                <li>Use <code>Windows_Start_CloudFlare_Public_Url.bat</code></li>
+                                                <li>The console will display a public URL you can access from any device</li>
+                                            </ol>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-light">
+                                            <h6 class="mb-0">Option 2: Using Command Line</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <ol>
+                                                <li>Open a command prompt or terminal</li>
+                                                <li>Navigate to your application directory</li>
+                                                <li>Activate your virtual environment (if applicable)</li>
+                                                <li>Run the application with the <code>--cloud</code> flag:
+                                                <pre class="bg-light p-2">python app.py --cloud</pre></li>
+                                                <li>The console will display a public URL</li>
+                                            </ol>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-info mt-3">
+                                <i class="fas fa-link me-2"></i><strong>About the Public URL:</strong> The URL is generated randomly each time you start the application with the <code>--cloud</code> flag. It will look something like <code>https://some-random-words.trycloudflare.com</code>. This URL will remain active as long as your application is running.
+                            </div>
+
+                            <h5 class="mt-4"><i class="fas fa-share-alt me-2"></i>Sharing Access with Others</h5>
+                            <ol>
+                                <li>Start the application with the <code>--cloud</code> flag as described above</li>
+                                <li>Note the public URL displayed in the console</li>
+                                <li>Share this URL with colleagues or access it from your other devices</li>
+                                <li>Anyone with the URL can access your application until you close it</li>
+                            </ol>
+
+                            <div class="alert alert-warning mt-3">
+                                <i class="fas fa-shield-alt me-2"></i><strong>Security Note:</strong> While the connection is encrypted, anyone with the URL can access your application. Do not share the URL with untrusted parties. The URL is only active while your application is running - when you close the application, the URL becomes inactive.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-secondary text-white">
+                            <h4 class="mb-0"><i class="fas fa-question-circle me-2"></i>Troubleshooting</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="accordion" id="troubleshootingCloudAccordion">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="headingCloudOne">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCloudOne" aria-expanded="true" aria-controls="collapseCloudOne">
+                                            "cloudflared is not installed" error
+                                        </button>
+                                    </h2>
+                                    <div id="collapseCloudOne" class="accordion-collapse collapse show" aria-labelledby="headingCloudOne" data-bs-parent="#troubleshootingCloudAccordion">
+                                        <div class="accordion-body">
+                                            <p>If you see this error, it means the application couldn't find the cloudflared executable:</p>
+                                            <ol>
+                                                <li>Verify that cloudflared is installed by running <code>cloudflared --version</code> in a terminal</li>
+                                                <li>If the command is not found, reinstall cloudflared following the installation instructions</li>
+                                                <li>If installed but still not working, try restarting your computer</li>
+                                                <li>For advanced users: ensure the cloudflared executable is in your system's PATH</li>
+                                            </ol>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="headingCloudTwo">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCloudTwo" aria-expanded="true" aria-controls="collapseCloudTwo">
+                                            No public URL appears in the console
+                                        </button>
+                                    </h2>
+                                    <div id="collapseCloudTwo" class="accordion-collapse collapse show" aria-labelledby="headingCloudTwo" data-bs-parent="#troubleshootingCloudAccordion">
+                                        <div class="accordion-body">
+                                            <p>If the application starts but no public URL is displayed:</p>
+                                            <ol>
+                                                <li>Check that you included the <code>--cloud</code> flag when starting the application</li>
+                                                <li>Look carefully through the console output for any errors related to cloudflared</li>
+                                                <li>Ensure that outbound connections to Cloudflare's servers are not blocked by a firewall</li>
+                                                <li>Try running cloudflared manually to test if it works:
+                                                <pre class="bg-light p-2">cloudflared tunnel --url http://localhost:5000</pre></li>
+                                            </ol>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="headingCloudThree">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCloudThree" aria-expanded="true" aria-controls="collapseCloudThree">
+                                            Remote devices can't connect to the public URL
+                                        </button>
+                                    </h2>
+                                    <div id="collapseCloudThree" class="accordion-collapse collapse show" aria-labelledby="headingCloudThree" data-bs-parent="#troubleshootingCloudAccordion">
+                                        <div class="accordion-body">
+                                            <p>If you or others cannot access the application via the public URL:</p>
+                                            <ol>
+                                                <li>Verify that your application is still running locally</li>
+                                                <li>Check that you're using the exact URL displayed in the console</li>
+                                                <li>Ensure the remote device has internet access and can reach Cloudflare's services</li>
+                                                <li>Try accessing the URL from a different browser or device</li>
+                                                <li>Restart the application with the <code>--cloud</code> flag to generate a new URL</li>
+                                            </ol>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="headingCloudFour">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCloudFour" aria-expanded="true" aria-controls="collapseCloudFour">
+                                            Performance is slow on remote devices
+                                        </button>
+                                    </h2>
+                                    <div id="collapseCloudFour" class="accordion-collapse collapse show" aria-labelledby="headingCloudFour" data-bs-parent="#troubleshootingCloudAccordion">
+                                        <div class="accordion-body">
+                                            <p>If the application is running slowly when accessed remotely:</p>
+                                            <ol>
+                                                <li>This is normal to some extent - data must travel through the internet</li>
+                                                <li>Check your local internet connection upload speed</li>
+                                                <li>Limit large data transfers when using remote access</li>
+                                                <li>For better performance with large datasets, consider using the application locally</li>
+                                            </ol>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-
-            <div class="card mb-4 border-info">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0"><i class="fas fa-cloud me-2"></i>Remote Access with Cloudflared</h5>
-                </div>
-                <div class="card-body">
-                    <p>Access your Accredit Helper Pro application from anywhere with our cloudflared integration:</p>
-                    <ul>
-                        <li><strong>Share with Colleagues:</strong> Generate a secure public URL for collaboration</li>
-                        <li><strong>Remote Access:</strong> Use your application from any device with internet</li>
-                        <li><strong>Simple Setup:</strong> Just install cloudflared and run with the <code>--cloud</code> flag</li>
-                    </ul>
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>For detailed instructions on setting up and using cloudflared,
-                        <a href="{{ url_for('utility.cloud_help_page') }}" class="alert-link">visit our dedicated Remote Access guide</a>.
-                    </div>
-                </div>
-            </div>
-
-            <div class="card mb-4 border-secondary">
-                <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0"><i class="fas fa-list-alt me-2"></i>System Logs</h5>
-                </div>
-                <div class="card-body">
-                    <p>Track and review system activities and changes made in the application:</p>
-                    <ol>
-                        <li>Navigate to Utilities → System Logs</li>
-                        <li>Browse the chronological list of application actions</li>
-                        <li>
-                            Filter logs by:
-                            <ul>
-                                <li>Date range</li>
-                                <li>Action type (create, update, delete, etc.)</li>
-                                <li>Description contains specific text</li>
-                            </ul>
-                        </li>
-                        <li>Export log data for record-keeping</li>
-                    </ol>
-                    <div class="alert alert-info mt-2">
-                        <i class="fas fa-search me-2"></i><strong>Use Cases:</strong> Logs are useful for troubleshooting issues, tracking changes, identifying when specific actions occurred, and generating activity reports for administrative purposes.
-                    </div>
-                </div>
-            </div>
-
-            <div class="alert alert-info mt-3">
-                <i class="fas fa-link me-2"></i><strong>Related Sections:</strong>
-                <ul class="mb-0">
-                    <li>See <a href="#troubleshooting" class="tab-link">Troubleshooting</a> for help with common issues related to utilities.</li>
-                    <li>For Remote Access help, visit the dedicated <a href="{{ url_for('utility.cloud_help_page') }}">Remote Access Guide</a>.</li>
-                </ul>
-            </div>
         </div>
-    </div>
 
-    <div class="card mb-3">
-        <div class="card-header bg-light">
-            <h6 class="mb-0">Missing or Unexpected Data</h6>
-        </div>
-        <div class="card-body">
-            <p><strong>Symptoms:</strong> Courses, exams, or students that should be present are missing, or data appears incorrect.</p>
-
-            <p><strong>Possible Causes & Solutions:</strong></p>
-            <ul>
-                <li>
-                    <strong>Accidental Deletion:</strong>
-                    <ul>
-                        <li>Restore from a recent backup if available</li>
-                        <li>Check the system logs for deletion actions: Utilities → View Logs</li>
-                    </ul>
-                </li>
-                <li>
-                    <strong>Wrong Database File:</strong>
-                    <ul>
-                        <li>Ensure you're using the correct database file (particularly if you use multiple databases)</li>
-                        <li>Check the backup list to verify which database is currently active</li>
-                    </ul>
-                </li>
-                <li>
-                    <strong>Data Import Issues:</strong>
-                    <ul>
-                        <li>If data appears after an import operation, verify the import settings were correct</li>
-                        <li>You may need to restore from a pre-import backup and retry with different settings</li>
-                    </ul>
-                </li>
-            </ul>
-        </div>
-    </div>
-</div>
-            </div>
-        </div>
     </div>
 </div>
 {% endblock %}
