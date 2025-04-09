@@ -1,12 +1,12 @@
 # Accredit Helper Pro
 
-## Purchase Department License here (all department staff can use): 
+## 🛒 Purchase Department License here (all department staff can use): 
 https://www.patreon.com/SECourses/shop/accredit-helper-pro-10x-speed-up-your-1440486
 
-## Purchase University/Institution-Wide License here (entire university or institution can use): 
+## 🏢 Purchase University/Institution-Wide License here (entire university or institution can use): 
 https://www.patreon.com/SECourses/shop/accredit-helper-pro-university-wide-1440509
 
-## Licenses are lifetime (permanent) and you will receive app updates for life
+## ♾️ Licenses are lifetime (permanent) and you will receive app updates for life
 
 **Accredit Helper Pro** is a comprehensive tool designed for educational institutions to manage course data, track student performance against learning outcomes (POs and COs), and streamline the accreditation assessment process (e.g., ABET, MÜDEK).
 
