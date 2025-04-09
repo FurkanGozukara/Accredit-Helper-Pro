@@ -2,24 +2,23 @@
 
 Welcome to Accredit Helper Pro, your comprehensive tool for managing course data, tracking student performance against learning outcomes, and streamlining the accreditation process.
 
-
 ---
 
 ## Table of Contents
 
-*   [ℹ️ Overview](#️overview)
+*   [ℹ️ Overview](#️-overview)
 *   [🚀 Getting Started](#-getting-started)
-*   [📚 Courses](#courses)
-*   [🎯 Outcomes (POs & COs)](#outcomes-pos--cos)
-*   [📄 Exams & Questions](#exams--questions)
-*   [🎓 Students & Scores](#students--scores)
-*   [🧮 Accredit Calculations](#accredit-calculations)
-*   [🛠️ Utilities](#️utilities)
-*   [☁️ Remote Access (Cloudflared)](#️remote-access-cloudflared)
-*   [🔧 Troubleshooting](#️troubleshooting)
-*   [🛡️ Privacy Policy](#️privacy-policy)
-*   [⚖️ Terms of Use](#️terms-of-use)
-*   [✉️ Contact & Support](#️contact--support)
+*   [📚 Courses](#-courses)
+*   [🎯 Outcomes (POs & COs)](#-outcomes-pos--cos)
+*   [📄 Exams & Questions](#-exams--questions)
+*   [🎓 Students & Scores](#-students--scores)
+*   [🧮 Accredit Calculations](#-accredit-calculations)
+*   [🛠️ Utilities](#️-utilities)
+*   [☁️ Remote Access (Cloudflared)](#️-remote-access-cloudflared)
+*   [🔧 Troubleshooting](#️-troubleshooting)
+*   [🛡️ Privacy Policy](#️-privacy-policy)
+*   [⚖️ Terms of Use](#️-terms-of-use)
+*   [✉️ Contact & Support](#️-contact--support)
 
 ---
 
