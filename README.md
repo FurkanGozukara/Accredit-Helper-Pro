@@ -21,7 +21,7 @@
         *   [Step 7: Enter Student Scores](#step-7-enter-student-scores)
         *   [Advanced: Mass Association Tool](#advanced-feature-mass-association-tool)
         *   [Step 8: Calculate Results & Generate Reports](#step-8-calculate-results--generate-reports)
-        *   [Step 9: Use \"All Courses\" Analysis](#step-9-use-all-courses-analysis-for-program-wide-assessment)
+        *   [Step 9: Use \\\"All Courses\\\" Analysis](#step-9-use-all-courses-analysis-for-program-wide-assessment)
     *   [Quick Start for Returning Users](#quick-start-for-returning-users)
 5.  [Managing Courses](#managing-courses-)
     *   [Creating & Managing Courses](#creating--managing-courses)
@@ -51,7 +51,7 @@
     *   [Running Calculations & Understanding Results](#running-calculations--understanding-the-results-page)
     *   [Advanced Calculation Features (Makeup, Mandatory, Precision, Debugging)](#advanced-calculation-features)
     *   [Exporting Results](#exporting-results)
-    *   [Multi-Course Analysis (\"All Courses\" View)](#multi-course-analysis-all-courses-view)
+    *   [Multi-Course Analysis (\\\"All Courses\\\" View)](#multi-course-analysis-all-courses-view)
 10. [Utilities: Data Management & More](#utilities-data-management--more-)
     *   [Remote Access (Cloudflared)](#remote-access-with-cloudflared-)
     *   [API Integration](#api-integration-)
@@ -97,37 +97,37 @@ Welcome to **Accredit Helper Pro**, your comprehensive tool for managing course 
 *   **✅ Question-Outcome Mapping:** Link individual questions to specific learning outcomes.
 *   **✅ Student Management:** Import and track individual students across courses.
 *   **✅ Score Tracking:** Record and auto-save student performance data via AJAX.
-*   **✅ Attendance Tracking:** Record and manage student attendance for exams with automated import/export.
+*   **✅ Attendance Tracking:** Record and manage student attendance for exams with automated import/export via AJAX.
 *   **✅ Student Exclusion Control:** Manually exclude/include specific students from outcome calculations.
 *   **✅ Automated Calculations:** Get precise outcome achievement metrics.
-*   **✅ Multiple Calculation Methods:** Choose between absolute and relative achievement models.
-*   **✅ Custom Achievement Levels:** Define your own performance categories.
+*   **✅ Multiple Calculation Methods:** Choose between absolute (average score) and relative (percent achieving threshold) achievement models.
+*   **✅ Custom Achievement Levels:** Define your own performance categories (e.g., Excellent, Good).
 *   **✅ Reporting:** Generate accreditation-ready reports and exports (PDF, CSV, Excel).
 *   **✅ Data Management:** Backup, restore, merge, and import data seamlessly.
-*   **✅ Activity Logging:** Track all significant actions within the system.
-*   **✅ Batch Operations:** Add/manage multiple questions, outcomes, students (incl. deletion), attendance.
-*   **✅ Mass Association Tool:** Quickly connect multiple questions to outcomes using simple syntax.
-*   **✅ AJAX-based Interface:** Responsive, real-time updates for score entry and attendance.
-*   **✅ Secure Remote Access:** Use Cloudflare Tunnel for accessing the application from anywhere.
-*   **✅ Advanced Exam Features:** Support for makeup exams, final exam designation, and mandatory exam attendance.
+*   **✅ Activity Logging:** Track all significant actions (Add, Edit, Delete, Import, etc.) within the system.
+*   **✅ Batch Operations:** Add/manage multiple questions, outcomes, students (including batch deletion), and attendance records efficiently.
+*   **✅ Mass Association Tool:** Quickly connect multiple questions to outcomes using simple text syntax.
+*   **✅ AJAX-based Interface:** Responsive, real-time updates for score entry and attendance tracking.
+*   **✅ Secure Remote Access:** Use Cloudflare Tunnel (`cloudflared`) for accessing the application securely from anywhere.
+*   **✅ Advanced Exam Features:** Support for makeup exams, final exam designation, and mandatory exam attendance logic.
 *   **✅ Data Visualization:** View interactive charts and graphs for outcome achievements.
-*   **✅ Course Duplication:** Quickly set up new courses based on existing templates.
-*   **✅ Multi-course Analysis:** Analyze program outcomes across all courses with optimized performance.
-*   **✅ Student Score Export:** Export detailed student performance data.
-*   **✅ Detailed Exam Data Exports:** Export exam structure, questions, outcomes, and scores.
-*   **✅ API Functionality:** Access data programmatically via REST endpoints.
-*   **✅ Enhanced Search:** Find specific information across courses with the built-in search.
+*   **✅ Course Duplication:** Quickly set up new courses based on existing templates, copying structure (COs, Exams, Questions, Weights, Settings).
+*   **✅ Multi-course Analysis:** Analyze program outcomes across all courses with optimized performance and consistent logic.
+*   **✅ Student Score Export:** Export detailed student performance data (grades, outcome achievement).
+*   **✅ Detailed Exam Data Exports:** Export comprehensive exam structure, questions, outcome links, and scores for analysis or backup.
+*   **✅ API Functionality:** Access data programmatically via REST endpoints (JSON format).
+*   **✅ Enhanced Search:** Find specific information across courses (Code, Name, Semester) with dynamic filtering.
 
 ### Recent Performance Improvements 🚀
 
 The calculation system has been significantly optimized for:
 
-*   **⚡ Faster Multi-Course Analysis:** Significant speed improvements for program-wide results.
-*   **⚙️ Efficient Resource Usage:** Minimized database queries for better performance with large datasets.
-*   **🔄 Consistent Makeup Exam Handling:** Enhanced synchronization of makeup exam weights.
-*   **⚖️ Standardized Student Exclusion:** Improved logic for handling mandatory exam attendance.
-*   **🖱️ Enhanced Attendance Management:** AJAX-based attendance tracking with bulk import/export.
-*   **☁️ Robust Remote Access:** Improved Cloudflare Tunnel integration.
+*   **⚡ Faster Multi-Course Analysis:** Significant speed improvements for program-wide results via centralized calculation and reduced queries.
+*   **⚙️ Efficient Resource Usage:** Minimized database queries and optimized data loading for better performance with large datasets.
+*   **🔄 Consistent Makeup Exam Handling:** Enhanced synchronization ensures makeup exams correctly inherit weights and scores are used appropriately.
+*   **⚖️ Standardized Student Exclusion:** Improved logic consistently handles mandatory exam attendance across calculation methods.
+*   **🖱️ Enhanced Attendance Management:** Fast, AJAX-based attendance tracking with bulk import/export capabilities.
+*   **☁️ Robust Remote Access:** Improved Cloudflare Tunnel integration for seamless remote usage.
 
 ### Who Should Use This Application? 👥
 
@@ -141,7 +141,7 @@ The calculation system has been significantly optimized for:
 
 *   **Backend:** Python Flask framework with SQLAlchemy ORM
 *   **Database:** SQLite (portable, file-based)
-*   **Frontend:** Bootstrap 5 (responsive design)
+*   **Frontend:** Bootstrap 5 (responsive design) with AJAX for real-time updates
 *   **Security:** Protected file operations, data validation
 *   **Remote Access:** Integrated Cloudflare Tunnel support
 
@@ -163,7 +163,7 @@ The calculation system has been significantly optimized for:
     ```bash
     # Windows
     python -m venv venv
-    .\\venv\\Scripts\\activate
+    .\\\\venv\\\\Scripts\\\\activate
 
     # macOS/Linux
     python3 -m venv venv
@@ -231,10 +231,10 @@ Each course offering (semester/term) needs its own instance.
 1.  From the Homepage, click `Add Course`.
 2.  Enter **Course Code** (e.g., `CENG301`).
 3.  Enter **Course Name** (e.g., `Software Engineering`).
-4.  Specify **Semester** (e.g., `Fall 2023`).
+4.  Specify **Semester** (e.g., `Fall 2023`). Use a consistent format (e.g., \"YYYY Season\") for better sorting.
 5.  Click `Save Course`.
 
-> **⚠️ Important:** Create separate instances for each semester (e.g., \"CENG301 Fall 2023\", \"CENG301 Spring 2024\").
+> **⚠️ Important:** Create separate instances for each semester (e.g., \"CENG301 Fall 2023\", \"CENG301 Spring 2024\"). This is crucial for accurate tracking over time.
 
 #### Step 3: Define Course Outcomes (COs)
 
@@ -242,7 +242,7 @@ COs are specific, measurable learning objectives linked to POs.
 
 1.  On the Course Detail page, find \"Course Outcomes\" -> `Add Course Outcome`.
 2.  Enter **CO Code** (e.g., `CO1`).
-3.  Write a clear, measurable **Description** (start with an action verb, e.g., \"Design...\").
+3.  Write a clear, measurable **Description**. Use SMART principles (Specific, Measurable, Achievable, Relevant, Time-bound) and start with an action verb (e.g., \"Design...\", \"Analyze...\", \"Implement...\").
 4.  **🔥 Critical:** Select the Program Outcome(s) (POs) this CO supports.
 5.  Click `Save`. Repeat for all COs (typically 5-10 per course).
 
@@ -250,7 +250,7 @@ COs are specific, measurable learning objectives linked to POs.
 > *   CO1: \"Apply software testing techniques...\" -> maps to PO2, PO3
 > *   CO2: \"Communicate technical information...\" -> maps to PO7
 
-> **🔥 Critical:** Every CO *must* link to at least one PO for assessment.
+> **🔥 Critical:** Every CO *must* link to at least one PO for assessment calculations to work correctly.
 
 #### Step 4: Add Exams and Set Weights
 
@@ -258,29 +258,37 @@ Exams represent all assessed activities (exams, projects, quizzes).
 
 1.  From Course Detail -> \"Exams\" section -> `Add Exam`.
 2.  Enter a descriptive **Name** (e.g., `Midterm 1`, `Final Project`).
-3.  Set **Max Score** (e.g., `100`).
+3.  Set **Max Score** (e.g., `100`). *Note: Individual question max scores are primarily used in calculations.*
 4.  Optionally set **Exam Date**.
 5.  Check flags if applicable:
     *   `Is Final Exam?`
-    *   `Is Mandatory?` (See [Mandatory Exam Logic](#mandatory-exams--makeup-relations))
-    *   `Is Makeup Exam?` (Select original exam it replaces)
+    *   `Is Mandatory?` (Crucial for student exclusion logic - see below)
+    *   `Is Makeup Exam?` (Requires selecting the original exam it replaces)
 6.  Save. Repeat for all assessments.
 
 **Setting Exam Weights:**
 
 1.  After adding exams, click `Manage Weights` in the Exams section.
 2.  Assign percentage weights (e.g., Midterm 1: 30%, Final: 40%).
-3.  **🔥 Important:** Weights must total exactly 100%.
+3.  **🔥 Important:** Weights must total exactly 100%. If they don't, they will be normalized during calculations, but setting them correctly is best practice.
 4.  Click `Save Weights`.
 
-> **⚖️ Note:** Weights determine contribution to grades and outcomes. Makeups inherit weight.
+> **⚖️ Note:** Weights determine contribution to grades and outcomes.
+
+**Mandatory Exam Logic:**
+
+*   If one or more exams are marked `Is Mandatory?`.
+*   Students who have *zero scores* (or no scores entered) for **ALL** mandatory exams **AND** their corresponding makeup versions (if they exist) will be **excluded** from outcome calculations.
+*   This ensures results reflect students who participated in key assessments.
+*   If *no* exams are mandatory, only manually excluded students are removed from calculations.
 
 **Managing Makeup Exams:**
 
 1.  Check `Is Makeup Exam?` and select the original exam when creating.
-2.  Enter scores only for students who took the makeup.
-3.  The system automatically uses the correct score (makeup > original).
-4.  Use `Fix Makeup Relations` (in Exams section) if links become inconsistent.
+2.  Makeups automatically inherit the weight of the original exam.
+3.  Enter scores only for students who took the makeup. Leave blank otherwise.
+4.  The system automatically uses the makeup score if available; otherwise, it uses the original score.
+5.  Use `Fix Makeup Relations` (Utility available on the `Manage Exams` page accessible from Course Detail -> Exams) if links become inconsistent (e.g., due to naming changes or creation order). This tool automatically tries to re-link makeups to originals based on naming conventions.
 
 #### Step 5: Add Questions & Link to Course Outcomes
 
@@ -289,36 +297,44 @@ Questions are individual assessment items linked to COs.
 1.  Go to Course Detail -> Click Exam Name -> Exam Detail page.
 2.  Click `Add Question`.
 3.  Enter **Question Number** (e.g., `1`, `2a`).
-4.  Optionally enter **Question Text**.
-5.  Set **Max Score** for this question (e.g., `10`, `25`).
-6.  **🔥 Critical:** Select the Course Outcome(s) (COs) this question assesses.
+4.  Optionally enter **Question Text** for reference.
+5.  Set **Max Score** for this specific question (e.g., `10`, `25`). This score is critical for calculations.
+6.  **🔥 Critical:** Select the Course Outcome(s) (COs) this question assesses. A question can assess multiple COs.
 7.  Save. Repeat for all questions in all exams.
 
-> **💡 Batch Operations:** Use `Batch Add Questions` or the `Mass Association Tool` (see below) for efficiency.
+> **💡 Batch Operations:** Use `Batch Add Questions` or the `Mass Association Tool` (see below) for efficiency when dealing with many questions.
 
-> **🔗 Critical Mapping:** The Question <-> CO link is fundamental. Map carefully. A question can assess multiple COs.
+> **🔗 Critical Mapping:** The Question <-> CO link is fundamental. Map carefully.
 
-> **✅ Tip:** For projects, break down the rubric into \"questions\" assessing different COs.
+> **✅ Tip:** For complex assessments like projects or reports, break down the grading rubric into multiple \"questions\", each linked to the specific CO(s) it assesses.
 
 #### Step 6: Add Students to the Course
 
 Enroll students in the course instance.
 
-*   **Manual Entry:** `Add Student` button (for small classes).
-*   **Batch Import (Recommended):**
+*   **Manual Entry:** `Add Student` button (for small classes). Enter ID, First Name, Last Name.
+*   **Batch Paste (Recommended):**
+    1.  Go to Students section -> `Add/Paste Students`.
+    2.  Paste list from spreadsheet/text. Supported formats include:
+        ```text
+        # Format 1: ID<space(s)>Name<space(s)>Surname
+        11220030102  Name1  Surname
+        11220030126  Name1 Name2  Surname
+
+        # Format 2: ID;Name;Surname
+        11220030102;Name1;Surname
+        11220030126;Name1 Name2;Surname
+
+        # Format 3: ID<tab>Name<tab>Surname
+        11220030102	Name1	Surname
+        11220030126	Name1 Name2	Surname
+        ```
+    3.  Review preview to ensure correct parsing and import.
+*   **CSV File Upload:**
     1.  Go to Students section -> `Import Students`.
-    2.  Paste list from spreadsheet/text (formats supported: ID Name Surname, ID;Name;Surname, ID\\tName\\tSurname).
-    ```text
-    # Example formats
-    11220030102  Name1  Surname
-    11220030126  Name1 Name2  Surname
-
-    11220030102;Name1;Surname
-
-    11220030102	Name1	Surname
-    ```
-    3.  Review preview and import.
-*   **CSV File Upload:** Prepare CSV (ID, First Name, Last Name), upload, map columns, import.
+    2.  Prepare CSV file (e.g., columns: `student_id`, `first_name`, `last_name`). Header row recommended. Use UTF-8 encoding.
+    3.  Upload file, map columns if needed, choose import mode (Add new / Add & Update).
+    4.  Review preview and import.
 
 **Managing Student Exclusion:**
 
@@ -327,83 +343,88 @@ Enroll students in the course instance.
 
 **Tracking Attendance:**
 
-*   Go to Exam Detail -> `Manage Attendance`. Toggle attendance (saves automatically).
-*   Batch import/export available. See [Student Attendance](#managing-student-attendance).
+*   Go to Exam Detail -> `Manage Attendance`. Toggle attendance status per student (saves automatically via AJAX).
+*   Bulk actions (All/None) and CSV Import/Export are available. See [Managing Student Attendance](#managing-student-attendance) for details.
 
-> **💾 Student Export:** Use `Export Students` for a CSV list.
+> **💾 Student Export:** Use `Export Students` for a CSV list of enrolled students.
 
 #### Step 7: Enter Student Scores
 
 Record performance on each question.
 
-1.  Access score entry:
-    *   Course Detail -> Students -> `Enter/Edit Scores` (all exams)
-    *   Exam Detail -> `Enter Scores` (single exam)
+1.  Access score entry grid:
+    *   Course Detail -> Students -> `Enter/Edit Scores` (shows all exams for the course).
+    *   Exam Detail -> `Enter Scores` (shows only questions for that specific exam).
 2.  Grid: Students (rows) x Questions (columns).
-3.  Enter scores (cannot exceed Question Max Score).
-4.  **Scores save automatically (AJAX).**
+3.  Enter scores in the corresponding cells. Scores cannot exceed the Question Max Score (validation applied).
+4.  **Scores save automatically (AJAX).** Look for confirmation indicators.
 
-> **⌨️ Efficiency Tip:** Use Tab, Shift+Tab, Arrow keys, Enter for navigation.
+> **⌨️ Efficiency Tip:** Use keyboard navigation for faster entry:
+> *   **Tab:** Move to next cell.
+> *   **Shift+Tab:** Move to previous cell.
+> *   **Arrow Keys:** Navigate between cells.
+> *   **Enter:** Save current cell and move down (configurable behavior might vary).
 
-> **⚠️ Makeup Scores:** Enter scores *only* for students who took the makeup. Leave blank otherwise.
+> **⚠️ Makeup Scores:** For makeup exams, enter scores *only* for students who took the makeup. Leave cells blank for students who took the original exam.
 
 #### Advanced Feature: Mass Association Tool
 
 Quickly link multiple questions to outcomes.
 
-1.  Go to Exam Detail -> `Mass Associate Outcomes`.
+1.  Go to Exam Detail -> `Mass Associate Outcomes` button (also available during Batch Add Questions).
 2.  Enter associations in the text area using syntax: `q#:oc#:oc#;q#:oc#`
-    *   `q#`: Question number (e.g., `q1`)
-    *   `oc#`: Course Outcome number (e.g., `oc1` for CO1)
-    *   `:` separates question from outcomes / multiple outcomes.
-    *   `;` separates different question associations.
+    *   `q#`: Question number (e.g., `q1` for Question 1).
+    *   `oc#`: Course Outcome number (e.g., `oc1` for CO1).
+    *   Use colon `:` to separate the question number from its outcome(s). Use multiple colons for multiple outcomes per question.
+    *   Use semicolon `;` to separate different question associations.
     *   Example: `q1:oc1:oc2;q2:oc3;q3:oc1:oc3:oc4;`
 3.  Click `Apply Associations`.
 
 > **✅ Example:** `q1:oc1:oc2;q2:oc3;` maps Q1 to CO1 & CO2, and Q2 to CO3.
 
-> **⚠️ Important:** Replaces existing associations for specified questions. Include all desired links.
+> **⚠️ Important:** This tool **replaces** any existing outcome associations for the specified questions. Ensure you include all desired links for a question when using this tool.
 
 #### Step 8: Calculate Results & Generate Reports
 
 Analyze outcome achievement.
 
 1.  Go to Course Detail -> `Calculate Results`.
-2.  System processes data (CO-PO links, Q-CO links, scores, weights).
-3.  Review results: CO/PO achievement, success rates, visualizations.
+2.  System processes data using CO-PO links, Q-CO links, student scores, and exam weights.
+3.  Review results page: CO/PO achievement percentages, student success rates, detailed breakdowns, and interactive visualizations (charts/graphs).
 4.  Export:
-    *   **PDF Report:** Formatted summary.
-    *   **CSV/Excel:** Raw calculation data.
-    *   **Student Score Export:** Detailed performance per student.
-    *   **Detailed Exam Data Export:** Full structure and scores.
+    *   **PDF Report:** Formatted summary suitable for accreditation documentation.
+    *   **CSV/Excel:** Raw calculation data for further analysis.
+    *   **Student Score Export:** Detailed performance data per student vs outcomes.
+    *   **Detailed Exam Data Export:** Full structure (exams, questions, outcomes) and scores.
 
-> **⚙️ Optional Config:** Customize before calculating (Course Detail -> `Settings`):
-> *   Achievement Levels (e.g., Excellent: 90-100%).
-> *   Success Rate Method (Absolute vs. Relative).
+> **⚙️ Optional Config:** Before calculating, customize via Course Detail -> `Settings`:
+> *   **Achievement Levels:** Define performance bands (e.g., Excellent: 90-100, Good: 75-89.99...). Used in reports and visualizations.
+> *   **Success Rate Method:** Choose how success is defined (affects CO/PO results). See [Outcome Calculation Methods](#outcome-calculation-methods).
 
-> **📊 Multiple Methods:** Choose **Absolute** (avg score) or **Relative** (% students above threshold) in Course Settings or globally (\"All Courses\" view).
+> **📊 Calculation Methods:** Choose **Absolute** (achievement = average score) or **Relative** (achievement = % students meeting success threshold). This choice significantly impacts results. Select per course in `Settings` or toggle view globally in the \"All Courses\" analysis.
 
-#### Step 9: Use \"All Courses\" Analysis for Program-Wide Assessment
+#### Step 9: Use \\\"All Courses\\\" Analysis for Program-Wide Assessment
 
-Aggregate results across courses for program-level view.
+Aggregate results across multiple courses for a program-level view.
 
 1.  Navigate to `Calculations` -> `All Courses`.
-2.  System aggregates PO results from all *non-excluded* courses.
-3.  Sort courses; toggle Absolute/Relative view.
-4.  View comprehensive PO achievement table.
-5.  Export for accreditation reports.
+2.  System aggregates PO results from all courses *not* marked as \"Exclude from Reports\".
+3.  Sort courses; toggle between Absolute/Relative calculation views.
+4.  View the comprehensive PO achievement table, showing contributions from each course.
+5.  Export aggregated results for program assessment and accreditation reports.
 
-> **🚀 Performance:** Optimized engine significantly speeds up multi-course analysis.
+> **🚀 Performance:** Utilizes the optimized calculation engine for significantly faster analysis, especially with many courses. Uses weighted averages based on `course_weight`.
 
 ### Quick Start for Returning Users
 
 Setting up a new semester for an existing course:
 
-1.  Use `Duplicate Course` feature (Course Detail page).
-2.  Update Semester, review copied components (COs, Exams, Qs, Weights, Settings).
-3.  Import new student list.
-4.  Enter scores throughout the term.
-5.  Calculate results.
+1.  Navigate to the previous semester's course detail page.
+2.  Use the `Duplicate Course` feature.
+3.  Enter new Semester info, review copied components (COs, Exams, Questions, Weights, Settings).
+4.  Import the new student list for the current semester.
+5.  Enter scores throughout the term as assessments occur.
+6.  Calculate results as needed (e.g., mid-term, end-of-term).
 
 ---
 
@@ -416,76 +437,81 @@ Courses are the central organizational unit.
 *   **Add:** Homepage -> `Add Course` -> Fill Code, Name, Semester, optional Weight -> Save.
 *   **Edit:** Course Detail -> Overview -> `Edit` -> Modify properties -> Save.
 *   **Delete:** Course Detail -> Overview -> `Delete` -> Confirm.
-    > **🔥 Warning:** Deleting removes ALL related data (Exams, Questions, COs, Students, Scores). Cannot be undone unless related items are deleted first. Backup first!
+    > **🔥 Warning:** Deleting a course permanently removes ALL associated data (Exams, Questions, COs, Students, Scores). The application prevents deletion if related items (Exams, Students, Course Outcomes) exist. You must delete these related items first. This action cannot be undone. **Backup your database first!**
 
 ### Course Dashboard
 
 The Course Detail page provides access to:
 
-*   **Overview:** Basic info, Edit/Delete buttons.
-*   **Course Outcomes (COs):** List, Add/Edit/Delete, View PO mappings.
-*   **Exams:** List, Add/Edit/Delete, Manage Weights, Access score entry, Type indicators.
-*   **Students:** List, Add/Edit/Delete, Import/Export, Enter Scores, Exclusion management.
+*   **Overview:** Basic info (Code, Name, Semester, Weight), Edit/Delete buttons, Timestamps.
+*   **Course Outcomes (COs):** List, Add/Edit/Delete buttons, View PO mappings, Access CO details.
+*   **Exams:** List, Add/Edit/Delete buttons, Manage Weights button, Access exam details & score entry, Type indicators (Final, Makeup, Mandatory).
+*   **Students:** List, Add/Edit/Delete buttons, Import/Export options, Enter Scores button, Exclusion management toggle.
 
 ### Managing Exam Weights
 
 Define assessment contribution (Course Detail -> Exams -> `Manage Weights`):
 
 1.  Enter percentage weight for each non-makeup exam.
-2.  **🔥 Sum must be exactly 100%.**
+2.  **🔥 Sum must be exactly 100%.** (Will be normalized if not, but correct entry is preferred).
 3.  Save Weights.
-    > **⚖️ Critical:** Essential for accurate calculations. Makeups inherit weight.
+    > **⚖️ Critical:** Essential for accurate calculations. Makeups automatically inherit weight from the original exam.
 
 ### Course Settings
 
-Customize calculations (Course Detail -> `Settings`):
+Customize calculations and reporting (Course Detail -> `Settings`):
 
-*   **Success Rate Method:**
-    *   **Absolute:** Average score approach. Passing based on fixed threshold (e.g., 60%). CO achievement = average student score.
-    *   **Relative:** Percentage of students meeting threshold. Passing based on absolute threshold OR % of class average. CO achievement = % students passing threshold.
-*   **Achievement Levels:** Define performance bands (e.g., Excellent 90-100, Good 75-89.99...). Used in reports.
-*   **Exclude Course from Reports:** Check to omit this course from program-level (\"All Courses\") analysis.
+*   **Success Rate Method:** Determines how CO/PO achievement and student success are calculated.
+    *   **Absolute:** Achievement based on the average score obtained. Student passes if final weighted score >= threshold (e.g., 60%).
+    *   **Relative:** Achievement based on the percentage of students meeting a success threshold. Student passes if score >= absolute threshold OR score >= % of class average (if configured).
+*   **Achievement Levels:** Define named performance bands based on score ranges (e.g., Excellent 90-100, Good 75-89.99...). Used in reports and charts.
+*   **Exclude Course from Reports:** Checkbox to omit this specific course instance from the aggregated program-level analysis (\"All Courses\" view). Useful for experimental or outdated courses.
 
 ### Duplicating a Course
 
 Quickly set up a new instance based on an existing one (Course Detail -> `Duplicate Course`):
 
 1.  Enter New Course Code, Name, Semester, Weight.
-2.  Select components to copy (COs, Exams, Questions, Weights, Settings).
+2.  Select components to copy:
+    *   Course Outcomes (COs)
+    *   Exams (structure only)
+    *   Questions (linked to copied COs)
+    *   Exam Weights
+    *   Course Settings (Calculation methods, Achievement levels)
 3.  Click `Duplicate`.
-    > **⚠️ Important:** Students and Scores are **never** copied.
+    > **⚠️ Important:** Students and Scores are **never** copied. You must import the new student list. Saves significant setup time.
 
 ### Searching & Exporting Courses
 
-*   **Search:** `Courses` page -> Use search box (Code, Name, Semester). Filters dynamically.
-*   **Export:** `Courses` page -> `Export` button -> Downloads CSV/Excel summary (Code, Name, Semester, Weight, Counts).
+*   **Search:** Navigate to the `Courses` page. Use the search box at the top to filter by Course Code, Course Name, or Semester. The list updates dynamically.
+*   **Export:** On the `Courses` page, click the `Export` button. Downloads a CSV/Excel summary including: Course Code, Name, Semester, Weight, Student Count, Exam Count, CO Count. Useful for reporting and analysis.
 
 ---
 
 ## Managing Outcomes (POs & COs) 🎯
 
-Outcomes define learning objectives.
+Outcomes define learning objectives at program and course levels.
 
 ### Program Outcomes (POs)
 
 High-level, program-wide competencies (often accreditation-aligned).
 
 *   **Manage:** `Utilities` -> `Program Outcomes`.
-*   **View:** List of POs (Code, Description). Click `View` for details & CO mappings.
+*   **View:** List of POs (Code, Description). Click `View` for details, linked COs, and a visual representation of how the PO is supported across courses.
 *   **Add/Edit/Delete:** Use buttons on the Program Outcomes page.
-    > **⚠️ Deleting PO:** Removes links to COs. Orphaned COs affect calculations.
-*   **Default POs:** Pre-loaded based on common Turkish engineering criteria (MÜDEK). Modify as needed.
+    > **⚠️ Deleting PO:** Removes links from COs. COs linked only to the deleted PO become \"orphaned\" and won't contribute to program assessment.
+*   **Default POs:** Pre-loaded based on common Turkish engineering criteria (MÜDEK). Modify or replace as needed for your program/accreditation body.
 
 ### Course Outcomes (COs)
 
 Specific, measurable objectives for a single course, linked to POs.
 
-*   **Manage:** Course Detail page -> \"Course Outcomes\" section.
-*   **Add:** `Add Course Outcome` -> Enter Code, Description -> **🔥 Select mapping to PO(s)** -> Save.
-*   **View:** List shows Code, Description, linked POs. Click `View` for details & assessing questions.
+*   **Manage:** Course Detail page -> \\\"Course Outcomes\\\" section.
+*   **Add:** `Add Course Outcome` -> Enter Code, Description (use action verbs, follow SMART) -> **🔥 Select mapping to PO(s)** -> Save.
+*   **View:** List shows Code, Description, linked POs. Click `View` for details & list of assessing questions.
 *   **Edit/Delete:** Use buttons next to each CO.
-    > **⚠️ Deleting CO:** Removes links to Questions. Orphaned questions affect calculations.
-*   **Effective COs:** Use SMART principles (Specific, Measurable, Achievable, Relevant, Time-bound). Start with action verbs.
+    > **⚠️ Deleting CO:** Removes links from Questions. Questions linked only to the deleted CO become \"orphaned\" and won't contribute to outcome calculations.
+*   **Effective COs:** Use SMART principles (Specific, Measurable, Achievable, Relevant, Time-bound). Start with action verbs (e.g., Analyze, Design, Evaluate).
 
 ### Understanding the Outcome Hierarchy
 
@@ -495,310 +521,403 @@ Exam Questions  -->  Assess -->  Course Outcomes (COs)  --> Support -->  Program
  Assess Specific Skills    Course-Level Objectives    Program-Level Competencies
 ```
 
-*   **🔥 Critical:** Ensure all connections: Q -> CO, CO -> PO. All POs should be covered across the curriculum.
-*   **✅ Best Practice:** Define COs and PO mappings *before* creating exams/questions.
-*   **💡 Efficiency:** Use the [Mass Association Tool](#advanced-feature-mass-association-tool) for linking many questions.
+*   **🔥 Critical:** Ensure all connections are correctly made: Question -> CO, CO -> PO. All POs should ideally be covered by COs across the curriculum.
+*   **✅ Best Practice:** Define COs and their PO mappings *before* creating exams and questions.
+*   **💡 Efficiency:** Use the [Mass Association Tool](#advanced-feature-mass-association-tool) for linking many questions to COs quickly.
 
 ### Outcome Calculation Methods
 
-Selected in Course Settings. Affects how achievement % is derived.
+Selected in Course Settings. Affects how outcome achievement percentages are derived.
 
-*   **Absolute:** Achievement = Average score on related questions.
-*   **Relative:** Achievement = % of students meeting success threshold on related questions.
-    > **✅ Pro Tip:** Relative method often preferred for accreditation reports (shows % achieving competency).
-    > **⚠️ Note:** Students missing all mandatory exams are excluded. See [Mandatory Exam Logic](#mandatory-exams--makeup-relations).
+*   **Absolute Method:** Achievement % = Average score obtained by students on the questions assessing the outcome (weighted by question scores and exam weights).
+*   **Relative Method:** Achievement % = Percentage of students who met or exceeded the defined success threshold on the questions assessing the outcome.
+    > **✅ Pro Tip:** The Relative method is often preferred for accreditation reports as it directly shows the proportion of students achieving competency.
+    > **⚠️ Note:** Student exclusion based on [Mandatory Exam Logic](#mandatory-exams--makeup-relations) applies to both methods.
 
 ---
 
 ## Managing Exams & Questions 📝
 
-Exams are graded assessments; Questions are items within them.
+Exams are graded assessments; Questions are the individual items within them.
 
 ### Managing Exams
 
-Managed from Course Detail -> \"Exams\" section.
+Managed from Course Detail -> \\\"Exams\\\" section.
 
-*   **Add Exam:** `Add Exam` button -> Fill Name, Max Score, Date, Type Flags -> Save.
+*   **Add Exam:** `Add Exam` button -> Fill Name, Max Score (informational), Date (optional), Type Flags -> Save.
 *   **Type Flags:**
-    *   `Is Final Exam?`
-    *   `Is Mandatory?` (Crucial for student exclusion logic - see below)
-    *   `Is Makeup Exam?` (Requires selecting original exam)
-*   **Edit/Delete:** Use buttons next to exam. Deleting removes questions & scores.
+    *   `Is Final Exam?`: Marks the final assessment.
+    *   `Is Mandatory?`: Crucial for student exclusion logic (see below).
+    *   `Is Makeup Exam?`: Requires selecting the original exam it replaces. Inherits original's weight.
+*   **Edit/Delete:** Use buttons next to exam. Deleting removes related questions & scores. **Warning: Deletion is permanent.**
 
 ### Mandatory Exams & Makeup Relations
 
-*   **Mandatory Exam Logic:**
-    1.  If an exam (or multiple exams) are marked `Is Mandatory?`.
-    2.  Students who have *zero scores* (or no scores entered) for **ALL** mandatory exams **AND** their makeup versions (if they exist) will be *excluded* from outcome calculations.
-    3.  This ensures results reflect students who participated in key assessments.
-    4.  If *no* exams are mandatory, only manually excluded students are removed.
-*   **Multiple Exams Overview:** `Manage Exams` page (from Course Detail) shows all exams, types, weights, mandatory status.
-*   **Fix Makeup Relations:** Utility on `Manage Exams` page to auto-link makeups to originals based on name (e.g., \"Midterm 1 Makeup\" to \"Midterm 1\"). Useful if created out of order or names changed.
+*   **Mandatory Exam Logic Explained:**
+    1.  Identify exams marked `Is Mandatory?`.
+    2.  For outcome calculations, the system first removes any manually excluded students.
+    3.  Then, it checks the remaining students against the mandatory exams. A student is **automatically excluded** if they have *zero scores* (or no score entry) for **ALL** mandatory exams **AND** their corresponding makeup versions (if makeups exist).
+    4.  This ensures that outcome statistics reflect only students who participated in the designated key assessments.
+    5.  If no exams are marked as mandatory, only manually excluded students are removed.
+*   **Multiple Exams Overview Page:** Access via Course Detail -> Exams -> `Manage Exams`. Shows a table view of all exams, types, weights, mandatory status. Useful for overview and consistency checks.
+*   **Fix Makeup Relations Utility:** Available on the `Manage Exams` page. Attempts to automatically link makeup exams to their originals based on naming patterns (e.g., \"Midterm 1 Makeup\" links to \"Midterm 1\"). Useful if makeups were created out of order or names were changed.
 
 ### Managing Questions
 
 Managed from Exam Detail page (Course Detail -> Click Exam Name).
 
-*   **Add Question:** `Add Question` button -> Fill Number, Text (optional), Max Score -> **🔥 Link to Course Outcome(s)** -> Save.
-*   **Edit/Delete:** Use buttons on Exam Detail page. Deleting removes associated scores.
-    > **⚠️ Max Scores:** Individual Question Max Scores drive calculations. Linking Q -> CO is essential.
+*   **Add Question:** `Add Question` button -> Fill Number, Text (optional), Max Score (critical for calculations) -> **🔥 Link to Course Outcome(s)** -> Save.
+*   **Edit/Delete:** Use buttons on Exam Detail page. Deleting removes associated student scores for that question.
+    > **⚠️ Max Scores & Links:** Individual Question Max Scores and the Q -> CO link are fundamental for accurate outcome calculations.
 
 ### Batch Question Operations
 
-For efficiency (on Exam Detail page):
+For efficiency when dealing with many questions (on Exam Detail page):
 
-*   **Batch Add Questions:** Create multiple questions at once. Specify number, fill details (text, max score, CO links) per question. Options to distribute points equally, mass mark/unmark outcomes.
-*   **Mass Association Tool:** Use text syntax (`q#:oc#:oc#;...`) to link many questions to COs quickly. Available during Batch Add or via `Mass Associate Outcomes` button. Replaces existing links.
+*   **Batch Add Questions:**
+    *   Click `Batch Add Questions`. Specify number of questions.
+    *   Fill details (text, max score, CO links) for each question in the form.
+    *   Options to \"Distribute Points Equally\" across questions based on Exam Max Score.
+    *   Options to \"Mark All Outcomes\" / \"Unmark All Outcomes\" for quick linking.
+    *   Use the integrated \"Mass Import Relationships\" text area (same syntax as Mass Association Tool) to define links.
+    *   Click `Save All Questions`.
+*   **Mass Association Tool:**
+    *   Click `Mass Associate Outcomes` button (or use during Batch Add).
+    *   Use text syntax (`q#:oc#:oc#;...`) to define links for multiple questions at once.
+    *   **Warning:** Replaces existing links for the specified questions.
 
 ### Exporting Exam Data
 
-*   **Export All Exams (Course Level):** Course Detail -> Exams -> `Export Exams`. CSV with exam details, weights, makeups, CO summary.
-*   **Export Exam Scores (Exam Level):** Exam Detail -> `Export Scores`. CSV with student scores for that exam.
-*   **Export Questions (Exam Level):** Exam Detail -> `Export Questions`. CSV with question details and CO links.
+Multiple export options provide flexibility:
+
+*   **Export All Exams (Course Level):** Course Detail -> Exams -> `Export Exams`. Downloads CSV with comprehensive details: exam info, weights, makeup relations, question count, CO summary, achievement levels.
+*   **Export Exam Scores (Exam Level):** Exam Detail -> `Export Scores`. Downloads CSV with student IDs, names, scores per question for that specific exam, total scores, and percentages.
+*   **Export Questions (Exam Level):** Exam Detail -> `Export Questions`. Downloads CSV listing questions for that exam, their max scores, and linked COs.
 
 ---
 
 ## Managing Students & Scores 🧑‍🎓
 
-Handle student enrollment and performance data.
+Handle student enrollment and performance data efficiently.
 
 ### Managing Students
 
-Managed from Course Detail -> \"Students\" section.
+Managed from Course Detail -> \\\"Students\\\" section.
 
-*   **Add Manually:** `Add Student` -> Enter ID, Name -> Save.
-*   **Add/Paste Multiple:** `Add/Paste Students` -> Paste list -> Preview -> Save.
-*   **Import from CSV:** `Import Students` -> Upload CSV -> Map columns -> Choose mode (Add new / Add & Update) -> Import.
-*   **View/Edit/Delete:** Use list view buttons. Deleting removes student's scores for that course.
-*   **Export Students:** `Export Students` -> Download CSV list.
-*   **Batch Delete:** `Batch Delete` -> Checkboxes -> `Delete Selected`.
-*   **Student Exclusion:** Toggle `Exclude/Include` button. Excluded students ignored in calculations. Auto-exclusion may occur based on [Mandatory Exam Logic](#mandatory-exams--makeup-relations).
+*   **Add Manually:** `Add Student` -> Enter ID, First Name, Last Name -> Save. (Suitable for small numbers).
+*   **Add/Paste Multiple:** `Add/Paste Students` -> Paste list from spreadsheet/text using supported formats (see [Step 6](#step-6-add-students-to-the-course) for format examples: ID Name Surname, ID;Name;Surname, ID\\\\tName\\\\tSurname) -> Review preview -> Save.
+*   **Import from CSV:** `Import Students` -> Upload CSV file (UTF-8 recommended, header preferred) -> Map columns (e.g., `student_id`, `first_name`, `last_name`) -> Choose mode (Add new / Add & Update existing) -> Review preview -> Import.
+*   **View/Edit/Delete:** Use buttons in the student list. Deleting removes the student and all their scores for *that course*.
+*   **Export Students:** `Export Students` -> Downloads a CSV list of students currently enrolled in the course.
+*   **Batch Delete:** `Batch Delete` button -> Select students using checkboxes -> `Delete Selected` button -> Confirm. **Warning: Deletes students and their scores for this course.**
+*   **Student Exclusion:** Toggle `Exclude/Include` button next to student name. Excluded students are ignored in outcome calculations. Note that students can also be auto-excluded based on [Mandatory Exam Logic](#mandatory-exams--makeup-relations).
 
 ### Managing Student Attendance
 
-Track exam attendance (Exam Detail -> `Manage Attendance`).
+Track exam participation (Exam Detail -> `Manage Attendance`).
 
-*   **Mark Attendance:** Toggle switch per student (AJAX auto-save).
-*   **Bulk Actions:** `All` / `None` buttons.
-*   **Import/Export:** Upload/download CSV attendance records.
-    > **ℹ️ Note:** Attendance data + scores are used in the mandatory exam logic for student exclusion.
+*   **Mark Attendance:** Toggle switch per student (Present/Absent). Changes are saved automatically via AJAX.
+*   **Bulk Actions:** Use `All` / `None` buttons to mark all students quickly.
+*   **Import/Export:** Upload/download CSV attendance records (typically Student ID and Attendance Status columns).
+    > **ℹ️ Note:** Attendance data, combined with scores, is used in the [Mandatory Exam Logic](#mandatory-exams--makeup-relations) for potential student exclusion from calculations.
 
 ### Entering/Editing Scores
 
-Record scores per question.
+Record student performance on each question.
 
 1.  **Access Grid:**
-    *   Course Detail -> Students -> `Enter/Edit Scores` (All exams for course)
-    *   Exam Detail -> `Enter Scores` (Single exam)
-2.  Enter score in cell (Student row x Question column). Max score validation applied.
-3.  **AJAX Auto-Save:** Changes saved automatically.
-4.  **Navigation:** Use Keyboard (Tab, Arrows, Enter).
-5.  **Mass Import Scores:** `Import Scores` button on score entry page (upload CSV).
+    *   Course Detail -> Students -> `Enter/Edit Scores` (All exams combined view).
+    *   Exam Detail -> `Enter Scores` (Single exam view).
+2.  Enter score in the cell corresponding to the Student (row) and Question (column). Max score validation is applied based on question settings.
+3.  **AJAX Auto-Save:** Changes are saved automatically shortly after you move out of a cell. Look for confirmation indicators.
+4.  **Navigation:** Use Keyboard (Tab, Shift+Tab, Arrow keys, Enter) for efficient data entry across the grid.
+5.  **Mass Import Scores:** Use the `Import Scores` button available on the score entry page to upload scores from a formatted CSV file (typically requires Student ID and Question identifiers).
 
 ### Handling Make-up Exam Scores
 
-*   Enter scores *only* for students who took the makeup.
-*   Leave blank for students who took the original.
-*   Calculation engine uses makeup score if present, otherwise original score.
+*   When entering scores for a makeup exam, input scores *only* for those students who took the makeup assessment.
+*   Leave the score cell blank for students who took the original exam (or did not take either).
+*   The calculation engine automatically prioritizes the makeup score if present; otherwise, it uses the original exam score.
 
 ---
 
 ## Accredit Calculations 📊
 
-Automated analysis of outcome achievement (COs & POs).
+Automated analysis of outcome achievement (COs & POs) based on entered data.
 
 ### Optimized Calculation System ⚡
 
-*   **Faster Multi-Course:** Centralized function reuses single-course results.
-*   **Efficient:** Reduced DB queries, better memory usage.
-*   **Consistent:** Unified logic, improved makeup/exclusion handling.
+*   **Faster Multi-Course:** Centralized function computes single-course results once and reuses them for efficient \"All Courses\" aggregation.
+*   **Efficient:** Reduced database queries and optimized data handling improve performance and lower memory usage, especially for large programs.
+*   **Consistent:** Unified logic core ensures consistent results whether viewing a single course or the \"All Courses\" analysis. Handles makeup scores and student exclusions uniformly.
 
 ### Running Calculations & Understanding the Results Page
 
-1.  Ensure data is complete (Links: Q->CO, CO->PO; Weights set; Scores entered).
-2.  Go to Course Detail -> `Calculate Results`.
-3.  Results page shows:
-    *   **Course Outcome (CO) Achievement:** % achievement per CO. Uses selected [Calculation Method](#outcome-calculation-methods). May show Achievement Levels.
-    *   **Program Outcome (PO) Contribution:** How this course contributes to linked POs.
-    *   **Course Success Rate:** % successful students based on Course Settings (Absolute/Relative).
-    *   **Student Performance Summary (Optional):** Individual student grades/outcomes.
-    *   **Charts & Visualizations:** Graphical representation of results.
+1.  **Prerequisites:** Ensure all data is complete and accurate: Q->CO links, CO->PO links, Exam Weights set (summing to 100% ideally), Student Scores entered.
+2.  **Run:** Go to Course Detail -> `Calculate Results`.
+3.  **Review Results Page:**
+    *   **Course Outcome (CO) Achievement:** Displays % achievement for each CO.
+        *   *Absolute Method:* Calculates the average score students achieved on questions linked to the CO (weighted).
+        *   *Relative Method:* Calculates the percentage of students who met the success threshold on questions linked to the CO.
+        *   May display results using defined [Achievement Levels](#course-settings).
+    *   **Program Outcome (PO) Contribution:** Shows how this course contributes to the achievement of linked POs, based on the contributing CO achievements and the selected calculation method.
+    *   **Course Success Rate:** Shows the % of students deemed successful based on the method and threshold defined in [Course Settings](#course-settings).
+    *   **Student Performance Summary (Optional):** May list individual student grades and outcome achievement details.
+    *   **Charts & Visualizations:** Provides graphical representations (e.g., bar charts) of CO and PO achievement.
 
 ### Advanced Calculation Features
 
-*   **Makeup Handling:** Auto-uses makeup score if available; inherits original weight.
+*   **Makeup Handling:** Automatically uses makeup score if available, otherwise uses original score. Makeups inherit the weight of the original exam.
 *   **Mandatory Exams & Exclusion:**
-    1.  Manually excluded students removed first.
-    2.  If mandatory exams exist, students missing *all* mandatory exams (and their makeups) are auto-excluded.
-    3.  Ensures results reflect active participants.
-    4.  Course can be excluded from program aggregation via Course Settings.
-*   **Precision:** Uses Decimal type to avoid floating-point errors.
-*   **Debugging:** `Debug Calculations` button (on results page) shows step-by-step details for students, exams, outcomes (raw scores, weighted scores, CO/PO scores, exclusion status/reason).
+    1.  Manually excluded students are removed first.
+    2.  If mandatory exams exist, students missing scores for *all* mandatory exams (and their makeups) are automatically excluded from outcome calculations.
+    3.  This ensures results reflect actively participating students.
+    4.  Courses can be excluded entirely from program-level aggregation via [Course Settings](#course-settings).
+*   **Precision:** Uses Python's `Decimal` type for calculations to avoid floating-point inaccuracies, ensuring reliable results especially around achievement level boundaries.
+*   **Debugging:** Click the `Debug Calculations` button (available on the results page) to view detailed step-by-step calculation breakdowns. This includes raw scores, weighted scores, individual CO/PO scores per student, and exclusion status/reason, aiding in troubleshooting unexpected results.
 
 ### Exporting Results
 
-From Calculation Results page:
+From the Calculation Results page, export data for reporting and analysis:
 
-*   **PDF Report:** Formatted summary for accreditation.
-*   **CSV/Excel Export:** Raw calculation data.
-*   **Student Results Export:** Detailed individual performance vs outcomes.
-*   **Course Exams Export:** Structured exam/question/outcome data.
+*   **PDF Report:** Formatted summary including tables and charts, suitable for accreditation submissions.
+*   **CSV/Excel Export:** Raw calculation data (achievement percentages per outcome) for use in spreadsheets or other tools.
+*   **Student Results Export:** Detailed breakdown of individual student performance against outcomes.
+*   **Course Exams Export:** Structured export of exam, question, and outcome linkage data (same as Export All Exams from Course Detail).
 
-### Multi-Course Analysis (\"All Courses\" View)
+### Multi-Course Analysis (\\\"All Courses\\\" View)
 
-Program-level insights (`Calculations` -> `All Courses`):
+Gain program-level insights (`Calculations` -> `All Courses`):
 
-*   Aggregates results from non-excluded courses.
-*   Calculates weighted average PO achievement based on `course.course_weight`.
-*   Visualizes course contributions to POs.
-*   Identifies curriculum-wide patterns.
-*   Uses optimized, consistent calculation core.
+*   Aggregates PO achievement results from all courses *not* marked as \"Exclude from Reports\".
+*   Calculates program-wide PO achievement using a **weighted average** based on the `course.course_weight` defined for each contributing course.
+*   Visualizes how different courses contribute to each PO.
+*   Helps identify curriculum strengths, weaknesses, and trends over time.
+*   Uses the same optimized, consistent calculation core as single-course analysis.
 
-> **⚖️ Note on Weights:** If exam weights don't sum to 100%, they are normalized during calculation. If no weights are set, exams are weighted equally.
+> **⚖️ Note on Weights:** If exam weights are not set or do not sum to 100% on the `Manage Weights` page, the system will normalize them during calculation (scaling proportionally to sum to 100%) or weight exams equally if no weights are set. However, correctly setting weights to 100% is recommended practice.
 
 ---
 
 ## Utilities: Data Management & More 🛠️
 
-Tools for data handling and system access.
+Tools for data handling, system access, and administration.
 
 ### Remote Access with Cloudflared ☁️
 
-*   **Purpose:** Access application securely from anywhere via Cloudflare Tunnel.
-*   **Features:** Secure public URL, easy sharing, no firewall changes.
-*   **Setup:** Install `cloudflared` client, run app with `--cloud` flag.
-*   **Guide:** See [Remote Access Guide](#remote-access-guide-cloudflare-tunnel-).
+*   **Purpose:** Access your locally running Accredit Helper Pro securely from anywhere via the internet.
+*   **Features:** Creates a secure public URL using Cloudflare Tunnel, enables easy sharing with colleagues, requires no complex firewall or network configuration.
+*   **Setup:** Install the `cloudflared` client software, then run the application with the `--cloud` command-line flag (`python app.py --cloud`).
+*   **Guide:** See the detailed [Remote Access Guide](#remote-access-guide-cloudflare-tunnel-) section for installation and usage instructions.
 
 ### API Integration 🔌
 
-*   **Purpose:** Programmatic access to data (JSON format).
-*   **Endpoints:**
-    *   `/api/exam/{exam_id}/question-outcomes`
-    *   `/api/student/{student_id}/abet-scores?course_id={course_id}`
-    *   `/api/batch-add-questions/{exam_id}`
-    *   `/api/mass-associate-outcomes`
-    *   `/api/update-question-outcome`
-    *   `/api/course/{course_id}/achievement-levels`
-*   **Use Cases:** LMS integration, custom dashboards, reporting tools.
-    > **⚠️ Security:** No built-in authentication. Secure if exposed externally.
+*   **Purpose:** Allow programmatic access to application data for integration with other systems (e.g., LMS, custom reporting tools).
+*   **Format:** Returns data in JSON format.
+*   **Endpoints (Examples):**
+    *   `/api/exam/{exam_id}/question-outcomes`: Get questions and linked COs for an exam.
+    *   `/api/student/{student_id}/abet-scores?course_id={course_id}`: Get a student's CO achievement scores for a course.
+    *   `/api/batch-add-questions/{exam_id}`: API endpoint for batch adding questions.
+    *   `/api/mass-associate-outcomes`: API endpoint for mass associating outcomes.
+    *   `/api/update-question-outcome`: API endpoint for updating Q-CO links.
+    *   `/api/course/{course_id}/achievement-levels`: Get achievement level definitions for a course.
+    *(Check source or documentation for a complete, up-to-date list)*
+*   **Use Cases:** Building custom dashboards, integrating with institutional data warehouses, automating report generation.
+    > **⚠️ Security:** These endpoints typically do **not** have built-in authentication. If exposing the application externally (e.g., via Cloudflared or server deployment), ensure appropriate security measures (firewall, authentication layer) are implemented.
 
 ### Backup Database 💾
 
-*   **Purpose:** Create safe copies of `accredit_data.db`.
-*   **Features:** Custom descriptions, timestamps, history, download.
-*   **When:** Before major changes, end of term, regularly.
+*   **Purpose:** Create safe copies of the entire application database (`accredit_data.db`).
+*   **Features:** Add custom descriptions, automatic timestamps, view backup history, download backup files (`.db` format).
+*   **When:** Essential before major operations (imports, merges, deletions), at the end of each academic term, and on a regular schedule.
 *   **Access:** `Utilities` -> `Backup Database`.
 
 ### Restore Database 🔄
 
-*   **Purpose:** Recover from a previous backup.
-*   **Features:** View backups, auto-backup current DB before restore.
-*   **When:** Data loss/corruption, rollback needed.
+*   **Purpose:** Replace the current database with a previously created backup file.
+*   **Features:** Lists available backups with descriptions/timestamps, performs an automatic backup of the *current* database before restoring (as a safety net).
+*   **When:** To recover from data loss or corruption, to roll back unwanted changes, or to revert to a specific point in time.
 *   **Access:** `Utilities` -> `Restore Database`.
 
 ### Import Database 📥
 
-*   **Purpose:** Merge data from backup files *without* replacing existing data.
-*   **Features:** Select data types, preview changes, auto-backup before import, summary report.
-*   **When:** Consolidating data, migrating courses from others.
+*   **Purpose:** Merge data from an existing backup file into the *current* database **without** replacing existing data (additive).
+*   **Features:** Allows selection of specific data types to import (e.g., only certain courses, students), previews potential changes/conflicts, performs an auto-backup before import, provides a summary report after import.
+*   **When:** Useful for consolidating data from different instances, migrating specific courses from colleagues, or adding historical data selectively.
 *   **Access:** `Utilities` -> `Import Database`.
 
 ### Merge Courses ➕
 
-*   **Purpose:** Combine data from multiple related courses into one.
-*   **Features:** Merge students/scores/assessments, preview changes.
-*   **When:** Combining sections, consolidating historical data.
+*   **Purpose:** Combine data from two or more existing courses within the *current* database into a single target course.
+*   **Features:** Merges students, scores, and assessment structures. Provides a preview of the merge operation before execution.
+*   **When:** Useful for combining multiple sections of the same course taught in the same term, or consolidating historical data spread across different course entries.
 *   **Access:** `Utilities` -> `Merge Courses`.
 
 ### System Logs 📜
 
-*   **Purpose:** Track application activity and changes.
-*   **Features:** Filter by action/date, export logs, color-coded actions (ADD, EDIT, DELETE, IMPORT, BACKUP/RESTORE, OTHER).
-*   **When:** Troubleshooting, auditing changes.
+*   **Purpose:** Track significant actions performed within the application for auditing and troubleshooting.
+*   **Features:** View logs chronologically, filter by action type (ADD, EDIT, DELETE, IMPORT, BACKUP/RESTORE, OTHER) and date range, export logs to CSV, color-coded actions for readability.
+*   **When:** Essential for understanding who did what and when, troubleshooting errors, auditing changes for compliance.
 *   **Access:** `Utilities` -> `System Logs`.
 
 ### Support & Feedback 💬
 
-*   **Purpose:** Report issues, request features, get help.
-*   **Access:** `Utilities` -> `Support & Feedback` or `Help` -> `Contact & Support`. See [Contact Section](#contact--support-).
+*   **Purpose:** A channel to report issues, request new features, or seek assistance.
+*   **Access:** `Utilities` -> `Support & Feedback` or via the main `Help` menu, linking to the [Contact & Support](#contact--support-) section.
 
 ---
 
 ## Remote Access Guide (Cloudflare Tunnel) ☁️
 
-Access Accredit Helper Pro securely from anywhere.
+Access Accredit Helper Pro securely from anywhere using Cloudflare Tunnel (`cloudflared`).
 
 ### About Remote Access
 
-Uses Cloudflare Tunnel (`cloudflared`) to create a secure link from your local app to the internet via a temporary public URL. Benefits include easy sharing and no network configuration.
+Uses Cloudflare's `cloudflared` client to create a secure, encrypted tunnel from your local machine (where the app is running) to Cloudflare's edge network. This generates a temporary, public URL (e.g., `https://random-words.trycloudflare.com`) that you can use to access the app remotely. Benefits include easy setup, no need for firewall changes, and simple sharing.
 
 ### Installation Guide
 
-Install the `cloudflared` client:
+You need to install the `cloudflared` client on the machine running Accredit Helper Pro:
 
-*   **Windows:** Download `.msi` or `.exe` from [Cloudflare Releases](https://github.com/cloudflare/cloudflared/releases). Run installer. Verify with `cloudflared --version` in Command Prompt.
-*   **macOS:** Use Homebrew: `brew install cloudflare/cloudflare/cloudflared`. Or download package from releases. Verify with `cloudflared --version` in Terminal.
-*   **Linux (Debian/Ubuntu):**
+*   **Windows:**
+    1.  Download the `.msi` or `.exe` installer from the [Cloudflare Releases page](https://github.com/cloudflare/cloudflared/releases).
+    2.  Run the installer.
+    3.  Verify by opening Command Prompt and typing `cloudflared --version`.
+*   **macOS:**
+    1.  Using Homebrew (recommended): `brew install cloudflare/cloudflare/cloudflared`.
+    2.  Alternatively, download the package (`.pkg` or `.tar.gz`) from the releases page.
+    3.  Verify by opening Terminal and typing `cloudflared --version`.
+*   **Linux (Debian/Ubuntu Example):**
     ```bash
-    curl -L https://pkg.cloudflare.com/cloudflared-stable-linux-amd64.deb -o cloudflared.deb
+    # Download the .deb package (check releases for latest URL/architecture)
+    curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o cloudflared.deb
+    # Install the package
     sudo dpkg -i cloudflared.deb
+    # Verify installation
+    cloudflared --version
     ```
-    Verify with `cloudflared --version`. Check releases page for other distros.
+    Check the releases page for instructions for other distributions (e.g., RPM).
 
-> **⚠️ Important:** `cloudflared` needs to be in your system's PATH. Restart might be needed.
+> **⚠️ Important:** `cloudflared` needs to be in your system's PATH environment variable for the application to find it automatically. A system restart might be required after installation.
 
 ### Using Remote Access
 
-1.  **Start with Cloudflare:**
-    *   **Windows:** Use `Windows_Start_CloudFlare_Public_Url.bat`.
+1.  **Start the App with Cloudflare:**
+    *   **Windows:** You might use a provided batch file like `Windows_Start_CloudFlare_Public_Url.bat` if available.
     *   **Command Line (All OS):**
         ```bash
-        # Navigate to app directory, activate venv if needed
+        # Navigate to the application directory
+        cd path/to/Accredit-Helper-Pro
+        # Activate your virtual environment (if used)
+        source venv/bin/activate  # Linux/macOS
+        # .\\\\venv\\\\Scripts\\\\activate # Windows
+        # Run the app with the --cloud flag
         python app.py --cloud
         ```
-2.  **Get URL:** Console displays a public URL like `https://random-words.trycloudflare.com`.
-3.  **Access/Share:** Use this URL from any device. It's active only while your app runs.
+2.  **Get the Public URL:** The console/terminal window where you started the app will display output from `cloudflared`, including a public URL ending in `.trycloudflare.com`.
+3.  **Access and Share:** Copy this URL and paste it into any web browser on any device with internet access. The URL remains active only as long as your local application is running with the `--cloud` flag.
 
-> **🛡️ Security Note:** Anyone with the URL can access the app while it's running. Share carefully. Close the app to deactivate the URL.
+> **🛡️ Security Note:** The generated URL is public. Anyone who has the URL can access your running application instance. Share it carefully and only with trusted colleagues. Close the application (stop the `python app.py --cloud` process) to deactivate the URL immediately.
 
 ### Troubleshooting Remote Access
 
-*   **\"cloudflared is not installed\" error:** Verify installation and PATH. Restart.
-*   **No public URL displayed:** Check `--cloud` flag, look for console errors, check firewall, test manually (`cloudflared tunnel --url http://localhost:5000`).
-*   **Can't connect via URL:** Check app is running, verify URL, check remote internet, try new URL (restart app).
-*   **Slow remote performance:** Normal to some extent. Check local upload speed. Use locally for heavy tasks.
+*   **Error: \"cloudflared is not installed or not in PATH\"**:
+    *   Verify `cloudflared` is installed (`cloudflared --version`).
+    *   Ensure it's in your system PATH. Restart your terminal or PC.
+    *   Reinstall `cloudflared`.
+*   **No Public URL Displayed in Console**:
+    *   Did you use the `--cloud` flag?
+    *   Check the console output for specific errors from `cloudflared` or the Python app.
+    *   Is an outbound connection to Cloudflare blocked by a firewall?
+    *   Test `cloudflared` manually: `cloudflared tunnel --url http://localhost:5000` (assuming app runs on port 5000).
+*   **Cannot Connect via Public URL**:
+    *   Is the local application still running? Check the console window.
+    *   Did you copy the URL correctly?
+    *   Does the remote device have internet connectivity? Can it reach other websites?
+    *   Try accessing the URL from a different network or browser.
+    *   Stop and restart the app with `--cloud` to get a fresh URL.
+*   **Slow Performance Remotely**:
+    *   Some latency is expected due to internet routing.
+    *   Check the upload speed of the internet connection where the app is running.
+    *   Avoid very large data operations (like importing huge files) over the remote connection if possible. Use the local interface for heavy tasks.
 
 ---
 
 ## Troubleshooting Guide 🐛
 
-Common issues and solutions.
+Common issues and potential solutions.
 
 ### Database & File Issues
 
-*   **Backup/Restore Fails:** Check permissions, disk space, file integrity. Run with admin rights if needed. Ensure compatible app versions for restore.
-*   **File System Errors (Save Fails):** Check disk space, write permissions for `instance` folder.
-*   **Database Locked (`OperationalError: database is locked`):** Ensure only one app instance runs. Close external DB browser tools accessing `accredit_data.db`. Check permissions.
-*   **Missing/Unexpected Data:** Accidental deletion (check logs, restore backup)? Wrong DB file active? Import issues (restore pre-import backup)?
+*   **Backup/Restore Fails:**
+    *   **Permissions:** Does the app have write permission in the `instance/backups` directory? Try running with admin/sudo rights (use cautiously).
+    *   **Disk Space:** Is there enough free space?
+    *   **File Integrity:** Is the backup file corrupted? Try a different backup. Is the current DB file readable?
+    *   **Version Compatibility:** Restoring a backup from a very different app version might fail. Ensure versions are compatible or upgrade/migrate carefully.
+*   **File System Errors (e.g., Cannot Save Course/Exam):**
+    *   **Permissions:** Check write permissions for the `instance` folder and the `accredit_data.db` file within it.
+    *   **Disk Space:** Ensure sufficient disk space on the drive.
+*   **Database Locked (`OperationalError: database is locked`):**
+    *   **Multiple Instances:** Ensure only one copy of `app.py` is running.
+    *   **External Tools:** Close any database browser tools (like DB Browser for SQLite) that might be accessing `accredit_data.db`.
+    *   **Permissions:** Verify file permissions.
+*   **Missing/Unexpected Data:**
+    *   **Accidental Deletion:** Check `Utilities` -> `System Logs` for DELETE actions. Restore from backup if necessary.
+    *   **Wrong DB File:** Are you sure the application is using the intended `accredit_data.db` file? (Especially if managing multiple copies).
+    *   **Import/Merge Issues:** Did the issue appear after an import or merge? Restore the auto-backup created before the operation and try again, checking settings carefully.
 
 ### Calculation & Results Issues
 
-*   **Unexpected Results:** Missing Q->CO links? Missing CO->PO links? Incorrect Exam Weights (must sum to 100)? Missing Scores? Wrong Success Rate Method (check Course Settings)? Student Exclusion (manual or mandatory)?
-*   **Calculation Errors/Failures:** Division by zero (check question max scores > 0, students exist)? Inconsistent data structure (missing COs, exams, etc.)? Timeout (large courses - restart app)? Use Debug Calculations tool.
+*   **Unexpected Results (Percentages too high/low, outcomes wrong):**
+    *   **Links:** Triple-check Q->CO and CO->PO links. Are all relevant items linked? Are links correct?
+    *   **Weights:** Do Exam Weights sum to 100% in `Manage Weights`? Are they set logically?
+    *   **Scores:** Are all student scores entered correctly? Any missing scores? Scores exceeding max points?
+    *   **Method:** Check `Course Settings`. Is the correct Success Rate Method (Absolute/Relative) selected? Does the threshold make sense?
+    *   **Exclusion:** Check manually excluded students. Review Mandatory Exam settings and student scores/attendance - are students being unexpectedly excluded? Use the `Debug Calculations` tool.
+*   **Calculation Errors/Failures (Error message during calculation):**
+    *   **Division by Zero:** Check if any Question Max Scores are 0. Check if the course has students with scores.
+    *   **Inconsistent Data:** Missing COs, Exams, or other required structure? Orphaned links?
+    *   **Timeout:** For extremely large courses, calculations might exceed default timeouts. Try again. If persistent, report as a potential performance issue.
+    *   **Use Debug Tool:** The `Debug Calculations` button on the results page is invaluable for diagnosing calculation logic errors.
 
 ### Import/Export & Data Transfer Issues
 
-*   **Student Import Problems:** Incorrect format (check preview)? Duplicate IDs? File Encoding (use UTF-8)?
-*   **Database Merge/Import Issues:** Incompatible versions? ID conflicts? Always backup before merging/importing.
-*   **Export Problems:** Browser blocking downloads? File permission issues? No data to export (check filters)?
+*   **Student Import Problems:**
+    *   **Format:** Check data against supported formats (ID Name Surname, ID;Name;Surname, ID\\\\tName\\\\tSurname). Spaces/tabs matter. Use the preview!
+    *   **Duplicate IDs:** Ensure student IDs are unique within the import list *and* compared to existing students in the course (if not updating).
+    *   **File Encoding:** For CSV, use UTF-8, especially if names contain special characters.
+*   **Database Merge/Import Issues:**
+    *   **Version Incompatibility:** Merging/importing between significantly different app versions can cause errors. Try updating first.
+    *   **ID Conflicts:** Check for potential conflicts in IDs (Course, Exam, Student, etc.) between the source and target data.
+    *   **Backup First!** Always backup before merging or importing complex data.
+*   **Export Problems:**
+    *   **Browser Blocking:** Check if your browser is blocking pop-ups or downloads.
+    *   **Permissions:** Can the browser write to your download location?
+    *   **No Data:** Are you trying to export from an empty list (e.g., no students in course, no results calculated)? Check filters.
 
 ### Performance & Responsiveness Issues
 
-*   **Slow Application:** Large database (archive old courses)? Low system resources (RAM/CPU)? Browser issues (clear cache, try different browser)?
-*   **Slow Score Entry Grid:** Use exam-specific view for large classes. Enter scores in batches. Try Chrome.
+*   **Slow Application (Loading pages, searching):**
+    *   **Database Size:** Many years of courses? Consider archiving old data (backup & restore to a separate file, then delete from active DB). Use \"Exclude Course from Reports\" for inactive courses.
+    *   **System Resources:** Is the hosting machine low on RAM or CPU? Close other apps.
+    *   **Browser:** Clear cache/cookies. Try Chrome or Firefox. Disable interfering extensions.
+*   **Slow Score Entry Grid:**
+    *   **View:** Use the exam-specific score entry (`Exam Detail -> Enter Scores`) instead of the all-exams view (`Course Detail -> Enter/Edit Scores`) for large classes.
+    *   **Input Method:** Enter scores in batches rather than extremely rapidly, allowing AJAX saves to complete. Keyboard navigation is usually faster than mouse clicks.
+    *   **Browser:** Chrome often handles large, dynamic tables better.
 
 ### Troubleshooting & Common Issues
 
-*   **Application Won't Start:** Missing dependencies (reinstall `requirements.txt`)? DB corruption (move DB file, restore backup)? Port conflict (try `python app.py --port 5001`)?
-*   **Charts Not Displaying:** Browser issues (try different browser, enable JS, clear cache)? Insufficient data? Network issues (remote access)? Check developer console for errors.
-*   **Unexpected Error Messages:** Potential bug (report with details/screenshot)? Data format issue? Version mismatch (update app)?
+*   **Application Won't Start:**
+    *   **Dependencies:** Run `pip install -r requirements.txt` again in your activated virtual environment. Check console for Python errors.
+    *   **DB Corruption:** Temporarily move/rename `instance/accredit_data.db`. If it starts, the DB was corrupt; restore from backup into the new file or start fresh.
+    *   **Port Conflict:** Is another service using port 5000? Try `python app.py --port 5001`.
+*   **Charts Not Displaying:**
+    *   **Browser:** Ensure JavaScript is enabled. Try a different browser. Clear cache.
+    *   **Data:** Are there calculated results to display? Need scores and links first.
+    *   **Network:** If remote, check connection. Check browser's Developer Console (F12) for JavaScript errors.
+*   **Unexpected Error Messages:**
+    *   **Bug:** Could be a software bug. Note the steps to reproduce, take a screenshot, check System Logs, and report it.
+    *   **Data Format:** Did you enter data in an unexpected format (e.g., text where numbers expected)?
+    *   **Version:** Are you using the latest version? Check for updates.
+
