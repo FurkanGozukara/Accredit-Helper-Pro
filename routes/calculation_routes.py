@@ -467,6 +467,13 @@ def export_results(course_id):
     all_exams = regular_exams + makeup_exams
     
     course_outcomes = CourseOutcome.query.filter_by(course_id=course_id).order_by(CourseOutcome.code).all()
+    
+    # Define outcome_questions variable that maps each course outcome's ID to its list of questions
+    outcome_questions = {co.id: co.questions for co in course_outcomes}
+    
+    # Get achievement levels
+    achievement_levels = AchievementLevel.query.filter_by(course_id=course_id).order_by(AchievementLevel.min_score.desc()).all()
+    
     students = Student.query.filter_by(course_id=course_id)
     
     # Apply sorting based on parameters
@@ -536,6 +543,23 @@ def export_results(course_id):
     
     # Add overall percentage header
     headers.append('Overall Weighted Score (%)')
+    headers.append('Achievement Level')
+    
+    # Get display method from course settings
+    settings = CourseSettings.query.filter_by(course_id=course_id).first()
+    display_method = settings.success_rate_method if settings else 'absolute'
+    
+    # Calculate normalized weights for use in outcome calculations
+    total_weight = Decimal('0')
+    for weight in weights.values():
+        total_weight += weight
+    
+    normalized_weights = {}
+    for exam_id, weight in weights.items():
+        if total_weight > Decimal('0'):
+            normalized_weights[exam_id] = weight / total_weight
+        else:
+            normalized_weights[exam_id] = weight
     
     # Add student data rows
     data = []
@@ -647,19 +671,17 @@ def export_results(course_id):
             if co_score is not None:
                 # Add score and achievement level
                 student_row[idx] = round(float(co_score), 2)
-                
-                # Get achievement level
-                level = get_achievement_level(float(co_score), achievement_levels)
-                student_row[f'{co.code} Achievement Level'] = level['name']
-            else:
-                student_row[f'{co.code} Achievement (%)'] = "N/A"
-                student_row[f'{co.code} Achievement Level'] = "N/A"
         
         # Calculate and add overall weighted score
         if total_weight_used > Decimal('0'):
             overall_percentage = weighted_score / total_weight_used
             # Set overall percentage in the last column with 2 decimal places precision
-            student_row[-1] = round(float(overall_percentage), 2)
+            student_row[-2] = round(float(overall_percentage), 2)
+            
+            # Get and add achievement level
+            level = get_achievement_level(float(overall_percentage), achievement_levels)
+            student_row[-1] = level['name']
+            
             # Store for potential sorting
             student_data = {
                 'student_id': student.student_id,
