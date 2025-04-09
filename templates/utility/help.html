@@ -2288,7 +2288,7 @@
 {{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Add CSS to fix tab pane display
+    // Add CSS to fix tab pane display and add search highlight style
     const style = document.createElement('style');
     style.textContent = `
         /* Remove any display:none from tab-panes outside the container */
@@ -2303,10 +2303,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         .highlight-search {
             background-color: #fff3cd;
-            transition: background-color 0.5s;
             padding: 4px;
             border-radius: 3px;
             box-shadow: 0 0 5px rgba(0,0,0,0.1);
+            transition: background-color 0.5s;
         }
         /* Important fix - remove the default display:none inline style that may be added */
         [role="tabpanel"] {
@@ -2471,6 +2471,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         tabPanes.forEach(pane => {
             const paneId = pane.id;
+            if (!paneId) return; // Skip panes without IDs
+            
             const tabLink = document.querySelector(`#helpNav a[href="#${paneId}"]`);
             const sectionTitle = tabLink ? tabLink.textContent.trim() : 'Unknown Section';
             
@@ -2524,29 +2526,41 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Add click handler to go to result
                 listItem.querySelector('button').addEventListener('click', () => {
                     // Activate the tab
-                    const tabLink = document.querySelector(`#helpNav a[href="#${result.paneId}"]`);
-                    if (tabLink) {
-                        // Update URL hash
-                        if (history.pushState) {
-                            history.pushState(null, null, `#${result.paneId}`);
-                        } else {
-                            window.location.hash = `#${result.paneId}`;
-                        }
-                        
-                        // Manually activate the tab
-                        activateTabFromHash(`#${result.paneId}`);
-                        
-                        // Scroll to the specific element
-                        setTimeout(() => {
-                            result.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            
-                            // Add highlight effect
-                            result.element.classList.add('highlight-search');
-                            setTimeout(() => {
-                                result.element.classList.remove('highlight-search');
-                            }, 3000);
-                        }, 300);
+                    activateTabFromHash(`#${result.paneId}`);
+                    
+                    // Update URL hash
+                    if (history.pushState) {
+                        history.pushState(null, null, `#${result.paneId}`);
+                    } else {
+                        window.location.hash = `#${result.paneId}`;
                     }
+                    
+                    // Scroll to the specific element and highlight it
+                    setTimeout(() => {
+                        // Check if the element is inside an accordion collapse
+                        const accordionCollapse = result.element.closest('.accordion-collapse');
+                        if (accordionCollapse && !accordionCollapse.classList.contains('show')) {
+                            // Find the button that controls this collapse
+                            const accordionId = accordionCollapse.id;
+                            const accordionButton = document.querySelector(`button[data-bs-target="#${accordionId}"]`);
+                            if (accordionButton) {
+                                // Click the button to expand the accordion
+                                accordionButton.click();
+                            }
+                        }
+
+                        // Now scroll to the element
+                        result.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        
+                        // Add highlight effect
+                        result.element.classList.add('highlight-search');
+                        setTimeout(() => {
+                            result.element.classList.remove('highlight-search');
+                        }, 3000);
+                    }, 300);
+                    
+                    // Hide search results
+                    searchResults.classList.add('d-none');
                 });
                 
                 searchResultsList.appendChild(listItem);
@@ -2586,8 +2600,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const name = document.getElementById('feedbackName').value;
             const email = document.getElementById('feedbackEmail').value;
             const message = document.getElementById('feedbackMessage').value;
+            const feedbackType = document.getElementById('feedbackType').value;
             
-            if (!name || !email || !message) {
+            if (!name || !email || !message || !feedbackType) {
                 alert('Please fill out all required fields');
                 return;
             }

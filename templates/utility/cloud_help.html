@@ -57,15 +57,17 @@
 
             <h5 class="mt-4"><i class="fab fa-windows me-2"></i>Windows Installation</h5>
             <ol>
-                <li>Download the installer from <a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation" target="_blank">Cloudflare's official website</a></li>
-                <li>Run the installer and follow the on-screen instructions</li>
+                <li>Download the installer from <a href="https://github.com/cloudflare/cloudflared/releases" target="_blank">Cloudflare's official website</a></li>
+                <li>
+                    Run the installer and follow the on-screen instructions - cloudflared-windows-386.msi and cloudflared-windows-amd64.exe
+                </li>
                 <li>After installation, verify it works by opening a Command Prompt and typing: <code>cloudflared --version</code></li>
             </ol>
 
             <h5 class="mt-4"><i class="fab fa-apple me-2"></i>macOS Installation</h5>
             <ol>
                 <li>Using Homebrew: <code>brew install cloudflare/cloudflare/cloudflared</code></li>
-                <li>Alternatively, download the package from <a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation" target="_blank">Cloudflare's official website</a></li>
+                <li>Alternatively, download the package from <a href="https://github.com/cloudflare/cloudflared/releases" target="_blank">Cloudflare's official website</a></li>
                 <li>Verify the installation by opening Terminal and typing: <code>cloudflared --version</code></li>
             </ol>
 
@@ -73,7 +75,7 @@
             <ol>
                 <li>For Debian/Ubuntu: <pre class="bg-light p-2">curl -L https://pkg.cloudflare.com/cloudflared-stable-linux-amd64.deb -o cloudflared.deb
 sudo dpkg -i cloudflared.deb</pre></li>
-                <li>For other distributions, follow the instructions on <a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation" target="_blank">Cloudflare's website</a></li>
+                <li>For other distributions, follow the instructions on <a href="https://github.com/cloudflare/cloudflared/releases" target="_blank">Cloudflare's website</a></li>
                 <li>Verify the installation: <code>cloudflared --version</code></li>
             </ol>
 
@@ -99,9 +101,7 @@ sudo dpkg -i cloudflared.deb</pre></li>
                         </div>
                         <div class="card-body">
                             <ol>
-                                <li>Right-click on <code>Windows_Start.bat</code></li>
-                                <li>Run the batch file with the parameter <code>--cloud</code>:
-                                <pre class="bg-light p-2">Windows_Start.bat --cloud</pre></li>
+                                <li>Use <code>Windows_Start_CloudFlare_Public_Url.bat</code></li>
                                 <li>The console will display a public URL you can access from any device</li>
                             </ol>
                         </div>
