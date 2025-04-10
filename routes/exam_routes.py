@@ -676,21 +676,24 @@ def export_exam_scores(exam_id):
                 student_row[f'Q{question.number} (max: {float(question.max_score)})'] = ''
         
         # Format total score without decimal if it's a whole number
-        rounded_total = round(total_score, 1)
+        rounded_total = round(total_score, 2)
         
         # Calculate percentage if possible
         if max_score > 0:
             percentage = (total_score / max_score) * 100
-            rounded_percentage = round(percentage, 1)
-            student_row['Total Score'] = int(rounded_total) if rounded_total.is_integer() else rounded_total
-            student_row['Percentage (%)'] = rounded_percentage
+            rounded_percentage = round(percentage, 2)
+            student_row['Total Score'] = "{:.2f}".format(rounded_total)
+            student_row['Percentage (%)'] = "{:.2f}".format(rounded_percentage)
             
             # Add Import Format column (student_id;score)
-            obs_score = int(rounded_total) if rounded_total.is_integer() else rounded_total
-            student_row['Import Format'] = f"{student.student_id};{obs_score}"
+            # Use integer format for whole numbers, decimal format for fractions
+            if rounded_total == int(rounded_total):
+                student_row['Import Format'] = f"{student.student_id};{int(rounded_total)}"
+            else:
+                student_row['Import Format'] = f"{student.student_id};{'{:.2f}'.format(rounded_total)}"
         else:
-            student_row['Total Score'] = 0
-            student_row['Percentage (%)'] = 0
+            student_row['Total Score'] = "0.00"
+            student_row['Percentage (%)'] = "0.00"
             student_row['Import Format'] = f"{student.student_id};0"
         
         data.append(student_row)

@@ -123,20 +123,41 @@ def create_app():
             
             # Define a function to extract year and term for sorting
             def semester_sort_key(course):
-                semester = course.semester
-                # Extract year - look for 4 digit number
+                semester = course.semester or ""
                 import re
-                year_match = re.search(r'\b(20\d{2})\b', semester)
+                
+                # Extract year using a more flexible regex pattern
+                # Look for any 4-digit number that might represent a year
+                year_match = re.search(r'\b(\d{4})\b', semester)
                 year = int(year_match.group(1)) if year_match else 0
                 
-                # Determine term priority (Spring > Fall > Summer)
+                # Use regex to identify terms more flexibly
                 term_priority = 0
-                if 'spring' in semester.lower():
+                
+                # Multi-language support for terms (case insensitive)
+                # Spring terms (priority 3)
+                if re.search(r'\b(spring|bahar|sp|primavera|frühling|printemps|весна|春|봄|vår|voorjaar|primavera)\b', 
+                            semester, re.IGNORECASE):
                     term_priority = 3
-                elif 'fall' in semester.lower():
+                # Fall terms (priority 2)
+                elif re.search(r'\b(fall|güz|fa|otoño|herbst|automne|осень|秋|가을|höst|herfst|autunno)\b', 
+                              semester, re.IGNORECASE):
                     term_priority = 2
-                elif 'summer' in semester.lower():
+                # Summer terms (priority 1)
+                elif re.search(r'\b(summer|yaz|su|verano|sommer|été|лето|夏|여름|sommar|zomer|estate)\b', 
+                              semester, re.IGNORECASE):
                     term_priority = 1
+                # Winter terms (priority 0)
+                elif re.search(r'\b(winter|kış|wi|invierno|冬|겨울|vinter|inverno|hiver|зима)\b', 
+                              semester, re.IGNORECASE):
+                    term_priority = 0
+                # Try to find numeric semester designations (e.g., "1", "2", "3", "4" for quarters)
+                elif re.search(r'\b[Ss]emester\s*(\d)\b', semester):
+                    num_match = re.search(r'\b[Ss]emester\s*(\d)\b', semester)
+                    if num_match:
+                        sem_num = int(num_match.group(1))
+                        # Map semester numbers to priorities
+                        term_priority = min(3, max(0, sem_num - 1))
                 
                 # Return tuple for sorting (year, term_priority)
                 return (year, term_priority)
@@ -156,20 +177,41 @@ def create_app():
             
             # Define a function to extract year and term for sorting
             def semester_sort_key(course):
-                semester = course.semester
-                # Extract year - look for 4 digit number
+                semester = course.semester or ""
                 import re
-                year_match = re.search(r'\b(20\d{2})\b', semester)
+                
+                # Extract year using a more flexible regex pattern
+                # Look for any 4-digit number that might represent a year
+                year_match = re.search(r'\b(\d{4})\b', semester)
                 year = int(year_match.group(1)) if year_match else 0
                 
-                # Determine term priority (Spring > Fall > Summer)
+                # Use regex to identify terms more flexibly
                 term_priority = 0
-                if 'spring' in semester.lower():
+                
+                # Multi-language support for terms (case insensitive)
+                # Spring terms (priority 3)
+                if re.search(r'\b(spring|bahar|sp|primavera|frühling|printemps|весна|春|봄|vår|voorjaar|primavera)\b', 
+                            semester, re.IGNORECASE):
                     term_priority = 3
-                elif 'fall' in semester.lower():
+                # Fall terms (priority 2)
+                elif re.search(r'\b(fall|güz|fa|otoño|herbst|automne|осень|秋|가을|höst|herfst|autunno)\b', 
+                              semester, re.IGNORECASE):
                     term_priority = 2
-                elif 'summer' in semester.lower():
+                # Summer terms (priority 1)
+                elif re.search(r'\b(summer|yaz|su|verano|sommer|été|лето|夏|여름|sommar|zomer|estate)\b', 
+                              semester, re.IGNORECASE):
                     term_priority = 1
+                # Winter terms (priority 0)
+                elif re.search(r'\b(winter|kış|wi|invierno|冬|겨울|vinter|inverno|hiver|зима)\b', 
+                              semester, re.IGNORECASE):
+                    term_priority = 0
+                # Try to find numeric semester designations (e.g., "1", "2", "3", "4" for quarters)
+                elif re.search(r'\b[Ss]emester\s*(\d)\b', semester):
+                    num_match = re.search(r'\b[Ss]emester\s*(\d)\b', semester)
+                    if num_match:
+                        sem_num = int(num_match.group(1))
+                        # Map semester numbers to priorities
+                        term_priority = min(3, max(0, sem_num - 1))
                 
                 # Return tuple for sorting (year, term_priority)
                 return (year, term_priority)

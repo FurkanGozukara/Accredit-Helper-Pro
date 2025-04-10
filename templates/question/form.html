@@ -30,7 +30,7 @@
                                 <label for="max_score" class="form-label">Max Score <span class="text-danger">*</span></label>
                                 <input type="number" class="form-control" id="max_score" name="max_score" required
                                        value="{{ question.max_score if question else (form_data.max_score if form_data else (exam.max_score / exam.questions|length) if exam.questions|length > 0 else exam.max_score) }}"
-                                       min="0.5" step="0.5">
+                                       min="0.1" step="0.1">
                                 <div class="form-text">Maximum points for this question</div>
                             </div>
 

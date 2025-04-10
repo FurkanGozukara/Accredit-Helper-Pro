@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from app import db
-from models import Question, Exam, Course, CourseOutcome, Log
+from models import Question, Exam, Course, CourseOutcome, Log, Score
 from datetime import datetime
 import logging
 import io
@@ -226,25 +226,57 @@ def edit_question(question_id):
 
 @question_bp.route('/delete/<int:question_id>', methods=['POST'])
 def delete_question(question_id):
-    """Delete a question after confirmation"""
+    """Delete a question after confirmation
+    
+    IMPORTANT: When a question is deleted, the question numbers of all subsequent
+    questions are decremented. However, the question IDs remain the same.
+    
+    This means that Score records will still refer to the correct Question objects via
+    their IDs, but the question.number field will have changed. Applications using
+    these records should be aware of this behavior.
+    
+    For example, if Q1, Q2, Q3, Q4, Q5 exist and Q2 is deleted:
+    - Q1 remains Q1 (same ID, same number)
+    - Q2 is deleted (ID and number gone)
+    - Q3 becomes the new Q2 (same ID, number changed from 3 to 2)
+    - Q4 becomes the new Q3 (same ID, number changed from 4 to 3)
+    - Q5 becomes the new Q4 (same ID, number changed from 5 to 4)
+    
+    All Score records for the original Q3, Q4, Q5 will point to the same Question objects,
+    but those Question objects now have different numbers.
+    """
     question = Question.query.get_or_404(question_id)
     exam_id = question.exam_id
     question_number = question.number
     
     try:
-        # Log action before deletion
+        # Log action before deletion with detailed warning
         log = Log(action="DELETE_QUESTION", 
-                 description=f"Deleted question {question_number} from exam: {question.exam.name}")
+                 description=f"Deleted question {question_number} from exam: {question.exam.name}. WARNING: This will renumber subsequent questions while keeping the same IDs.")
         db.session.add(log)
         
+        # Get all questions that will be renumbered
+        remaining_questions = Question.query.filter_by(exam_id=exam_id).filter(Question.number > question_number).all()
+        
+        # Log which questions will be renumbered
+        renumbering_log = ""
+        for q in remaining_questions:
+            renumbering_log += f"Question ID {q.id} will change from number {q.number} to {q.number-1}. "
+        
+        if renumbering_log:
+            renumber_log = Log(action="RENUMBER_QUESTIONS", 
+                              description=renumbering_log)
+            db.session.add(renumber_log)
+        
+        # Delete the question (this will cascade delete its scores)
         db.session.delete(question)
         
         # Reorder remaining questions in the exam
-        remaining_questions = Question.query.filter_by(exam_id=exam_id).filter(Question.number > question_number).all()
         for q in remaining_questions:
             q.number -= 1
         
         db.session.commit()
+            
         flash(f'Question {question_number} deleted successfully', 'success')
     except Exception as e:
         db.session.rollback()

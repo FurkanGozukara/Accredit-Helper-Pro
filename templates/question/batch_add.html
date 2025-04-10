@@ -79,7 +79,7 @@
                                     <input type="number" name="max_score_{{ i }}" class="form-control question-field"
                                            data-index="{{ i }}"
                                            value="{{ form_data.questions[i].max_score if form_data and i < form_data.questions|length else 1 }}"
-                                           min="0.5" step="0.5" required>
+                                           min="0.1" step="0.1" required>
                                 </td>
                                 <td>
                                     <div class="outcome-checkboxes">
@@ -168,11 +168,9 @@
                 return;
             }
 
-            // Calculate equal points per question, rounded to 0.5
+            // Calculate equal points per question, rounded to 0.1
             let pointsPerQuestion = parseFloat((remainingScore / numQuestions).toFixed(1));
-            // Ensure it's a multiple of 0.5
-            pointsPerQuestion = Math.round(pointsPerQuestion * 2) / 2;
-
+            
             // Apply to all question score inputs
             const scoreInputs = document.querySelectorAll('input[name^="max_score_"]');
             let lastIndex = -1;
@@ -202,7 +200,7 @@
                 if (Math.abs(roundingError) > 0.01) {
                     const lastInput = scoreInputs[lastIndex];
                     const adjustedValue = parseFloat(lastInput.value) + parseFloat(roundingError.toFixed(1));
-                    lastInput.value = Math.max(0.5, adjustedValue.toFixed(1));
+                    lastInput.value = Math.max(0.1, adjustedValue.toFixed(1));
 
                     // Update session storage for the last question
                     const questionIndex = lastInput.dataset.index;
