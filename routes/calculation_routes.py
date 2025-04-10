@@ -1,6 +1,10 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, send_file
 from app import db
-from models import Course, Exam, Question, CourseOutcome, ProgramOutcome, Student, Score, ExamWeight, Log, CourseSettings, AchievementLevel, StudentExamAttendance
+from models import (
+    Course, Student, Exam, CourseOutcome, Question, Score, 
+    ProgramOutcome, ExamWeight, StudentExamAttendance, CourseSettings,
+    AchievementLevel, Log
+)
 from datetime import datetime
 import logging
 import csv
@@ -372,6 +376,7 @@ def course_calculations(course_id):
             'overall_percentage': 0,
             'course_outcomes': {},
             'exam_scores': {},  # Add empty exam_scores dictionary
+            'attended_makeup_exams': {},  # Add empty attended_makeup_exams dictionary
             'excluded': False
         }
         
@@ -395,14 +400,44 @@ def course_calculations(course_id):
         # Add exam scores for this student
         for exam in regular_exams:
             exam_score = 0
-            # Get scores for this student from exam_scores_dict
-            if exam.id in exam_scores_dict and student.id in exam_scores_dict[exam.id]:
-                raw_score = float(exam_scores_dict[exam.id][student.id])
-                # Convert raw score to percentage
-                max_score = exam_max_scores[exam.id]
-                if max_score > 0:
-                    exam_score = (raw_score / max_score) * 100
-            student_result['exam_scores'][exam.name] = exam_score
+            used_makeup = False
+            makeup_exam_id = None
+            
+            # Check if there's a makeup for this exam and if student attended it
+            if exam.id in makeup_map:
+                makeup_exam = makeup_map[exam.id]
+                makeup_attended = attendance_dict.get((student.id, makeup_exam.id), True)
+                
+                # If student attended the makeup, use that score
+                if makeup_attended:
+                    used_makeup = True
+                    makeup_exam_id = makeup_exam.id
+                    
+                    # Calculate makeup exam score
+                    if makeup_exam.id in makeup_scores_dict and student.id in makeup_scores_dict[makeup_exam.id]:
+                        raw_score = float(makeup_scores_dict[makeup_exam.id][student.id])
+                        max_score = exam_max_scores[makeup_exam.id]
+                        if max_score > 0:
+                            exam_score = (raw_score / max_score) * 100
+            
+            # If not using makeup, use regular exam score
+            if not used_makeup:
+                if exam.id in exam_scores_dict and student.id in exam_scores_dict[exam.id]:
+                    raw_score = float(exam_scores_dict[exam.id][student.id])
+                    max_score = exam_max_scores[exam.id]
+                    if max_score > 0:
+                        exam_score = (raw_score / max_score) * 100
+            
+            # Add exam score with info about whether it's from makeup
+            student_result['exam_scores'][exam.name] = {
+                'score': exam_score,
+                'from_makeup': used_makeup,
+                'makeup_exam_id': makeup_exam_id
+            }
+        
+        # Add missing_mandatory flag if present in student data
+        if student_data.get('missing_mandatory', False):
+            student_result['missing_mandatory'] = True
         
         # Add to the student_results dictionary
         student_results[student.id] = student_result
@@ -706,6 +741,135 @@ def export_results(course_id):
     
     # Convert data to CSV
     return export_to_excel_csv(csv_data, f"results_{course.code}", headers)
+
+@calculation_bp.route('/course/<int:course_id>/export_program_outcomes')
+def export_program_outcomes_achievement(course_id):
+    """Export program outcomes achievement data to CSV"""
+    course = Course.query.get_or_404(course_id)
+    
+    # Get program outcomes
+    program_outcomes = ProgramOutcome.query.order_by(ProgramOutcome.code).all()
+    
+    # Get course outcomes for associations
+    course_outcomes = CourseOutcome.query.filter_by(course_id=course_id).order_by(CourseOutcome.code).all()
+    
+    # Get achievement levels
+    achievement_levels = AchievementLevel.query.filter_by(course_id=course_id).order_by(AchievementLevel.min_score.desc()).all()
+    
+    # Calculate the results using the existing calculation function
+    settings = CourseSettings.query.filter_by(course_id=course_id).first()
+    display_method = settings.success_rate_method if settings else 'absolute'
+    results = calculate_single_course_results(course_id, display_method)
+    
+    if not results['is_valid_for_aggregation']:
+        flash('Cannot export: Insufficient data to calculate results.', 'warning')
+        return redirect(url_for('calculation.course_calculations', course_id=course_id))
+    
+    # Format program outcome results
+    program_outcome_results = {}
+    for po in program_outcomes:
+        po_score = results['program_outcome_scores'].get(po.id, Decimal('0'))
+        
+        # Get related course outcome codes for this program outcome
+        related_course_outcomes = []
+        for co in course_outcomes:
+            if po in co.program_outcomes:
+                related_course_outcomes.append(co.code)
+        
+        program_outcome_results[po.code] = {
+            'description': po.description,
+            'percentage': po_score,
+            'course_outcomes': related_course_outcomes,
+            'level': get_achievement_level(float(po_score), achievement_levels)
+        }
+    
+    # Prepare data for export
+    headers = ['Program Outcome Code', 'Description', 'Achievement Percentage', 'Achievement Level', 'Related Course Outcomes']
+    csv_data = []
+    
+    for po_code, po_data in program_outcome_results.items():
+        related_cos = ', '.join(po_data['course_outcomes']) if po_data['course_outcomes'] else 'None'
+        achievement_level = po_data['level']['name']
+        
+        csv_data.append([
+            po_code,
+            po_data['description'],
+            f"{float(po_data['percentage']):.2f}%",
+            achievement_level,
+            related_cos
+        ])
+    
+    # Log action
+    log = Log(action="EXPORT_PROGRAM_OUTCOMES_ACHIEVEMENT", 
+             description=f"Exported program outcome achievement data for course: {course.code}")
+    db.session.add(log)
+    db.session.commit()
+    
+    # Convert data to CSV
+    return export_to_excel_csv(csv_data, f"program_outcomes_achievement_{course.code}", headers)
+
+@calculation_bp.route('/course/<int:course_id>/export_course_outcomes')
+def export_course_outcomes_achievement(course_id):
+    """Export course outcomes achievement data to CSV"""
+    course = Course.query.get_or_404(course_id)
+    
+    # Get course outcomes
+    course_outcomes = CourseOutcome.query.filter_by(course_id=course_id).order_by(CourseOutcome.code).all()
+    
+    # Get achievement levels
+    achievement_levels = AchievementLevel.query.filter_by(course_id=course_id).order_by(AchievementLevel.min_score.desc()).all()
+    
+    # Calculate the results using the existing calculation function
+    settings = CourseSettings.query.filter_by(course_id=course_id).first()
+    display_method = settings.success_rate_method if settings else 'absolute'
+    results = calculate_single_course_results(course_id, display_method)
+    
+    if not results['is_valid_for_aggregation']:
+        flash('Cannot export: Insufficient data to calculate results.', 'warning')
+        return redirect(url_for('calculation.course_calculations', course_id=course_id))
+    
+    # Format course outcome results for export
+    course_outcome_results = {}
+    
+    for outcome in course_outcomes:
+        # Get score from results
+        co_score = results['course_outcome_scores'].get(outcome.id, Decimal('0'))
+        
+        # Get related program outcomes
+        related_pos = [po.code for po in outcome.program_outcomes]
+        
+        # Store in results dictionary
+        course_outcome_results[outcome.code] = {
+            'description': outcome.description,
+            'percentage': co_score,
+            'program_outcomes': related_pos,
+            'level': get_achievement_level(float(co_score), achievement_levels)
+        }
+    
+    # Prepare data for export
+    headers = ['Course Outcome Code', 'Description', 'Achievement Percentage', 'Achievement Level', 'Related Program Outcomes']
+    csv_data = []
+    
+    for co_code, co_data in course_outcome_results.items():
+        related_pos = ', '.join(co_data['program_outcomes']) if co_data['program_outcomes'] else 'None'
+        achievement_level = co_data['level']['name']
+        
+        csv_data.append([
+            co_code,
+            co_data['description'],
+            f"{float(co_data['percentage']):.2f}%",
+            achievement_level,
+            related_pos
+        ])
+    
+    # Log action
+    log = Log(action="EXPORT_COURSE_OUTCOMES_ACHIEVEMENT", 
+             description=f"Exported course outcome achievement data for course: {course.code}")
+    db.session.add(log)
+    db.session.commit()
+    
+    # Convert data to CSV
+    return export_to_excel_csv(csv_data, f"course_outcomes_achievement_{course.code}", headers)
 
 @calculation_bp.route('/all_courses', endpoint='all_courses')
 def all_courses_calculations():
@@ -1265,7 +1429,7 @@ def calculate_student_exam_score_optimized(student_id, exam_id, scores_dict, que
 
     return (total_score / total_possible) * Decimal('100')
 
-def calculate_course_outcome_score_optimized(student_id, outcome_id, scores_dict, outcome_questions, normalized_weights=None):
+def calculate_course_outcome_score_optimized(student_id, outcome_id, scores_dict, outcome_questions, normalized_weights=None, attendance_dict=None):
     """Calculate a student's score for a course outcome using preloaded data
     
     This function calculates a student's achievement for a specific Course Outcome (CO)
@@ -1278,6 +1442,7 @@ def calculate_course_outcome_score_optimized(student_id, outcome_id, scores_dict
     - outcome_questions: Dictionary mapping outcome_id to list of questions
     - normalized_weights: Pre-calculated, normalized weights for all exams in the course
                          (if None, will calculate weights only for exams with questions for this outcome)
+    - attendance_dict: Dictionary mapping (student_id, exam_id) to attendance status
     """
     questions = outcome_questions.get(outcome_id, [])
 
@@ -1317,12 +1482,18 @@ def calculate_course_outcome_score_optimized(student_id, outcome_id, scores_dict
         if exam and not exam.is_makeup and exam.id in makeup_map:
             makeup_id = makeup_map[exam.id]
             
-            # Check if student attended the makeup
-            attended_makeup = StudentExamAttendance.query.filter_by(
-                student_id=student_id, 
-                exam_id=makeup_id,
-                attended=True
-            ).first() is not None
+            # FIXED: Check attendance using attendance_dict if available, otherwise fall back to direct query
+            attended_makeup = False
+            if attendance_dict is not None:
+                # Use the attendance dictionary if available - default to attended (True) if no record
+                attended_makeup = attendance_dict.get((student_id, makeup_id), True)
+            else:
+                # Fall back to database query if no dictionary provided
+                attended_makeup = StudentExamAttendance.query.filter_by(
+                    student_id=student_id, 
+                    exam_id=makeup_id,
+                    attended=True
+                ).first() is not None
             
             # If student attended makeup, skip this base exam
             if attended_makeup and makeup_id in questions_by_exam:
@@ -1403,7 +1574,8 @@ def calculate_course_outcome_score_optimized(student_id, outcome_id, scores_dict
 
 # Optimized helper function to calculate a student's score for a program outcome
 def calculate_program_outcome_score_optimized(student_id, outcome_id, course_id, scores_dict, 
-                                             program_to_course_outcomes, outcome_questions, normalized_weights=None):
+                                             program_to_course_outcomes, outcome_questions, 
+                                             normalized_weights=None, attendance_dict=None):
     """Calculate a student's score for a program outcome using preloaded data
     
     Parameters:
@@ -1414,6 +1586,7 @@ def calculate_program_outcome_score_optimized(student_id, outcome_id, course_id,
     - program_to_course_outcomes: Map of program outcomes to related course outcomes
     - outcome_questions: Dictionary mapping outcome_id to list of questions
     - normalized_weights: Pre-calculated, normalized weights for all exams in the course
+    - attendance_dict: Dictionary mapping (student_id, exam_id) to attendance status
     """
     # Get related course outcomes from the preloaded mapping
     related_course_outcomes = program_to_course_outcomes.get(outcome_id, [])
@@ -1432,9 +1605,10 @@ def calculate_program_outcome_score_optimized(student_id, outcome_id, course_id,
     
     # Get individual course outcome scores and apply weights
     for course_outcome in related_course_outcomes:
-        # Calculate the score for this course outcome, passing through the normalized weights
+        # Calculate the score for this course outcome, passing through the normalized weights and attendance_dict
         co_score = calculate_course_outcome_score_optimized(
-            student_id, course_outcome.id, scores_dict, outcome_questions, normalized_weights
+            student_id, course_outcome.id, scores_dict, outcome_questions, 
+            normalized_weights, attendance_dict
         )
         
         if co_score is not None:
@@ -1676,28 +1850,32 @@ def calculate_single_course_results(course_id, calculation_method='absolute'):
                 makeup_attended = False
                 
                 if makeup_exam:
-                    # For makeup exams, only consider attended if explicitly marked (default is False)
-                    makeup_attended = attendance_dict.get((student.id, makeup_exam.id), False)
+                    # FIXED: For makeup exams, default to attended (True) if no record
+                    makeup_attended = attendance_dict.get((student.id, makeup_exam.id), True)
                 
-                # Skip student if they didn't attend both the mandatory exam AND its makeup (if exists)
+                # FIXED: If student attended either the regular exam OR its makeup, they satisfy the attendance requirement
+                # Only skip if they missed BOTH the regular exam AND its makeup
                 if not regular_attended and (not makeup_exam or not makeup_attended):
                     skip_student = True
                     break
             
             if skip_student:
                 student_data['skip'] = True
+                student_data['missing_mandatory'] = True  # Add flag for UI to show
                 student_results[student.id] = student_data
                 continue
         
-        # Calculate weighted score for overall course grade
+        # Calculate total weighted score
         total_weighted_score = Decimal('0')
+        
         for exam in regular_exams:
             # Check if there's a makeup for this exam
             makeup_exam = next((m for m in makeup_exams if m.makeup_for == exam.id), None)
             
             # If there's a makeup exam, check if student attended it
             if makeup_exam:
-                makeup_attended = attendance_dict.get((student.id, makeup_exam.id), False)
+                # FIXED: Changed to properly check attendance without requiring valid scores
+                makeup_attended = attendance_dict.get((student.id, makeup_exam.id), True)  # Default to True
                 
                 # If student attended the makeup, use that score exclusively
                 if makeup_attended:
@@ -1709,6 +1887,12 @@ def calculate_single_course_results(course_id, calculation_method='absolute'):
                     if makeup_score is not None:
                         total_weighted_score += makeup_score * normalized_weights.get(exam.id, Decimal('0'))
                         continue  # Skip the original exam completely
+                    else:
+                        # Even if makeup score is None, still skip original exam if student attended makeup
+                        # This ensures we completely ignore the original exam score
+                        makeup_score = Decimal('0')
+                        total_weighted_score += makeup_score * normalized_weights.get(exam.id, Decimal('0'))
+                        continue
             
             # If no makeup was attended or makeup score is None, use regular exam score
             exam_score = calculate_student_exam_score_optimized(
@@ -1728,7 +1912,7 @@ def calculate_single_course_results(course_id, calculation_method='absolute'):
         # Calculate course outcome scores
         for outcome in course_outcomes:
             co_score = calculate_course_outcome_score_optimized(
-                student.id, outcome.id, scores_dict, outcome_questions, normalized_weights
+                student.id, outcome.id, scores_dict, outcome_questions, normalized_weights, attendance_dict
             )
             student_data['course_outcomes'][outcome.id] = co_score
         
@@ -1736,7 +1920,7 @@ def calculate_single_course_results(course_id, calculation_method='absolute'):
         for outcome in program_outcomes:
             po_score = calculate_program_outcome_score_optimized(
                 student.id, outcome.id, course_id, scores_dict, 
-                program_to_course_outcomes, outcome_questions, normalized_weights
+                program_to_course_outcomes, outcome_questions, normalized_weights, attendance_dict
             )
             student_data['program_outcomes'][outcome.id] = po_score
         
@@ -1904,7 +2088,8 @@ def debug_calculations(course_id):
                 makeup_score = None
                 
                 if makeup_exam:
-                    makeup_attended = attendance_dict.get((student.id, makeup_exam.id), False)
+                    # FIXED: For makeup exams, default to attended (True) if no record
+                    makeup_attended = attendance_dict.get((student.id, makeup_exam.id), True)
                     if makeup_attended:
                         makeup_score = calculate_student_exam_score_optimized(
                             student.id, makeup_exam.id, scores_dict, questions_by_exam[makeup_exam.id], attendance_dict
@@ -1929,7 +2114,8 @@ def debug_calculations(course_id):
             
             # If there's a makeup exam, check if student attended it
             if makeup_exam:
-                makeup_attended = attendance_dict.get((student.id, makeup_exam.id), False)
+                # FIXED: Default to attended (True) if no record exists
+                makeup_attended = attendance_dict.get((student.id, makeup_exam.id), True)
                 
                 # If student attended the makeup, use that score exclusively
                 if makeup_attended:
@@ -1941,6 +2127,10 @@ def debug_calculations(course_id):
                     if makeup_score is not None:
                         student_results[student.id]['exam_scores'][exam.id] = makeup_score
                         continue
+                
+                # Even if makeup score is None, if student attended makeup, use 0 and skip original
+                student_results[student.id]['exam_scores'][exam.id] = Decimal('0')
+                continue
             
             # If no makeup was attended or makeup score is None, use regular exam score
             exam_score = calculate_student_exam_score_optimized(
@@ -1975,12 +2165,16 @@ def debug_calculations(course_id):
         
         # Calculate course outcome scores
         for outcome in course_outcomes:
-            score = calculate_course_outcome_score_optimized(student.id, outcome.id, scores_dict, outcome_questions, normalized_weights)
+            score = calculate_course_outcome_score_optimized(
+                student.id, outcome.id, scores_dict, outcome_questions, normalized_weights, attendance_dict
+            )
             student_results[student.id]['course_outcome_scores'][outcome.id] = score
         
         # Calculate program outcome scores
         for outcome in program_outcomes:
-            score = calculate_program_outcome_score_optimized(student.id, outcome.id, course_id, scores_dict, program_to_course_outcomes, outcome_questions, normalized_weights)
+            score = calculate_program_outcome_score_optimized(
+                student.id, outcome.id, course_id, scores_dict, program_to_course_outcomes, outcome_questions, normalized_weights, attendance_dict
+            )
             student_results[student.id]['program_outcome_scores'][outcome.id] = score
     
     # Calculate average scores for the whole class
@@ -2456,6 +2650,10 @@ def export_student_results(course_id):
     """Export detailed student results including exam scores and course outcome achievements"""
     course = Course.query.get_or_404(course_id)
     
+    # Get sorting parameters from query string
+    sort_by = request.args.get('sort_by', '')
+    sort_direction = request.args.get('sort_direction', 'asc')
+    
     # Get regular and makeup exams separately
     regular_exams = Exam.query.filter_by(course_id=course_id, is_makeup=False).order_by(Exam.created_at).all()
     makeup_exams = Exam.query.filter_by(course_id=course_id, is_makeup=True).order_by(Exam.created_at).all()
@@ -2470,10 +2668,30 @@ def export_student_results(course_id):
             makeup_map[makeup.makeup_for] = makeup
     
     course_outcomes = CourseOutcome.query.filter_by(course_id=course_id).order_by(CourseOutcome.code).all()
-    students = Student.query.filter_by(course_id=course_id).order_by(Student.student_id).all()
+    
+    # Apply student sorting based on parameters (we'll sort the final data later)
+    students = Student.query.filter_by(course_id=course_id)
+    
+    # Default sorting for students when retrieving from database
+    if sort_by == 'student_id':
+        students = students.order_by(Student.student_id.asc() if sort_direction == 'asc' else Student.student_id.desc())
+    elif sort_by == 'name':
+        students = students.order_by(
+            Student.first_name.asc() if sort_direction == 'asc' else Student.first_name.desc(),
+            Student.last_name.asc() if sort_direction == 'asc' else Student.last_name.desc()
+        )
+    else:
+        # Default sort by student_id if not sorting by overall_score (which we'll handle later)
+        students = students.order_by(Student.student_id)
+    
+    students = students.all()
     
     # Get achievement levels for this course
     achievement_levels = AchievementLevel.query.filter_by(course_id=course_id).order_by(AchievementLevel.min_score.desc()).all()
+    
+    # Get the calculated results which are used for the display
+    results = calculate_single_course_results(course_id)
+    student_results = results.get('student_results', {})
     
     # Get exam weights
     weights = {}
@@ -2486,23 +2704,64 @@ def export_student_results(course_id):
         else:
             weights[exam.id] = Decimal('0')
     
-    # Preload all scores
-    scores_dict = {}
-    student_ids = [s.id for s in students]
-    exam_ids = [e.id for e in all_exams]
+    # Calculate normalized weights
+    normalized_weights = {}
+    if total_weight > Decimal('0'):
+        for exam_id, weight in weights.items():
+            normalized_weights[exam_id] = weight / total_weight
     
-    if student_ids and exam_ids:
-        scores = Score.query.filter(
-            Score.student_id.in_(student_ids),
-            Score.exam_id.in_(exam_ids)
-        ).all()
+    # Prepare scores for calculating exam percentages - this matches the course_calculations method
+    # Get scores for all students for each regular exam
+    exam_scores_dict = {}
+    exam_max_scores = {}  # Store max scores for each exam
+    
+    for exam in regular_exams:
+        # Calculate max possible score for this exam
+        questions = Question.query.filter_by(exam_id=exam.id).all()
+        exam_max_scores[exam.id] = sum(float(q.max_score) for q in questions) if questions else 0
         
-        for score in scores:
-            key = (score.student_id, score.question_id, score.exam_id)
-            scores_dict[key] = score.score
+        # Get all scores for this exam
+        exam_scores = Score.query.filter_by(exam_id=exam.id).all()
+        
+        # Initialize dictionary for this exam
+        student_total_scores = {}
+        
+        # Sum up scores for each student across all questions
+        for score in exam_scores:
+            if score.student_id not in student_total_scores:
+                student_total_scores[score.student_id] = 0
+            student_total_scores[score.student_id] += float(score.score)
+        
+        # Store the summed scores
+        exam_scores_dict[exam.id] = student_total_scores
+    
+    # Get scores for all students for each makeup exam
+    makeup_scores_dict = {}
+    for exam in makeup_exams:
+        # Calculate max possible score for this makeup exam
+        questions = Question.query.filter_by(exam_id=exam.id).all()
+        exam_max_scores[exam.id] = sum(float(q.max_score) for q in questions) if questions else 0
+        
+        # Get all scores for this makeup exam
+        makeup_scores = Score.query.filter_by(exam_id=exam.id).all()
+        
+        # Initialize dictionary for this exam
+        student_total_scores = {}
+        
+        # Sum up scores for each student across all questions
+        for score in makeup_scores:
+            if score.student_id not in student_total_scores:
+                student_total_scores[score.student_id] = 0
+            student_total_scores[score.student_id] += float(score.score)
+        
+        # Store the summed scores
+        makeup_scores_dict[exam.id] = student_total_scores
     
     # Preload attendance information
     attendance_dict = {}
+    student_ids = [s.id for s in students]
+    exam_ids = [e.id for e in all_exams]
+    
     if student_ids and exam_ids:
         attendances = StudentExamAttendance.query.filter(
             StudentExamAttendance.student_id.in_(student_ids),
@@ -2512,22 +2771,16 @@ def export_student_results(course_id):
         for attendance in attendances:
             attendance_dict[(attendance.student_id, attendance.exam_id)] = attendance.attended
     
-    # Create a map of exams to their questions
-    questions_by_exam = {}
-    for exam in all_exams:
-        questions_by_exam[exam.id] = exam.questions
-    
-    # Create a map of course outcomes to their related questions
-    outcome_questions = {}
-    for co in course_outcomes:
-        outcome_questions[co.id] = co.questions
-    
     # Define headers for CSV
     headers = ['Student ID', 'Student Name']
     
-    # Add exam score headers
+    # Add exam score headers - include both regular and makeup exams
     for exam in regular_exams:
         headers.append(f'{exam.name} Score (%)')
+        # Check if this exam has a makeup
+        if exam.id in makeup_map:
+            headers.append(f'{exam.name} - Used Makeup?')
+            headers.append(f'{makeup_map[exam.id].name} Score (%)')
     
     # Add course outcome headers
     for co in course_outcomes:
@@ -2545,6 +2798,11 @@ def export_student_results(course_id):
         # Skip excluded students
         if student.excluded:
             continue
+        
+        # Get pre-calculated data for this student
+        student_data = student_results.get(student.id, {})
+        if student_data.get('skip', False):
+            continue
             
         # Prepare student row as a dictionary
         student_row = {
@@ -2552,77 +2810,106 @@ def export_student_results(course_id):
             'Student Name': f"{student.first_name} {student.last_name}".strip()
         }
         
-        # Calculate and add exam scores
-        weighted_score = Decimal('0')
-        total_weight_used = Decimal('0')
-        
+        # Add exam scores using the same calculation as the display
         for exam in regular_exams:
             # Check if this exam has a makeup and if the student took the makeup
             use_makeup = False
             actual_exam_id = exam.id
+            makeup_score = 0
             
             if exam.id in makeup_map:
                 makeup_exam = makeup_map[exam.id]
-                # Check if student has scores for the makeup
-                has_makeup_scores = False
-                for question in questions_by_exam[makeup_exam.id]:
-                    if (student.id, question.id, makeup_exam.id) in scores_dict:
-                        has_makeup_scores = True
-                        break
+                # Default to attended (True) if no record exists
+                makeup_attended = attendance_dict.get((student.id, makeup_exam.id), True)
                 
-                if has_makeup_scores:
+                # If student attended makeup, always use it regardless of scores
+                if makeup_attended:
                     use_makeup = True
                     actual_exam_id = makeup_exam.id
+                    
+                    # Calculate makeup exam score
+                    if actual_exam_id in makeup_scores_dict and student.id in makeup_scores_dict[actual_exam_id]:
+                        raw_score = float(makeup_scores_dict[actual_exam_id][student.id])
+                        max_score = exam_max_scores[actual_exam_id]
+                        if max_score > 0:
+                            makeup_score = (raw_score / max_score) * 100
+                    
+                    # Add makeup exam info to row
+                    student_row[f'{exam.name} - Used Makeup?'] = 'Yes'
+                    student_row[f'{makeup_exam.name} Score (%)'] = round(makeup_score, 2)
             
-            # Calculate score
-            exam_score = calculate_student_exam_score_optimized(
-                student.id, actual_exam_id, scores_dict, 
-                questions_by_exam[actual_exam_id], attendance_dict
-            )
-            
-            if exam_score is not None:
-                # Add to student row
-                student_row[f'{exam.name} Score (%)'] = round(float(exam_score), 2)
-                
-                # Add to weighted score if weight exists
-                if exam.id in weights and weights[exam.id] > Decimal('0'):
-                    weighted_score += exam_score * weights[exam.id]
-                    total_weight_used += weights[exam.id]
+            # Calculate exam score
+            exam_score = 0
+            # If using makeup exam
+            if use_makeup:
+                exam_score = makeup_score
             else:
-                student_row[f'{exam.name} Score (%)'] = "N/A"
+                # Use regular exam score
+                if exam.id in exam_scores_dict and student.id in exam_scores_dict[exam.id]:
+                    raw_score = float(exam_scores_dict[exam.id][student.id])
+                    max_score = exam_max_scores[exam.id]
+                    if max_score > 0:
+                        exam_score = (raw_score / max_score) * 100
+                
+                # Add info that makeup wasn't used if there is a makeup for this exam
+                if exam.id in makeup_map:
+                    student_row[f'{exam.name} - Used Makeup?'] = 'No'
+                    student_row[f'{makeup_map[exam.id].name} Score (%)'] = 'N/A'
+            
+            # Add regular exam score to row
+            student_row[f'{exam.name} Score (%)'] = round(exam_score, 2)
         
-        # Calculate and add course outcome achievements
+        # Add course outcome scores from pre-calculated data
         for co in course_outcomes:
-            # Calculate course outcome achievement
-            co_score = calculate_course_outcome_score_optimized(
-                student.id, co.id, scores_dict, outcome_questions, normalized_weights
-            )
+            co_id = co.id
+            co_code = co.code
+            
+            # Get pre-calculated course outcome score
+            co_score = student_data.get('course_outcomes', {}).get(co_id)
             
             if co_score is not None:
                 # Add score and achievement level
-                student_row[f'{co.code} Achievement (%)'] = round(float(co_score), 2)
+                student_row[f'{co_code} Achievement (%)'] = round(float(co_score), 2)
                 
                 # Get achievement level
                 level = get_achievement_level(float(co_score), achievement_levels)
-                student_row[f'{co.code} Achievement Level'] = level['name']
+                student_row[f'{co_code} Achievement Level'] = level['name']
             else:
-                student_row[f'{co.code} Achievement (%)'] = "N/A"
-                student_row[f'{co.code} Achievement Level'] = "N/A"
+                student_row[f'{co_code} Achievement (%)'] = "N/A"
+                student_row[f'{co_code} Achievement Level'] = "N/A"
         
-        # Calculate and add overall weighted score
-        if total_weight_used > Decimal('0'):
-            overall_percentage = weighted_score / total_weight_used
-            student_row['Overall Weighted Score (%)'] = round(float(overall_percentage), 2)
+        # Get overall weighted score from pre-calculated data
+        if 'weighted_score' in student_data:
+            weighted_score = student_data['weighted_score']
             
-            # Get overall achievement level - ensure we're using the properly rounded value
-            level = get_achievement_level(round(float(overall_percentage), 2), achievement_levels)
+            # Format for output
+            student_row['Overall Weighted Score (%)'] = round(float(weighted_score), 2)
+            
+            # Get achievement level
+            level = get_achievement_level(round(float(weighted_score), 2), achievement_levels)
             student_row['Overall Achievement Level'] = level['name']
+            
+            # Store the overall score for sorting
+            student_row['_overall_score'] = float(weighted_score)
         else:
             student_row['Overall Weighted Score (%)'] = "N/A"
             student_row['Overall Achievement Level'] = "N/A"
+            student_row['_overall_score'] = -1
         
         # Add row to data
         data.append(student_row)
+    
+    # Apply overall_score sorting if requested (needs to be done after all data is collected)
+    if sort_by == 'overall_score':
+        data.sort(
+            key=lambda x: x['_overall_score'], 
+            reverse=(sort_direction == 'desc')
+        )
+    
+    # Remove sorting metadata field before exporting
+    for row in data:
+        if '_overall_score' in row:
+            del row['_overall_score']
     
     # Log action
     log = Log(action="EXPORT_STUDENT_RESULTS", 

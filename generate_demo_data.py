@@ -61,17 +61,17 @@ def initialize_program_outcomes():
     
     if existing_count == 0:
         default_outcomes = [
-            {"code": "PÇ1", "description": "Matematik, fen bilimleri ve bilgisayar mühendisliği alanlarına özgü konularda yeterli bilgi birikimi; bu alanlardaki kuramsal ve uygulamalı bilgileri, bilgisayar mühendisliği alanındaki karmaşık mühendislik problemlerinin çözümünde kullanabilme becerisi."},
-            {"code": "PÇ2", "description": "Bilgisayar mühendisliği alanındaki karmaşık mühendislik problemlerini saptama, tanımlama, formüle etme ve çözme becerisi; bu amaçla uygun analiz, teknik ve modelleme yöntemlerini seçme ve uygulama becerisi."},
-            {"code": "PÇ3", "description": "Bilgisayar mühendisliği kapsamındaki karmaşık bir sistemi, süreci, cihazı veya ürünü gerçekçi kısıtlar ve koşullar altında, belirli gereksinimleri karşılayacak şekilde bilgisayar mühendisliği alanındaki modern tasarım yöntemlerini uygulayarak tasarlama becerisi."},
-            {"code": "PÇ4", "description": "Bilgisayar mühendisliği uygulamalarında karşılaşılan karmaşık problemlerin analizi ve çözümü için gerekli olan modern teknik ve araçları geliştirme, seçme ve kullanma becerisi; bilişim teknolojilerini etkin bir şekilde kullanma becerisi."},
-            {"code": "PÇ5", "description": "Bilgisayar mühendisliği disiplinine özgü karmaşık problemlerin veya araştırma konularının incelenmesi için deney tasarlama, deney yapma, veri toplama, sonuçları analiz etme ve yorumlama becerisi."},
-            {"code": "PÇ6", "description": "Disiplin içi ve çok disiplinli takımlarda etkin biçimde çalışabilme becerisi; bireysel çalışma becerisi."},
-            {"code": "PÇ7", "description": "Türkçe sözlü ve yazılı etkin iletişim kurma becerisi; en az bir yabancı dil bilgisi; etkin rapor yazma ve yazılı raporları anlama, tasarım ve üretim raporları hazırlayabilme, etkin sunum yapabilme, açık ve anlaşılır talimat verme ve alma becerisi."},
-            {"code": "PÇ8", "description": "Yaşam boyu öğrenmenin gerekliliği bilinci; bilgiye erişebilme, bilim ve teknolojideki gelişmeleri izleme ve kendini sürekli yenileme becerisi."},
-            {"code": "PÇ9", "description": "Etik ilkelerine uygun davranma, mesleki ve etik sorumluluk bilinci; bilgisayar mühendisliği alanındaki mühendislik uygulamalarında kullanılan standartlar hakkında bilgi."},
-            {"code": "PÇ10", "description": "Bilgisayar mühendisliği alanında proje yönetimi, risk yönetimi ve değişiklik yönetimi gibi, iş hayatındaki uygulamalar hakkında bilgi; girişimcilik, yenilikçilik hakkında farkındalık; sürdürülebilir kalkınma hakkında bilgi."},
-            {"code": "PÇ11", "description": "Bilgisayar mühendisliği alanındaki mühendislik uygulamalarının evrensel ve toplumsal boyutlarda sağlık, çevre ve güvenlik üzerindeki etkileri ve çağın bilgisayar mühendisliği alanına yansıyan sorunları hakkında bilgi; bilgisayar mühendisliği çözümlerinin hukuksal sonuçları hakkında farkındalık."}
+            {"code": "PO1", "description": "Sufficient background in subjects specific to the fields of mathematics, science, and computer engineering; the ability to use theoretical and applied knowledge from these fields in solving complex engineering problems within the computer engineering field."},
+            {"code": "PO2", "description": "Ability to identify, define, formulate, and solve complex engineering problems in the field of computer engineering; the ability to select and apply appropriate analysis, techniques, and modeling methods for this purpose."},
+            {"code": "PO3", "description": "Ability to design a complex system, process, device, or product within the scope of computer engineering under realistic constraints and conditions to meet specific requirements, by applying modern design methods from the computer engineering field."},
+            {"code": "PO4", "description": "Ability to develop, select, and use the modern techniques and tools necessary for the analysis and solution of complex problems encountered in computer engineering applications; the ability to use information technologies effectively."},
+            {"code": "PO5", "description": "Ability to design and conduct experiments, collect data, analyze, and interpret results for the investigation of complex problems or research topics specific to the computer engineering discipline."},
+            {"code": "PO6", "description": "Ability to work effectively within disciplinary and multi-disciplinary teams; ability to work individually."},
+            {"code": "PO7", "description": "Ability to communicate effectively both orally and in writing in Turkish; knowledge of at least one foreign language; ability for effective report writing and understanding written reports, preparing design and production reports, making effective presentations, giving and receiving clear and understandable instructions."},
+            {"code": "PO8", "description": "Awareness of the necessity of lifelong learning; the ability to access information, follow developments in science and technology, and continuously renew oneself."},
+            {"code": "PO9", "description": "Ability to act in accordance with ethical principles, awareness of professional and ethical responsibility; knowledge about the standards used in engineering applications within the computer engineering field."},
+            {"code": "PO10", "description": "Knowledge about business practices such as project management, risk management, and change management in the computer engineering field; awareness of entrepreneurship and innovation; knowledge about sustainable development."},
+            {"code": "PO11", "description": "Knowledge about the impacts of engineering applications in the computer engineering field on health, environment, and safety in universal and societal dimensions, and the problems of the era reflected in the computer engineering field; awareness of the legal consequences of computer engineering solutions."}
         ]
         
         # Add the default outcomes
@@ -498,7 +498,7 @@ def generate_exams(courses):
                     is_makeup=True,
                     is_final=exam.is_final,
                     is_mandatory=True,  # Makeup exams are also mandatory
-                    makeup_for=exam.id  # Link to the original exam
+                    original_exam=exam  # Properly set the relationship to the original exam
                 )
                 session.add(makeup_exam)
                 all_exams.append(makeup_exam)
@@ -545,7 +545,7 @@ def generate_exams(courses):
             session.add(exam_weight)
             
             # For makeup exams, use the same weight as the original exam
-            for makeup_exam in [e for e in all_exams if e.makeup_for == exam.id]:
+            for makeup_exam in [e for e in all_exams if hasattr(e, 'original_exam') and e.original_exam == exam]:
                 makeup_weight = ExamWeight(
                     exam_id=makeup_exam.id,
                     course_id=course.id,

@@ -9,7 +9,96 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize any tooltips
     initTooltips();
+    
+    // Setup global AJAX error handler
+    setupGlobalErrorHandler();
 });
+
+// Setup global error handling for AJAX requests
+function setupGlobalErrorHandler() {
+    // Override the fetch API with custom error handling
+    const originalFetch = window.fetch;
+    window.fetch = function() {
+        return originalFetch.apply(this, arguments)
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        try {
+                            // Try to parse as JSON first
+                            const data = JSON.parse(text);
+                            if (data.error) {
+                                displayErrorModal('Error', data.error, data.traceback || null);
+                                throw new Error(data.error);
+                            }
+                        } catch (e) {
+                            // If not JSON or no error field, display the raw error
+                            displayErrorModal('Server Error', text);
+                            throw new Error('Server error: ' + response.status);
+                        }
+                    });
+                }
+                return response;
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                // Display error if it wasn't already displayed above
+                if (!error.message.includes('Server error:') && !error.message.startsWith('Error:')) {
+                    displayErrorModal('Network Error', error.message);
+                }
+                throw error;
+            });
+    };
+    
+    // Add error modal to the DOM if it doesn't exist
+    if (!document.getElementById('errorDetailsModal')) {
+        const modalHTML = `
+        <div class="modal fade" id="errorDetailsModal" tabindex="-1" aria-labelledby="errorDetailsModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title" id="errorDetailsModalLabel">Error Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <h4 id="errorTitle">Error</h4>
+                        <div class="alert alert-danger" id="errorMessage"></div>
+                        <div id="errorTracebackContainer" class="mt-3">
+                            <h5>Technical Details:</h5>
+                            <pre class="bg-light p-3"><code id="errorTraceback"></code></pre>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
+}
+
+// Display error details in modal
+function displayErrorModal(title, message, traceback = null) {
+    const modal = document.getElementById('errorDetailsModal');
+    if (!modal) return;
+    
+    document.getElementById('errorTitle').textContent = title;
+    document.getElementById('errorMessage').textContent = message;
+    
+    const tracebackContainer = document.getElementById('errorTracebackContainer');
+    const tracebackElement = document.getElementById('errorTraceback');
+    
+    if (traceback) {
+        tracebackElement.textContent = traceback;
+        tracebackContainer.style.display = 'block';
+    } else {
+        tracebackContainer.style.display = 'none';
+    }
+    
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+}
 
 // Handle delete confirmation modal
 function initDeleteConfirmation() {

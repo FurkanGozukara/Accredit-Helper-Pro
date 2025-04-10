@@ -238,7 +238,49 @@ def create_app():
     
     @app.errorhandler(500)
     def server_error(e):
-        return render_template('errors/500.html'), 500
+        # Get detailed error information
+        import traceback
+        error_traceback = traceback.format_exc()
+        error_message = str(e)
+        
+        # Log the error
+        logging.error(f"500 error: {error_message}\n{error_traceback}")
+        
+        # Check if this is an AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': False,
+                'error': error_message,
+                'traceback': error_traceback
+            }), 500
+        
+        # For regular requests, pass the error details to the template
+        return render_template('errors/500.html', 
+                              error_message=error_message,
+                              error_traceback=error_traceback), 500
+
+    @app.errorhandler(Exception)
+    def handle_uncaught_exception(e):
+        # Get detailed error information
+        import traceback
+        error_traceback = traceback.format_exc()
+        error_message = str(e)
+        
+        # Log the error
+        logging.error(f"Uncaught exception: {error_message}\n{error_traceback}")
+        
+        # Check if this is an AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': False,
+                'error': error_message,
+                'traceback': error_traceback
+            }), 500
+        
+        # For regular requests, pass the error details to the template
+        return render_template('errors/500.html', 
+                              error_message=error_message,
+                              error_traceback=error_traceback), 500
     
     return app
 

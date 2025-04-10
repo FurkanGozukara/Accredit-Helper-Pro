@@ -19,6 +19,9 @@
             <a href="{{ url_for('student.manage_scores', exam_id=exam.id) }}" class="btn btn-outline-primary me-2">
                 <i class="fas fa-clipboard-list"></i> Manage Scores
             </a>
+            <a href="{{ url_for('student.manage_attendance', exam_id=exam.id) }}" class="btn btn-outline-primary me-2">
+                <i class="fas fa-clipboard-check"></i> Manage Attendance
+            </a>
             <button type="button" class="btn btn-outline-danger"
                     data-bs-toggle="modal"
                     data-bs-target="#confirmDeleteModal">

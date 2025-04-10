@@ -1590,6 +1590,13 @@ def import_database():
                     if missing_exam_cols:
                         schema_validation_errors.append(f"Exam table missing columns: {', '.join(missing_exam_cols)}")
                     
+                    # Check for important exam flag columns (optional but important)
+                    important_exam_cols = ['is_makeup', 'is_final', 'is_mandatory', 'makeup_for']
+                    missing_important_cols = [col for col in important_exam_cols if col not in exam_cols]
+                    if missing_important_cols:
+                        schema_warnings.append(f"Exam table missing important columns: {', '.join(missing_important_cols)}. " +
+                                            "Default values will be used (false for flags, null for makeup_for).")
+                    
                     # Check achievement_level table if it exists in the database
                     if 'achievement_level' in existing_tables:
                         achievement_level_cols = [col[1] for col in conn.execute("PRAGMA table_info(achievement_level)").fetchall()]
@@ -2035,6 +2042,16 @@ def import_database():
                                 
                                 # Insert new achievement level
                                 try:
+                                    # Check which columns exist in the source table
+                                    level_columns = [col[1] for col in 
+                                                   import_db.execute("PRAGMA table_info(achievement_level)").fetchall()]
+                                    
+                                    # Default values for missing columns
+                                    level_name = level_data['name'] if 'name' in level_data else "Level"
+                                    min_score = level_data['min_score'] if 'min_score' in level_data else 0.0
+                                    max_score = level_data['max_score'] if 'max_score' in level_data else 100.0
+                                    color = level_data['color'] if 'color' in level_data else "primary"
+                                    
                                     current_db.execute(
                                         """
                                         INSERT INTO achievement_level 
@@ -2043,10 +2060,10 @@ def import_database():
                                         """,
                                         (
                                             current_course_id,
-                                            level_data['name'],
-                                            level_data['min_score'],
-                                            level_data['max_score'],
-                                            level_data['color'],
+                                            level_name,
+                                            min_score,
+                                            max_score,
+                                            color,
                                             datetime.now(),
                                             datetime.now()
                                         )
@@ -2157,6 +2174,37 @@ def import_database():
                             
                             # Insert new exam
                             try:
+                                # Check which exam columns exist in the import database
+                                exam_columns_in_import = [col[1] for col in 
+                                                         import_db.execute("PRAGMA table_info(exam)").fetchall()]
+                                
+                                # Get default values for exam flags if they don't exist in import
+                                is_makeup = False
+                                is_final = False
+                                is_mandatory = False
+                                
+                                # Check if the columns exist and extract values safely
+                                if 'is_makeup' in exam_columns_in_import and 'is_makeup' in exam_data:
+                                    is_makeup = bool(exam_data['is_makeup'])
+                                
+                                if 'is_final' in exam_columns_in_import and 'is_final' in exam_data:
+                                    is_final = bool(exam_data['is_final'])
+                                # If is_final doesn't exist, try to guess based on name
+                                elif "Final" in exam_data['name']:
+                                    is_final = True
+                                    logging.info(f"Marking exam '{exam_data['name']}' as final based on name")
+                                
+                                if 'is_mandatory' in exam_columns_in_import and 'is_mandatory' in exam_data:
+                                    is_mandatory = bool(exam_data['is_mandatory'])
+                                # If is_mandatory doesn't exist, set it for final exams
+                                elif is_final:
+                                    is_mandatory = True
+                                    logging.info(f"Marking final exam '{exam_data['name']}' as mandatory")
+                                
+                                # Get default values for important exam fields
+                                max_score = exam_data['max_score'] if 'max_score' in exam_data else 100.0
+                                exam_date = exam_data['exam_date'] if 'exam_date' in exam_data else datetime.now().date()
+                                
                                 cursor = current_db.execute(
                                     """
                                     INSERT INTO exam
@@ -2165,12 +2213,12 @@ def import_database():
                                     """,
                                     (
                                         exam_data['name'],
-                                        exam_data['max_score'],
-                                        exam_data['exam_date'],
+                                        max_score,
+                                        exam_date,
                                         current_course_id,
-                                        exam_data['is_makeup'] if 'is_makeup' in exam_data else False,
-                                        exam_data['is_final'] if 'is_final' in exam_data else False,
-                                        exam_data['is_mandatory'] if 'is_mandatory' in exam_data else False,
+                                        is_makeup,
+                                        is_final,
+                                        is_mandatory,
                                         datetime.now(),
                                         datetime.now()
                                     )
@@ -2199,6 +2247,11 @@ def import_database():
                                     
                                     # Insert new question
                                     try:
+                                        # Check for required fields with defaults if missing
+                                        question_text = question_data['text'] if 'text' in question_data else ""
+                                        question_number = question_data['number'] if 'number' in question_data else 1
+                                        question_max_score = question_data['max_score'] if 'max_score' in question_data else 1.0
+                                        
                                         cursor = current_db.execute(
                                             """
                                             INSERT INTO question
@@ -2206,9 +2259,9 @@ def import_database():
                                             VALUES (?, ?, ?, ?, ?, ?)
                                             """,
                                             (
-                                                question_data['text'],
-                                                question_data['number'],
-                                                question_data['max_score'],
+                                                question_text,
+                                                question_number,
+                                                question_max_score,
                                                 new_exam_id,
                                                 datetime.now(),
                                                 datetime.now()
@@ -2237,6 +2290,9 @@ def import_database():
                                         ).fetchone()
                                         
                                         if weight_data:
+                                            # Check for 'weight' column - default to 0.1 if missing
+                                            weight_val = weight_data['weight'] if 'weight' in weight_data else 0.1
+                                            
                                             current_db.execute(
                                                 """
                                                 INSERT INTO exam_weight
@@ -2246,7 +2302,7 @@ def import_database():
                                                 (
                                                     new_exam_id,
                                                     current_course_id,
-                                                    weight_data['weight'],
+                                                    weight_val,
                                                     datetime.now(),
                                                     datetime.now()
                                                 )
@@ -2295,6 +2351,9 @@ def import_database():
                                         continue
                                     
                                     # Insert new score
+                                    # Check if 'score' column exists
+                                    score_val = score_data['score'] if 'score' in score_data else 0.0
+                                    
                                     current_db.execute(
                                         """
                                         INSERT INTO score
@@ -2302,7 +2361,7 @@ def import_database():
                                         VALUES (?, ?, ?, ?, ?, ?)
                                         """,
                                         (
-                                            score_data['score'],
+                                            score_val,
                                             current_student_id,
                                             current_question_id,
                                             current_exam_id,
@@ -2355,6 +2414,15 @@ def import_database():
                                 
                                 # Insert new course settings
                                 try:
+                                    # Check which columns exist in the source table
+                                    settings_columns = [col[1] for col in 
+                                                      import_db.execute("PRAGMA table_info(course_settings)").fetchall()]
+                                    
+                                    # Default values for missing columns
+                                    success_method = settings_data['success_rate_method'] if 'success_rate_method' in settings_data else "absolute"
+                                    threshold = settings_data['relative_success_threshold'] if 'relative_success_threshold' in settings_data else 60.0
+                                    excluded = settings_data['excluded'] if 'excluded' in settings_data else False
+                                    
                                     current_db.execute(
                                         """
                                         INSERT INTO course_settings
@@ -2363,9 +2431,9 @@ def import_database():
                                         """,
                                         (
                                             current_course_id,
-                                            settings_data['success_rate_method'],
-                                            settings_data['relative_success_threshold'],
-                                            settings_data['excluded'] if 'excluded' in settings_data else False,
+                                            success_method,
+                                            threshold,
+                                            excluded,
                                             datetime.now(),
                                             datetime.now()
                                         )
@@ -2412,6 +2480,9 @@ def import_database():
                             
                             # Insert new attendance record
                             try:
+                                # Default attended to True if missing
+                                attended_val = attendance_data['attended'] if 'attended' in attendance_data else True
+                                
                                 current_db.execute(
                                     """
                                     INSERT INTO student_exam_attendance 
@@ -2421,7 +2492,7 @@ def import_database():
                                     (
                                         current_student_id,
                                         current_exam_id,
-                                        attendance_data['attended'],
+                                        attended_val,
                                         datetime.now(),
                                         datetime.now()
                                     )
@@ -2435,83 +2506,144 @@ def import_database():
                     # STEP 7: Handle makeup exam relationships with improved circular reference detection
                     if exam_id_map:
                         create_savepoint("makeup_relationships")
-                        # Get all makeup exams from the import database
-                        makeup_exams = import_db.execute(
-                            "SELECT id, makeup_for FROM exam WHERE is_makeup = 1 AND makeup_for IS NOT NULL"
-                        ).fetchall()
+                        # Get all makeup exams from the import database and check the schema
+                        exam_columns_in_import = [col[1] for col in 
+                                               import_db.execute("PRAGMA table_info(exam)").fetchall()]
                         
-                        # Detect circular references in makeup exams
-                        makeup_graph = {}
-                        for makeup_exam in makeup_exams:
-                            if makeup_exam['id'] not in makeup_graph:
-                                makeup_graph[makeup_exam['id']] = set()
-                            makeup_graph[makeup_exam['id']].add(makeup_exam['makeup_for'])
-                        
-                        # Check for cycles
-                        def has_cycle(node, visited, path):
-                            visited.add(node)
-                            path.add(node)
+                        # Different query depending on schema
+                        if 'is_makeup' in exam_columns_in_import and 'makeup_for' in exam_columns_in_import:
+                            # Modern schema with is_makeup flag
+                            makeup_exams = import_db.execute(
+                                "SELECT id, makeup_for FROM exam WHERE is_makeup = 1 AND makeup_for IS NOT NULL"
+                            ).fetchall()
+                        else:
+                            # Try to identify potential makeup exams by name
+                            makeup_exams = import_db.execute(
+                                "SELECT id, name FROM exam WHERE name LIKE '%makeup%' OR name LIKE '%make-up%' OR name LIKE '%make up%'"
+                            ).fetchall()
                             
-                            if node in makeup_graph:
-                                for neighbor in makeup_graph[node]:
-                                    if neighbor not in visited:
-                                        if has_cycle(neighbor, visited, path):
+                            # Process these differently since they don't have makeup_for
+                            if makeup_exams and 'makeup_for' not in exam_columns_in_import:
+                                logging.info(f"Found {len(makeup_exams)} potential makeup exams by name pattern")
+                                
+                                # For each potential makeup exam, try to find the original
+                                processed_makeup_exams = []
+                                for makeup_exam in makeup_exams:
+                                    makeup_id = makeup_exam['id']
+                                    makeup_name = makeup_exam['name'].lower()
+                                    
+                                    # Extract the base exam name (remove 'makeup', 'make-up', etc.)
+                                    base_name = (makeup_name.replace('makeup', '')
+                                                         .replace('make-up', '')
+                                                         .replace('make up', '')
+                                                         .strip())
+                                    
+                                    # Find potential original exams from the same course
+                                    course_id = import_db.execute(
+                                        "SELECT course_id FROM exam WHERE id = ?", (makeup_id,)
+                                    ).fetchone()['course_id']
+                                    
+                                    potential_originals = import_db.execute(
+                                        "SELECT id, name FROM exam WHERE course_id = ? AND id != ?", 
+                                        (course_id, makeup_id)
+                                    ).fetchall()
+                                    
+                                    # Find the best match based on name similarity
+                                    best_match = None
+                                    for exam in potential_originals:
+                                        if base_name in exam['name'].lower() or exam['name'].lower() in base_name:
+                                            best_match = exam
+                                            break
+                                    
+                                    if best_match:
+                                        processed_makeup_exams.append({
+                                            'id': makeup_id,
+                                            'makeup_for': best_match['id']
+                                        })
+                                        logging.info(f"Matched makeup exam '{makeup_name}' to original '{best_match['name']}'")
+                                
+                                # Replace our makeup_exams list with the processed list that has makeup_for values
+                                makeup_exams = processed_makeup_exams
+                        
+                        # Set makeup relationships for both types of imports
+                        if makeup_exams:
+                            # Detect circular references in makeup exams
+                            makeup_graph = {}
+                            for makeup_exam in makeup_exams:
+                                if makeup_exam['id'] not in makeup_graph:
+                                    makeup_graph[makeup_exam['id']] = set()
+                                if 'makeup_for' in makeup_exam and makeup_exam['makeup_for']:
+                                    makeup_graph[makeup_exam['id']].add(makeup_exam['makeup_for'])
+                            
+                            # Check for cycles
+                            def has_cycle(node, visited, path):
+                                visited.add(node)
+                                path.add(node)
+                                
+                                if node in makeup_graph:
+                                    for neighbor in makeup_graph[node]:
+                                        if neighbor not in visited:
+                                            if has_cycle(neighbor, visited, path):
+                                                return True
+                                        elif neighbor in path:
                                             return True
-                                    elif neighbor in path:
-                                        return True
+                                
+                                path.remove(node)
+                                return False
                             
-                            path.remove(node)
-                            return False
-                        
-                        circular_refs = set()
-                        for node in makeup_graph:
-                            if node not in circular_refs:  # Skip nodes already identified in cycles
-                                visited = set()
-                                path = set()
-                                if has_cycle(node, visited, path):
-                                    circular_refs.update(path)
-                        
-                        if circular_refs:
-                            logging.warning(f"Detected circular references in makeup exams: {circular_refs}")
-                            flash("Detected circular references in makeup exams. These relationships will be skipped.", "warning")
-                        
-                        for makeup_exam in makeup_exams:
-                            import_exam_id = makeup_exam['id']
-                            import_original_exam_id = makeup_exam['makeup_for']
+                            circular_refs = set()
+                            for node in makeup_graph:
+                                if node not in circular_refs:  # Skip nodes already identified in cycles
+                                    visited = set()
+                                    path = set()
+                                    if has_cycle(node, visited, path):
+                                        circular_refs.update(path)
                             
-                            # Skip circular references
-                            if import_exam_id in circular_refs or import_original_exam_id in circular_refs:
-                                import_errors['exams'] += 1
-                                continue
+                            if circular_refs:
+                                logging.warning(f"Detected circular references in makeup exams: {circular_refs}")
+                                flash("Detected circular references in makeup exams. These relationships will be skipped.", "warning")
                             
-                            # Skip if any mapping is missing
-                            if (import_exam_id not in exam_id_map or 
-                                import_original_exam_id not in exam_id_map):
-                                continue
-                            
-                            # Skip relationships for exams from existing courses
-                            try:
-                                # Check if either exam is from an existing course
-                                exam_data = import_db.execute("SELECT course_id FROM exam WHERE id = ?", 
-                                                           (import_exam_id,)).fetchone()
-                                if exam_data and exam_data['course_id'] in existing_course_ids:
+                            for makeup_exam in makeup_exams:
+                                import_exam_id = makeup_exam['id']
+                                
+                                if 'makeup_for' not in makeup_exam or not makeup_exam['makeup_for']:
+                                    continue
+                                    
+                                import_original_exam_id = makeup_exam['makeup_for']
+                                
+                                # Skip circular references
+                                if import_exam_id in circular_refs or import_original_exam_id in circular_refs:
+                                    import_errors['exams'] += 1
                                     continue
                                 
-                                original_exam_data = import_db.execute("SELECT course_id FROM exam WHERE id = ?", 
-                                                                     (import_original_exam_id,)).fetchone()
-                                if original_exam_data and original_exam_data['course_id'] in existing_course_ids:
+                                # Skip if any mapping is missing
+                                if (import_exam_id not in exam_id_map or 
+                                    import_original_exam_id not in exam_id_map):
                                     continue
-                            except Exception as e:
-                                logging.debug(f"Error checking makeup exam source course: {str(e)}")
-                            
-                            current_exam_id = exam_id_map[import_exam_id]
-                            current_original_exam_id = exam_id_map[import_original_exam_id]
-                            
-                            # Update the makeup_for relationship
-                            current_db.execute(
-                                "UPDATE exam SET makeup_for = ? WHERE id = ?",
-                                (current_original_exam_id, current_exam_id)
-                            )
+                                
+                                # Skip relationships for exams from existing courses
+                                try:
+                                    # Check if either exam is from an existing course
+                                    exam_data = import_db.execute("SELECT course_id FROM exam WHERE id = ?", 
+                                                               (import_exam_id,)).fetchone()
+                                    if exam_data and exam_data['course_id'] in existing_course_ids:
+                                        continue
+                                    
+                                    original_exam_data = import_db.execute("SELECT course_id FROM exam WHERE id = ?", 
+                                                                         (import_original_exam_id,)).fetchone()
+                                    if original_exam_data and original_exam_data['course_id'] in existing_course_ids:
+                                        continue
+                                except Exception as e:
+                                    logging.debug(f"Error checking makeup exam source course: {str(e)}")
+                                
+                                current_exam_id = exam_id_map[import_exam_id]
+                                current_original_exam_id = exam_id_map[import_original_exam_id]
+                                
+                                # Update the makeup_for relationship and ensure is_makeup flag is set
+                                current_db.execute(
+                                    "UPDATE exam SET makeup_for = ?, is_makeup = 1 WHERE id = ?",
+                                    (current_original_exam_id, current_exam_id)
+                                )
                         release_savepoint("makeup_relationships")
                     
                     # STEP 8: Handle question-outcome relationships (if they exist in the schema)

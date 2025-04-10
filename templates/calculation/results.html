@@ -87,12 +87,6 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Program Outcome Scores for {{ course.code }}: {{ course.name }}</h1>
         <div>
-            <button type="button" class="btn btn-outline-success me-2" onclick="exportResults()">
-                <i class="fas fa-file-export"></i> Export Results
-            </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="exportStudentResults()">
-                <i class="fas fa-file-export"></i> Export Student Results
-            </button>
             <a href="{{ url_for('course.course_detail', course_id=course.id) }}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left"></i> Back to Course
             </a>
@@ -161,6 +155,17 @@
                     Student Results
                 </button>
             </li>
+            <li class="ms-auto d-flex align-items-center">
+                <a href="{{ url_for('calculation.export_program_outcomes_achievement', course_id=course.id) }}" class="btn btn-sm btn-success me-2">
+                    <i class="fas fa-file-export"></i> Export Program Outcomes
+                </a>
+                <a href="{{ url_for('calculation.export_course_outcomes_achievement', course_id=course.id) }}" class="btn btn-sm btn-info me-2">
+                    <i class="fas fa-file-export"></i> Export Course Outcomes
+                </a>
+                <button type="button" class="btn btn-success me-2" onclick="exportStudentResults()">
+                    <i class="fas fa-file-export"></i> Export Student Results
+                </button>
+            </li>
         </ul>
         
         <div class="tab-content" id="resultsTabContent">
@@ -181,11 +186,25 @@
                                 <canvas id="programOutcomesChart"></canvas>
                             </div>
                             <div class="col-md-4">
-                                <div class="alert alert-info">
+                                <div class="alert-info">
                                     <h6><i class="fas fa-info-circle"></i> Achievement Levels</h6>
                                     <div class="mt-2">
                                         {% for level in achievement_levels %}
-                                            <div class="d-flex align-items-center mb-1">
+                                            {% set bg_style = "background-color: #e7f1ff; border-radius: 4px;" %}
+                                            {% if level.color == 'success' %}
+                                                {% set bg_style = "background-color: #d1e7dd; border-radius: 4px;" %}
+                                            {% elif level.color == 'danger' %}
+                                                {% set bg_style = "background-color: #f8d7da; border-radius: 4px;" %}
+                                            {% elif level.color == 'warning' %}
+                                                {% set bg_style = "background-color: #fff3cd; border-radius: 4px;" %}
+                                            {% elif level.color == 'info' %}
+                                                {% set bg_style = "background-color: #cff4fc; border-radius: 4px;" %}
+                                            {% elif level.color == 'secondary' %}
+                                                {% set bg_style = "background-color: #e2e3e5; border-radius: 4px;" %}
+                                            {% elif level.color == 'dark' %}
+                                                {% set bg_style = "background-color: #d3d3d4; border-radius: 4px;" %}
+                                            {% endif %}
+                                            <div class="d-flex align-items-center mb-1 p-1" style="{{ bg_style }}">
                                                 <div class="badge bg-{{ level.color }} me-2" style="width: 20px; height: 20px;"></div>
                                                 <span>{{ level.name }} ({{ level.min_score }}% - {{ level.max_score }}%)</span>
                                             </div>
@@ -492,10 +511,22 @@
                                                     
                                                     <h6 class="mt-3">Exam Scores</h6>
                                                     <div class="row">
-                                                        {% for exam_name, percentage in student_data.exam_scores.items() %}
+                                                        {% for exam_name, exam_data in student_data.exam_scores.items() %}
                                                             <div class="col-md-6 mb-2">
-                                                                <small><strong><a href="{{ url_for('calculation.redirect_to_exam', course_id=course.id, exam_name=exam_name) }}" class="text-decoration-none">{{ exam_name }}</a>:</strong></small>
+                                                                <small>
+                                                                    <strong>
+                                                                        <a href="{{ url_for('calculation.redirect_to_exam', course_id=course.id, exam_name=exam_name) }}" class="text-decoration-none">
+                                                                            {{ exam_name }}
+                                                                        </a>
+                                                                    </strong>
+                                                                    {% if exam_data is mapping and exam_data.from_makeup %}
+                                                                    <span class="badge bg-info ms-1" title="This score is from a makeup exam">
+                                                                        <i class="fas fa-sync-alt me-1"></i>Makeup
+                                                                    </span>
+                                                                    {% endif %}
+                                                                </small>
                                                                 <div class="progress" style="height: 15px;">
+                                                                    {% set percentage = exam_data.score if exam_data is mapping else exam_data %}
                                                                     <div class="progress-bar bg-{{ 
                                                                         (get_achievement_level(percentage, achievement_levels))['color'] 
                                                                     }}" 
@@ -590,22 +621,16 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    function exportResults() {
+    function exportStudentResults() {
         // Get sorting parameters from sessionStorage
         const sortBy = sessionStorage.getItem('studentSortBy') || '';
-        const sortDirection = sessionStorage.getItem('studentSortDirection') || '';
+        const sortDirection = sessionStorage.getItem('studentSortDirection') || 'asc';
         
         // Add sorting parameters to the export URL
-        let exportUrl = "{{ url_for('calculation.export_results', course_id=course.id) }}";
-        if (sortBy && sortDirection) {
-            exportUrl += `?sort_by=${sortBy}&sort_direction=${sortDirection}`;
-        }
-        
+        const exportUrl = "{{ url_for('calculation.export_student_results', course_id=course.id) }}" + 
+            "?sort_by=" + sortBy + "&sort_direction=" + sortDirection;
+            
         window.location.href = exportUrl;
-    }
-    
-    function exportStudentResults() {
-        window.location.href = "{{ url_for('calculation.export_student_results', course_id=course.id) }}";
     }
     
     /* Function to show alerts */
@@ -766,34 +791,6 @@
                             'data-exact-score="' + percentage + '" ' +
                             'data-rounded-score="' + percentage|round(2) + '" ' +
                             'data-achievement-level="' + coAchievement.name + '">' +
-                            percentage.toFixed(2) + '%' +
-                            '</div>' +
-                            '</div>' +
-                            '</div>';
-                    }
-                    
-                    coHtml += '</div>';
-                    
-                    // Exam scores
-                    coHtml += '<h6 class="mt-3">Exam Scores</h6>' +
-                        '<div class="row">';
-                    
-                    for (var examName in studentData.exam_scores) {
-                        var percentage = studentData.exam_scores[examName];
-                        var examAchievement = getAchievementLevel(percentage);
-                        
-                        coHtml += '<div class="col-md-6 mb-2">' +
-                            '<small><strong><a href="/calculation/course/' + courseId + '/exam/' + encodeURIComponent(examName) + '" class="text-decoration-none">' + examName + '</a>:</strong></small>' +
-                            '<div class="progress" style="height: 15px;">' +
-                            '<div class="progress-bar bg-' + examAchievement.color + '" ' +
-                            'role="progressbar" ' +
-                            'style="width: ' + percentage + '%;" ' +
-                            'aria-valuenow="' + percentage + '" ' +
-                            'aria-valuemin="0" ' +
-                            'aria-valuemax="100" ' +
-                            'data-exact-score="' + percentage + '" ' +
-                            'data-rounded-score="' + percentage|round(2) + '" ' +
-                            'data-achievement-level="' + examAchievement.name + '">' +
                             percentage.toFixed(2) + '%' +
                             '</div>' +
                             '</div>' +
@@ -1223,37 +1220,51 @@
         
         console.log("DOM loaded, initializing charts directly");
         
+        /* Chart.js Initialization */
         // Program Outcomes Chart
         const poChart = document.getElementById('programOutcomesChart');
         if (poChart && typeof Chart !== 'undefined') {
             try {
+                // Prepare data arrays from server-rendered data
+                const poLabels = [];
+                const poData = [];
+                const poBackgroundColors = [];
+                const poBorderColors = [];
+                
+                // Map Bootstrap colors to RGBA values
+                const colorMap = {
+                    'primary': [13, 110, 253],    // Blue
+                    'secondary': [108, 117, 125], // Gray
+                    'success': [25, 135, 84],     // Green
+                    'danger': [220, 53, 69],      // Red
+                    'warning': [255, 193, 7],     // Yellow
+                    'info': [13, 202, 240],       // Cyan
+                    'dark': [33, 37, 41]          // Dark gray
+                };
+                
+                {% for po_code, po_data in program_outcome_results.items() %}
+                    {% set percentage = po_data.percentage|float if po_data.percentage is not none else 0 %}
+                    {% set level = get_achievement_level(percentage, achievement_levels) %}
+                    poLabels.push("{{ po_code }}");
+                    poData.push({{ percentage }});
+                    
+                    // Get RGB values based on the Bootstrap color name
+                    {% set color_name = level.color %}
+                    var rgbValues = colorMap['{{ color_name }}'] || colorMap.secondary;
+                    poBackgroundColors.push(`rgba(${rgbValues[0]}, ${rgbValues[1]}, ${rgbValues[2]}, 0.7)`);
+                    poBorderColors.push(`rgba(${rgbValues[0]}, ${rgbValues[1]}, ${rgbValues[2]}, 1)`);
+                {% endfor %}
+
                 const poCtx = poChart.getContext('2d');
                 new Chart(poCtx, {
                     type: 'bar',
                     data: {
-                        labels: [{% for po_code in program_outcome_results %}'{{ po_code }}',{% endfor %}],
+                        labels: poLabels,
                         datasets: [{
                             label: 'Achievement Level (%)',
-                            data: [
-                                {% for po_code, po_data in program_outcome_results.items() %}
-                                {% set percentage = po_data.percentage|float if po_data.percentage is not none else 0 %}
-                                {{ percentage }},
-                                {% endfor %}
-                            ],
-                            backgroundColor: [
-                                {% for po_code, po_data in program_outcome_results.items() %}
-                                {% set percentage = po_data.percentage|float if po_data.percentage is not none else 0 %}
-                                {% set level = get_achievement_level(percentage, achievement_levels) %}
-                                '{% if level.color == "primary" %}rgba(13, 110, 253, 0.7){% elif level.color == "secondary" %}rgba(108, 117, 125, 0.7){% elif level.color == "success" %}rgba(25, 135, 84, 0.7){% elif level.color == "danger" %}rgba(220, 53, 69, 0.7){% elif level.color == "warning" %}rgba(255, 193, 7, 0.7){% elif level.color == "info" %}rgba(13, 202, 240, 0.7){% elif level.color == "dark" %}rgba(33, 37, 41, 0.7){% else %}rgba(108, 117, 125, 0.7){% endif %}',
-                                {% endfor %}
-                            ],
-                            borderColor: [
-                                {% for po_code, po_data in program_outcome_results.items() %}
-                                {% set percentage = po_data.percentage|float if po_data.percentage is not none else 0 %}
-                                {% set level = get_achievement_level(percentage, achievement_levels) %}
-                                '{% if level.color == "primary" %}rgba(13, 110, 253, 1){% elif level.color == "secondary" %}rgba(108, 117, 125, 1){% elif level.color == "success" %}rgba(25, 135, 84, 1){% elif level.color == "danger" %}rgba(220, 53, 69, 1){% elif level.color == "warning" %}rgba(255, 193, 7, 1){% elif level.color == "info" %}rgba(13, 202, 240, 1){% elif level.color == "dark" %}rgba(33, 37, 41, 1){% else %}rgba(108, 117, 125, 1){% endif %}',
-                                {% endfor %}
-                            ],
+                            data: poData,
+                            backgroundColor: poBackgroundColors,
+                            borderColor: poBorderColors,
                             borderWidth: 1
                         }]
                     },
@@ -1297,70 +1308,46 @@
         const coChart = document.getElementById('courseOutcomesChart');
         if (coChart && typeof Chart !== 'undefined') {
             try {
-                // Extract course outcome data directly from the table
-                console.log("Extracting chart data from DOM...");
-                const coTable = document.querySelector('#course-outcomes table');
-                const rows = coTable ? Array.from(coTable.querySelectorAll('tbody tr')) : [];
+                // Prepare data arrays from server-rendered data
+                const coLabels = [];
+                const coData = [];
+                const coBackgroundColors = [];
+                const coBorderColors = [];
                 
-                const chartData = {
-                    labels: [],
-                    data: [],
-                    colors: [],
-                    borderColors: []
-                };
-                
-                // Map Bootstrap color names to RGBA values
+                // Map Bootstrap colors to RGBA values
                 const colorMap = {
-                    'primary': ['rgba(13, 110, 253, 0.7)', 'rgba(13, 110, 253, 1)'],
-                    'secondary': ['rgba(108, 117, 125, 0.7)', 'rgba(108, 117, 125, 1)'],
-                    'success': ['rgba(25, 135, 84, 0.7)', 'rgba(25, 135, 84, 1)'],
-                    'danger': ['rgba(220, 53, 69, 0.7)', 'rgba(220, 53, 69, 1)'],
-                    'warning': ['rgba(255, 193, 7, 0.7)', 'rgba(255, 193, 7, 1)'],
-                    'info': ['rgba(13, 202, 240, 0.7)', 'rgba(13, 202, 240, 1)'],
-                    'dark': ['rgba(33, 37, 41, 0.7)', 'rgba(33, 37, 41, 1)']
+                    'primary': [13, 110, 253],    // Blue
+                    'secondary': [108, 117, 125], // Gray
+                    'success': [25, 135, 84],     // Green
+                    'danger': [220, 53, 69],      // Red
+                    'warning': [255, 193, 7],     // Yellow
+                    'info': [13, 202, 240],       // Cyan
+                    'dark': [33, 37, 41]          // Dark gray
                 };
-                
-                // Create manual dataset for debugging
-                let manualData = [];
                 
                 {% for co_code, co_data in course_outcome_results.items() %}
-                    manualData.push({
-                        code: "{{ co_code }}",
-                        percentage: {{ co_data.percentage|float if co_data.percentage is not none else 0 }},
-                        {% if co_data.achievement_level %}
-                        color: "{{ co_data.achievement_level.color }}"
-                        {% else %}
-                        color: "secondary"
-                        {% endif %}
-                    });
-                {% endfor %}
-                
-                console.log("Manual data extract:", manualData);
-                
-                // Process each course outcome
-                manualData.forEach(item => {
-                    chartData.labels.push(item.code);
-                    chartData.data.push(item.percentage);
+                    {% set percentage = co_data.percentage|float if co_data.percentage is not none else 0 %}
+                    {% set level = get_achievement_level(percentage, achievement_levels) %}
+                    coLabels.push("{{ co_code }}");
+                    coData.push({{ percentage }});
                     
-                    // Get the appropriate color based on the bootstrap color class
-                    const colorPair = colorMap[item.color] || colorMap.secondary;
-                    chartData.colors.push(colorPair[0]);
-                    chartData.borderColors.push(colorPair[1]);
-                });
-                
-                console.log("Chart data:", chartData);
-                
-                // Create the chart
+                    // Get RGB values based on the Bootstrap color name
+                    {% set color_name = level.color %}
+                    var rgbValues = colorMap['{{ color_name }}'] || colorMap.secondary;
+                    coBackgroundColors.push(`rgba(${rgbValues[0]}, ${rgbValues[1]}, ${rgbValues[2]}, 0.7)`);
+                    coBorderColors.push(`rgba(${rgbValues[0]}, ${rgbValues[1]}, ${rgbValues[2]}, 1)`);
+                {% endfor %}
+
                 const coCtx = coChart.getContext('2d');
                 new Chart(coCtx, {
                     type: 'bar',
                     data: {
-                        labels: chartData.labels,
+                        labels: coLabels,
                         datasets: [{
                             label: 'Achievement Level (%)',
-                            data: chartData.data,
-                            backgroundColor: chartData.colors,
-                            borderColor: chartData.borderColors,
+                            data: coData,
+                            backgroundColor: coBackgroundColors,
+                            borderColor: coBorderColors,
                             borderWidth: 1
                         }]
                     },
