@@ -58,6 +58,10 @@ class Course(db.Model):
     # Keep original __table_args__ if any, or add specific indexes needed
     # Example: If you need unique code+semester
     # __table_args__ = (Index('idx_course_code_semester', 'code', 'semester', unique=True),)
+    __table_args__ = (
+        db.UniqueConstraint('code', 'semester', name='_code_semester_uc'),
+        Index('idx_course_code_semester', 'code', 'semester'),
+    )
 
     def __repr__(self):
         return f"<Course {self.code}: {self.name}>"
@@ -264,6 +268,20 @@ class AchievementLevel(db.Model):
 
     def __repr__(self):
         return f"<AchievementLevel {self.name} ({self.min_score}-{self.max_score}%) for Course {self.course_id}>"
+
+class GlobalAchievementLevel(db.Model):
+    """Global Achievement Level model for all courses page"""
+    __tablename__ = 'global_achievement_level'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    min_score = db.Column(db.Numeric(10, 2), nullable=False, index=True) # Indexed
+    max_score = db.Column(db.Numeric(10, 2), nullable=False, index=True) # Indexed
+    color = db.Column(db.String(20), nullable=False, default='primary')
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    def __repr__(self):
+        return f"<GlobalAchievementLevel {self.name} ({self.min_score}-{self.max_score}%)>"
 
 class StudentExamAttendance(db.Model):
     """Model to track student attendance"""

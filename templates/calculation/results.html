@@ -208,6 +208,8 @@
                                                 {% set bg_style = "background-color: #e2e3e5; border-radius: 4px;" %}
                                             {% elif level.color == 'dark' %}
                                                 {% set bg_style = "background-color: #d3d3d4; border-radius: 4px;" %}
+                                            {% elif level.color == 'light' %}
+                                                {% set bg_style = "background-color: #f8f9fa; border-radius: 4px;" %}
                                             {% endif %}
                                             <div class="d-flex align-items-center mb-1 p-1 me-3" style="{{ bg_style }}">
                                                 <div class="badge bg-{{ level.color }} me-2" style="width: 20px; height: 20px;"></div>
@@ -1290,7 +1292,8 @@
                     'danger': [220, 53, 69],      // Red
                     'warning': [255, 193, 7],     // Yellow
                     'info': [13, 202, 240],       // Cyan
-                    'dark': [33, 37, 41]          // Dark gray
+                    'dark': [33, 37, 41],         // Dark gray
+                    'light': [248, 249, 250]      // Light gray/white
                 };
                 
                 {% for po_code, po_data in program_outcome_results.items() %}
@@ -1376,7 +1379,8 @@
                     'danger': [220, 53, 69],      // Red
                     'warning': [255, 193, 7],     // Yellow
                     'info': [13, 202, 240],       // Cyan
-                    'dark': [33, 37, 41]          // Dark gray
+                    'dark': [33, 37, 41],         // Dark gray
+                    'light': [248, 249, 250]      // Light gray/white
                 };
                 
                 {% for co_code, co_data in course_outcome_results.items() %}

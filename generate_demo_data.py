@@ -14,7 +14,7 @@ from decimal import Decimal
 sys.path.append('.')
 
 # Import the models
-from models import db, Course, Exam, CourseOutcome, ProgramOutcome, Question, AchievementLevel
+from models import db, Course, Exam, CourseOutcome, ProgramOutcome, Question, AchievementLevel, GlobalAchievementLevel
 from models import Student, Score, ExamWeight, course_outcome_program_outcome, question_course_outcome
 
 # Initialize Faker for generating realistic data
@@ -51,6 +51,8 @@ def create_database_if_not_exists():
         db.create_all()
         # Initialize default program outcomes
         initialize_program_outcomes()
+        # Initialize default global achievement levels
+        initialize_global_achievement_levels()
     
     print("Database structure created successfully")
 
@@ -86,6 +88,35 @@ def initialize_program_outcomes():
         
         db.session.commit()
         print("Initialized default program outcomes")
+
+def initialize_global_achievement_levels():
+    """Initialize default global achievement levels if they don't exist"""
+    # Check if global achievement levels already exist
+    existing_count = GlobalAchievementLevel.query.count()
+    
+    if existing_count == 0:
+        default_levels = [
+            {"name": "Excellent", "min_score": 90.00, "max_score": 100.00, "color": "success"},
+            {"name": "Better", "min_score": 70.00, "max_score": 89.99, "color": "info"},
+            {"name": "Good", "min_score": 60.00, "max_score": 69.99, "color": "primary"},
+            {"name": "Need Improvements", "min_score": 50.00, "max_score": 59.99, "color": "warning"},
+            {"name": "Failure", "min_score": 0.01, "max_score": 49.99, "color": "danger"}
+        ]
+        
+        # Add the default global achievement levels
+        for level in default_levels:
+            global_level = GlobalAchievementLevel(
+                name=level["name"],
+                min_score=level["min_score"],
+                max_score=level["max_score"],
+                color=level["color"],
+                created_at=datetime.now(),
+                updated_at=datetime.now()
+            )
+            db.session.add(global_level)
+        
+        db.session.commit()
+        print("Initialized default global achievement levels")
 
 def generate_courses():
     """Generate three randomly selected courses from a list of 10 potential courses"""

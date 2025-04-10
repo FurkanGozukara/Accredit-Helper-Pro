@@ -64,6 +64,7 @@
                                 <option value="warning" {% if level and level.color == 'warning' %}selected{% endif %}>Warning (Yellow)</option>
                                 <option value="info" {% if level and level.color == 'info' %}selected{% endif %}>Info (Teal)</option>
                                 <option value="dark" {% if level and level.color == 'dark' %}selected{% endif %}>Dark (Black)</option>
+                                <option value="light" {% if level and level.color == 'light' %}selected{% endif %}>Light (White/Gray)</option>
                             </select>
                             <div class="form-text">The color used to represent this level in charts and tables.</div>
                         </div>
@@ -104,7 +105,7 @@
                             function updateColorPreview() {
                                 // Remove existing color classes
                                 colorPreview.classList.remove('bg-primary', 'bg-secondary', 'bg-success',
-                                    'bg-danger', 'bg-warning', 'bg-info', 'bg-dark');
+                                    'bg-danger', 'bg-warning', 'bg-info', 'bg-dark', 'bg-light');
                                 // Add selected color class
                                 colorPreview.classList.add('bg-' + colorSelect.value);
                             }

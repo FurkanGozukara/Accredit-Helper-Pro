@@ -3,7 +3,7 @@ from app import db
 from models import (
     Course, Student, Exam, CourseOutcome, Question, Score, 
     ProgramOutcome, ExamWeight, StudentExamAttendance, CourseSettings,
-    AchievementLevel, Log
+    AchievementLevel, Log, GlobalAchievementLevel
 )
 from datetime import datetime
 import logging
@@ -1046,6 +1046,9 @@ def all_courses_calculations():
             'program_outcomes': [{'id': po.id, 'code': po.code, 'description': po.description} for po in program_outcomes],
             'po_averages': {k: float(v) if v is not None else None for k, v in po_averages.items()},
             'excluded_courses': [{'id': c.id, 'code': c.code, 'name': c.name, 'semester': c.semester} for c in excluded_courses],
+            'global_achievement_levels': [{'id': l.id, 'name': l.name, 'min_score': float(l.min_score), 
+                                        'max_score': float(l.max_score), 'color': l.color} 
+                                       for l in GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()],
             'progress': 100,  # Always 100 when returning final results
             'current_sort': sort_by
         })
@@ -1058,7 +1061,9 @@ def all_courses_calculations():
                           excluded_courses=excluded_courses,
                           years=years,
                           active_page='all_courses',
-                          current_sort=sort_by)
+                          current_sort=sort_by,
+                          global_achievement_levels=GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all(),
+                          get_global_achievement_level=lambda score: next((l for l in GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all() if float(l.min_score) <= score <= float(l.max_score)), None))
 
 @calculation_bp.route('/all_courses_loading', endpoint='all_courses_loading')
 def all_courses_loading():
@@ -1247,6 +1252,21 @@ def export_all_courses():
         
         for course in excluded_courses:
             csv_data.append([course.code, course.name, course.semester, course.course_weight])
+    
+    # Get global achievement levels to include in export
+    global_achievement_levels = GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()
+    
+    # Add global achievement levels to the CSV export at the bottom
+    if global_achievement_levels:
+        # Add a blank row as a separator
+        csv_data.append([])
+        # Add a header row for Achievement Levels
+        csv_data.append(['GLOBAL ACHIEVEMENT LEVELS'])
+        csv_data.append(['Level Name', 'Min Score (%)', 'Max Score (%)', 'Color'])
+        
+        # Add each achievement level
+        for level in global_achievement_levels:
+            csv_data.append([level.name, level.min_score, level.max_score, level.color])
     
     # Log action
     log = Log(action="EXPORT_ALL_COURSES", 
@@ -3078,3 +3098,290 @@ def redirect_to_exam(course_id, exam_name):
     
     # Redirect to the exam detail page
     return redirect(url_for('exam.exam_detail', exam_id=exam.id))
+
+@calculation_bp.route('/global-achievement-levels', methods=['GET', 'POST'])
+def manage_global_achievement_levels():
+    """Manage global achievement levels for all courses page"""
+    # Get all existing global achievement levels
+    achievement_levels = GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()
+    
+    # Handle POST request (form submission)
+    if request.method == 'POST':
+        # Check if this is an AJAX request
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        
+        # Check request type
+        form_type = request.form.get('form_type', '')
+        
+        # Handle adding a new level
+        if form_type == 'add_level':
+            name = request.form.get('name', '')
+            min_score = request.form.get('min_score', '')
+            max_score = request.form.get('max_score', '')
+            color = request.form.get('color', 'primary')
+            
+            # Validate input
+            if not name or not min_score or not max_score:
+                if is_ajax:
+                    return jsonify({'success': False, 'message': 'All fields are required'})
+                else:
+                    flash('All fields are required', 'danger')
+                    return redirect(url_for('calculation.manage_global_achievement_levels'))
+            
+            try:
+                min_score = float(min_score)
+                max_score = float(max_score)
+                
+                # Validate score ranges
+                if min_score < 0 or min_score > 100 or max_score < 0 or max_score > 100:
+                    if is_ajax:
+                        return jsonify({'success': False, 'message': 'Score ranges must be between 0 and 100'})
+                    else:
+                        flash('Score ranges must be between 0 and 100', 'danger')
+                        return redirect(url_for('calculation.manage_global_achievement_levels'))
+                
+                if min_score >= max_score:
+                    if is_ajax:
+                        return jsonify({'success': False, 'message': 'Minimum score must be less than maximum score'})
+                    else:
+                        flash('Minimum score must be less than maximum score', 'danger')
+                        return redirect(url_for('calculation.manage_global_achievement_levels'))
+                
+                # Check for overlapping ranges
+                for level in achievement_levels:
+                    if (min_score <= float(level.max_score) and max_score >= float(level.min_score)):
+                        if is_ajax:
+                            return jsonify({'success': False, 'message': f'Score range overlaps with existing level: {level.name}'})
+                        else:
+                            flash(f'Score range overlaps with existing level: {level.name}', 'danger')
+                            return redirect(url_for('calculation.manage_global_achievement_levels'))
+                
+                # Create new level
+                new_level = GlobalAchievementLevel(
+                    name=name,
+                    min_score=min_score,
+                    max_score=max_score,
+                    color=color,
+                    created_at=datetime.now(),
+                    updated_at=datetime.now()
+                )
+                db.session.add(new_level)
+                
+                # Log action
+                log = Log(action="ADD_GLOBAL_ACHIEVEMENT_LEVEL", 
+                         description=f"Added global achievement level: {name}")
+                db.session.add(log)
+                db.session.commit()
+                
+                if is_ajax:
+                    return jsonify({'success': True, 'message': 'Achievement level added successfully'})
+                else:
+                    flash('Achievement level added successfully', 'success')
+                    return redirect(url_for('calculation.manage_global_achievement_levels'))
+            
+            except ValueError:
+                if is_ajax:
+                    return jsonify({'success': False, 'message': 'Invalid score values'})
+                else:
+                    flash('Invalid score values', 'danger')
+                    return redirect(url_for('calculation.manage_global_achievement_levels'))
+        
+        # Handle updating a level
+        elif form_type == 'update_level':
+            level_id = request.form.get('level_id', '')
+            name = request.form.get('name', '')
+            min_score = request.form.get('min_score', '')
+            max_score = request.form.get('max_score', '')
+            color = request.form.get('color', 'primary')
+            
+            # Validate input
+            if not level_id or not name or not min_score or not max_score:
+                if is_ajax:
+                    return jsonify({'success': False, 'message': 'All fields are required'})
+                else:
+                    flash('All fields are required', 'danger')
+                    return redirect(url_for('calculation.manage_global_achievement_levels'))
+            
+            try:
+                level_id = int(level_id)
+                min_score = float(min_score)
+                max_score = float(max_score)
+                
+                # Get the level to update
+                level = GlobalAchievementLevel.query.get(level_id)
+                if not level:
+                    if is_ajax:
+                        return jsonify({'success': False, 'message': 'Achievement level not found'})
+                    else:
+                        flash('Achievement level not found', 'danger')
+                        return redirect(url_for('calculation.manage_global_achievement_levels'))
+                
+                # Validate score ranges
+                if min_score < 0 or min_score > 100 or max_score < 0 or max_score > 100:
+                    if is_ajax:
+                        return jsonify({'success': False, 'message': 'Score ranges must be between 0 and 100'})
+                    else:
+                        flash('Score ranges must be between 0 and 100', 'danger')
+                        return redirect(url_for('calculation.manage_global_achievement_levels'))
+                
+                if min_score >= max_score:
+                    if is_ajax:
+                        return jsonify({'success': False, 'message': 'Minimum score must be less than maximum score'})
+                    else:
+                        flash('Minimum score must be less than maximum score', 'danger')
+                        return redirect(url_for('calculation.manage_global_achievement_levels'))
+                
+                # Check for overlapping ranges with other levels
+                for other_level in achievement_levels:
+                    if other_level.id != level_id and (min_score <= float(other_level.max_score) and max_score >= float(other_level.min_score)):
+                        if is_ajax:
+                            return jsonify({'success': False, 'message': f'Score range overlaps with existing level: {other_level.name}'})
+                        else:
+                            flash(f'Score range overlaps with existing level: {other_level.name}', 'danger')
+                            return redirect(url_for('calculation.manage_global_achievement_levels'))
+                
+                # Update level
+                level.name = name
+                level.min_score = min_score
+                level.max_score = max_score
+                level.color = color
+                level.updated_at = datetime.now()
+                
+                # Log action
+                log = Log(action="UPDATE_GLOBAL_ACHIEVEMENT_LEVEL", 
+                         description=f"Updated global achievement level: {name}")
+                db.session.add(log)
+                db.session.commit()
+                
+                if is_ajax:
+                    return jsonify({'success': True, 'message': 'Achievement level updated successfully'})
+                else:
+                    flash('Achievement level updated successfully', 'success')
+                    return redirect(url_for('calculation.manage_global_achievement_levels'))
+            
+            except ValueError:
+                if is_ajax:
+                    return jsonify({'success': False, 'message': 'Invalid input values'})
+                else:
+                    flash('Invalid input values', 'danger')
+                    return redirect(url_for('calculation.manage_global_achievement_levels'))
+        
+        # Handle deleting a level
+        elif form_type == 'delete_level':
+            level_id = request.form.get('level_id', '')
+            
+            if not level_id:
+                if is_ajax:
+                    return jsonify({'success': False, 'message': 'Achievement level ID is required'})
+                else:
+                    flash('Achievement level ID is required', 'danger')
+                    return redirect(url_for('calculation.manage_global_achievement_levels'))
+            
+            try:
+                level_id = int(level_id)
+                
+                # Get the level to delete
+                level = GlobalAchievementLevel.query.get(level_id)
+                if not level:
+                    if is_ajax:
+                        return jsonify({'success': False, 'message': 'Achievement level not found'})
+                    else:
+                        flash('Achievement level not found', 'danger')
+                        return redirect(url_for('calculation.manage_global_achievement_levels'))
+                
+                # Store level name for log
+                level_name = level.name
+                
+                # Delete the level
+                db.session.delete(level)
+                
+                # Log action
+                log = Log(action="DELETE_GLOBAL_ACHIEVEMENT_LEVEL", 
+                         description=f"Deleted global achievement level: {level_name}")
+                db.session.add(log)
+                db.session.commit()
+                
+                if is_ajax:
+                    return jsonify({'success': True, 'message': 'Achievement level deleted successfully'})
+                else:
+                    flash('Achievement level deleted successfully', 'success')
+                    return redirect(url_for('calculation.manage_global_achievement_levels'))
+            
+            except ValueError:
+                if is_ajax:
+                    return jsonify({'success': False, 'message': 'Invalid achievement level ID'})
+                else:
+                    flash('Invalid achievement level ID', 'danger')
+                    return redirect(url_for('calculation.manage_global_achievement_levels'))
+        
+        # Reset to default levels
+        elif form_type == 'reset_to_default':
+            # Delete all existing global achievement levels
+            GlobalAchievementLevel.query.delete()
+            
+            # Add default global achievement levels
+            default_levels = [
+                {"name": "Excellent", "min_score": 90.00, "max_score": 100.00, "color": "success"},
+                {"name": "Better", "min_score": 70.00, "max_score": 89.99, "color": "info"},
+                {"name": "Good", "min_score": 60.00, "max_score": 69.99, "color": "primary"},
+                {"name": "Need Improvements", "min_score": 50.00, "max_score": 59.99, "color": "warning"},
+                {"name": "Failure", "min_score": 0.01, "max_score": 49.99, "color": "danger"}
+            ]
+            
+            for level_data in default_levels:
+                level = GlobalAchievementLevel(
+                    name=level_data["name"],
+                    min_score=level_data["min_score"],
+                    max_score=level_data["max_score"],
+                    color=level_data["color"],
+                    created_at=datetime.now(),
+                    updated_at=datetime.now()
+                )
+                db.session.add(level)
+            
+            # Log action
+            log = Log(action="RESET_GLOBAL_ACHIEVEMENT_LEVELS", 
+                     description="Reset global achievement levels to default")
+            db.session.add(log)
+            db.session.commit()
+            
+            if is_ajax:
+                return jsonify({'success': True, 'message': 'Global achievement levels reset to default'})
+            else:
+                flash('Global achievement levels reset to default', 'success')
+                return redirect(url_for('calculation.manage_global_achievement_levels'))
+    
+    # For GET request, check if we need to set up default levels
+    if not achievement_levels:
+        # Add default achievement levels
+        default_levels = [
+            {"name": "Excellent", "min_score": 90.00, "max_score": 100.00, "color": "success"},
+            {"name": "Better", "min_score": 70.00, "max_score": 89.99, "color": "info"},
+            {"name": "Good", "min_score": 60.00, "max_score": 69.99, "color": "primary"},
+            {"name": "Need Improvements", "min_score": 50.00, "max_score": 59.99, "color": "warning"},
+            {"name": "Failure", "min_score": 0.01, "max_score": 49.99, "color": "danger"}
+        ]
+        
+        for level_data in default_levels:
+            level = GlobalAchievementLevel(
+                name=level_data["name"],
+                min_score=level_data["min_score"],
+                max_score=level_data["max_score"],
+                color=level_data["color"],
+                created_at=datetime.now(),
+                updated_at=datetime.now()
+            )
+            db.session.add(level)
+        
+        # Log action
+        log = Log(action="ADD_DEFAULT_GLOBAL_ACHIEVEMENT_LEVELS", 
+                 description="Added default global achievement levels")
+        db.session.add(log)
+        db.session.commit()
+        
+        # Refresh achievement levels
+        achievement_levels = GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()
+    
+    return render_template('calculation/global_achievement_levels.html', 
+                         achievement_levels=achievement_levels, 
+                         active_page='all_courses')

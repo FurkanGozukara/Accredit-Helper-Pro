@@ -23,6 +23,9 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Program Outcome Scores for All Courses</h1>
         <div>
+            <a href="{{ url_for('calculation.manage_global_achievement_levels') }}" class="btn btn-primary me-2">
+                <i class="fas fa-cog"></i> Configure Achievement Levels
+            </a>
             <a href="{{ url_for('calculation.export_all_courses') }}{% if current_sort %}?sort_by={{ current_sort }}{% endif %}" class="btn btn-success me-2">
                 <i class="fas fa-file-export"></i> Export to CSV
             </a>
@@ -140,7 +143,17 @@
                             {% for outcome in program_outcomes %}
                             {% set percentage = data.program_outcome_results.get(outcome.code, {}).get('percentage', 0) %}
                             {% set contributes = data.program_outcome_results.get(outcome.code, {}).get('contributes', False) %}
-                            <td class="text-center {% if percentage >= 70 %}table-success{% elif percentage >= 50 %}table-warning{% elif not contributes %}table-secondary{% else %}table-danger{% endif %}">
+                            {% set cell_class = 'table-secondary' %}
+                            
+                            {% if contributes %}
+                                {% for level in global_achievement_levels %}
+                                    {% if percentage|float >= level.min_score|float and percentage|float <= level.max_score|float %}
+                                        {% set cell_class = 'bg-' + level.color + ' text-white' %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                            
+                            <td class="text-center {{ cell_class }} fw-bold">
                                 {% if not contributes %}
                                 NA
                                 {% else %}
@@ -153,8 +166,8 @@
                         {% endfor %}
 
                         <!-- Average row for all courses -->
-                        <tr class="program-outcome-averages bg-primary text-white">
-                            <td colspan="3" class="text-center fw-bold">Program Outcome Averages</td>
+                        <tr class="program-outcome-averages">
+                            <td colspan="3" class="text-center fw-bold bg-secondary text-white">Program Outcome Averages</td>
                             {% for outcome in program_outcomes %}
                             {% set weighted_total = namespace(value=0) %}
                             {% set weights_sum = namespace(value=0) %}
@@ -173,7 +186,13 @@
 
                             {% if weights_sum.value > 0 %}
                             {% set weighted_average = weighted_total.value / weights_sum.value %}
-                            <td class="text-center {% if weighted_average >= 70 %}table-success{% elif weighted_average >= 50 %}table-warning{% else %}table-danger{% endif %}">
+                            {% set cell_class = '' %}
+                            {% for level in global_achievement_levels %}
+                                {% if weighted_average|float >= level.min_score|float and weighted_average|float <= level.max_score|float %}
+                                    {% set cell_class = 'bg-' + level.color + ' text-white' %}
+                                {% endif %}
+                            {% endfor %}
+                            <td class="text-center {{ cell_class }} fw-bold">
                                 {{ "%.2f"|format(weighted_average) }}%
                             </td>
                             {% else %}
@@ -183,6 +202,45 @@
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Program Outcome Achievement Chart -->
+    <div class="card mt-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Program Outcome Achievement Levels</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <canvas id="programOutcomeChart" style="width: 100%; height: 300px;"></canvas>
+                </div>
+                <div class="col-md-4">
+                    <h6 class="mb-3">Achievement Levels</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Level Name</th>
+                                    <th>Score Range</th>
+                                    <th>Color</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for level in global_achievement_levels %}
+                                <tr>
+                                    <td>{{ level.name }}</td>
+                                    <td>{{ "%.2f"|format(level.min_score) }}% - {{ "%.2f"|format(level.max_score) }}%</td>
+                                    <td>
+                                        <span class="badge bg-{{ level.color }} px-3 py-2">{{ level.color }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -326,6 +384,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Show loading overlay on page load
@@ -335,6 +394,119 @@
         if (loadingOverlay) {
             loadingOverlay.style.display = 'none';
         }
+        
+        // Apply colors to table cells based on achievement levels
+        function applyAchievementLevelColors() {
+            // Get all cells with percentage values
+            const cellsWithPercentages = document.querySelectorAll('#activeCoursesBody td:not(:first-child):not(:nth-child(2)):not(:nth-child(3))');
+            
+            // Extract achievement levels from the table
+            const achievementLevels = [];
+            const levelRows = document.querySelectorAll('.card .table-sm tbody tr');
+            
+            levelRows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 3) {
+                    const name = cells[0].textContent.trim();
+                    const rangeText = cells[1].textContent.trim();
+                    const colorBadge = cells[2].querySelector('.badge');
+                    
+                    if (rangeText && colorBadge) {
+                        const rangeParts = rangeText.split('-');
+                        if (rangeParts.length === 2) {
+                            const minScore = parseFloat(rangeParts[0].replace('%', '').trim());
+                            const maxScore = parseFloat(rangeParts[1].replace('%', '').trim());
+                            const colorClass = colorBadge.className.split('bg-')[1].split(' ')[0];
+                            
+                            achievementLevels.push({
+                                name: name,
+                                minScore: minScore,
+                                maxScore: maxScore,
+                                color: colorClass
+                            });
+                        }
+                    }
+                }
+            });
+            
+            // If we couldn't extract levels, use defaults
+            if (achievementLevels.length === 0) {
+                achievementLevels.push(
+                    { name: 'Excellent', minScore: 90.00, maxScore: 100.00, color: 'success' },
+                    { name: 'Better', minScore: 70.00, maxScore: 89.99, color: 'info' },
+                    { name: 'Good', minScore: 65.00, maxScore: 69.99, color: 'primary' },
+                    { name: 'Need Improvements', minScore: 50.00, maxScore: 64.99, color: 'warning' },
+                    { name: 'Failure', minScore: 0.01, maxScore: 49.99, color: 'danger' }
+                );
+            }
+            
+            console.log('Achievement levels:', achievementLevels);
+            
+            cellsWithPercentages.forEach(cell => {
+                const content = cell.textContent.trim();
+                
+                // Skip cells with NA
+                if (content === 'NA') {
+                    return;
+                }
+                
+                // Extract percentage value
+                const percentage = parseFloat(content.replace('%', ''));
+                if (!isNaN(percentage)) {
+                    // Find appropriate achievement level
+                    for (const level of achievementLevels) {
+                        if (percentage >= level.minScore && percentage <= level.maxScore) {
+                            // Remove existing table-secondary class
+                            cell.classList.remove('table-secondary');
+                            // Add appropriate color class
+                            cell.classList.add('bg-' + level.color);
+                            
+                            // Set appropriate text color based on background
+                            if (level.color === 'warning' || level.color === 'info') {
+                                cell.classList.add('text-dark');
+                            } else {
+                                cell.classList.add('text-white');
+                            }
+                            break;
+                        }
+                    }
+                }
+            });
+            
+            // Handle the Program Outcome Averages row 
+            const averageCells = document.querySelectorAll('.program-outcome-averages td:not(:first-child)');
+            averageCells.forEach(cell => {
+                const content = cell.textContent.trim();
+                
+                // Skip cells with NA
+                if (content === 'NA') {
+                    return;
+                }
+                
+                // Extract percentage value
+                const percentage = parseFloat(content.replace('%', ''));
+                if (!isNaN(percentage)) {
+                    // Find appropriate achievement level
+                    for (const level of achievementLevels) {
+                        if (percentage >= level.minScore && percentage <= level.maxScore) {
+                            // Add appropriate color class
+                            cell.classList.add('bg-' + level.color);
+                            
+                            // Set appropriate text color based on background
+                            if (level.color === 'warning' || level.color === 'info') {
+                                cell.classList.add('text-dark');
+                            } else {
+                                cell.classList.add('text-white');
+                            }
+                            break;
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Call the function to apply colors
+        applyAchievementLevelColors();
         
         // Search functionality
         const searchInput = document.getElementById('courseSearch');
@@ -463,6 +635,100 @@
                     });
                 });
             });
+        }
+
+        // Initialize program outcome chart
+        const chartCanvas = document.getElementById('programOutcomeChart');
+        if (chartCanvas) {
+            const labels = [];
+            const data = [];
+            const backgroundColors = [];
+
+            {% for outcome in program_outcomes %}
+            {% set weighted_total = namespace(value=0) %}
+            {% set weights_sum = namespace(value=0) %}
+
+            {% for course_code, data in all_results.items() %}
+            {% if not data.settings.excluded %}
+            {% set percentage = data.program_outcome_results.get(outcome.code, {}).get('percentage', 0)|float %}
+            {% set contributes = data.program_outcome_results.get(outcome.code, {}).get('contributes', False) %}
+            {% if contributes %}
+                {% set course_weight = data.course.course_weight|float %}
+                {% set weighted_total.value = weighted_total.value + (percentage * course_weight) %}
+                {% set weights_sum.value = weights_sum.value + course_weight %}
+            {% endif %}
+            {% endif %}
+            {% endfor %}
+
+            {% if weights_sum.value > 0 %}
+            {% set weighted_average = weighted_total.value / weights_sum.value %}
+            labels.push("{{ outcome.code }}");
+            data.push({{ weighted_average }});
+            
+            {% for level in global_achievement_levels %}
+                {% if weighted_average >= level.min_score|float and weighted_average <= level.max_score|float %}
+                    {% if level.color == 'primary' %}
+                        backgroundColors.push('rgba(13, 110, 253, 0.7)');
+                    {% elif level.color == 'secondary' %}
+                        backgroundColors.push('rgba(108, 117, 125, 0.7)');
+                    {% elif level.color == 'success' %}
+                        backgroundColors.push('rgba(25, 135, 84, 0.7)');
+                    {% elif level.color == 'danger' %}
+                        backgroundColors.push('rgba(220, 53, 69, 0.7)');
+                    {% elif level.color == 'warning' %}
+                        backgroundColors.push('rgba(255, 193, 7, 0.7)');
+                    {% elif level.color == 'info' %}
+                        backgroundColors.push('rgba(13, 202, 240, 0.7)');
+                    {% elif level.color == 'dark' %}
+                        backgroundColors.push('rgba(33, 37, 41, 0.7)');
+                    {% elif level.color == 'light' %}
+                        backgroundColors.push('rgba(248, 249, 250, 0.7)');
+                    {% else %}
+                        backgroundColors.push('rgba(108, 117, 125, 0.7)');
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+            {% endif %}
+            {% endfor %}
+
+            const config = {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Achievement Level (%)',
+                        data: data,
+                        backgroundColor: backgroundColors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Achievement Level (%)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Program Outcomes'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            };
+
+            new Chart(chartCanvas, config);
         }
     });
 </script>
