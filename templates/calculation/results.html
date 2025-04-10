@@ -85,7 +85,7 @@
     {% endif %}
 
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Program Outcome Scores for {{ course.code }}: {{ course.name }}</h1>
+        <h1>Program Outcome Scores for {{ course.code }}: {{ course.name }} ({{ course.semester }})</h1>
         <div>
             <a href="{{ url_for('course.course_detail', course_id=course.id) }}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left"></i> Back to Course
@@ -182,13 +182,18 @@
                     </div>
                     <div class="card-body">
                         <div class="row mb-4">
-                            <div class="col-md-8">
-                                <canvas id="programOutcomesChart"></canvas>
+                            <div class="col-md-12">
+                                <div style="height: 300px;">
+                                    <canvas id="programOutcomesChart" style="width: 100%;"></canvas>
+                                </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="alert-info">
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <div class="alert-info p-3 rounded">
                                     <h6><i class="fas fa-info-circle"></i> Achievement Levels</h6>
-                                    <div class="mt-2">
+                                    <div class="mt-2 d-flex flex-wrap">
                                         {% for level in achievement_levels %}
                                             {% set bg_style = "background-color: #e7f1ff; border-radius: 4px;" %}
                                             {% if level.color == 'success' %}
@@ -204,7 +209,7 @@
                                             {% elif level.color == 'dark' %}
                                                 {% set bg_style = "background-color: #d3d3d4; border-radius: 4px;" %}
                                             {% endif %}
-                                            <div class="d-flex align-items-center mb-1 p-1" style="{{ bg_style }}">
+                                            <div class="d-flex align-items-center mb-1 p-1 me-3" style="{{ bg_style }}">
                                                 <div class="badge bg-{{ level.color }} me-2" style="width: 20px; height: 20px;"></div>
                                                 <span>{{ level.name }} ({{ level.min_score }}% - {{ level.max_score }}%)</span>
                                             </div>
@@ -281,11 +286,16 @@
                     </div>
                     <div class="card-body">
                         <div class="row mb-4">
-                            <div class="col-md-8">
-                                <canvas id="courseOutcomesChart"></canvas>
+                            <div class="col-md-12">
+                                <div style="height: 300px;">
+                                    <canvas id="courseOutcomesChart" style="width: 100%;"></canvas>
+                                </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="alert alert-info">
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <div class="alert alert-info p-3">
                                     <h6><i class="fas fa-info-circle"></i> How Course Outcomes Are Calculated</h6>
                                     <p class="mb-0">Each course outcome's achievement is calculated based on student performance on questions associated with that outcome across all exams, weighted by the exam weights.</p>
                                 </div>
@@ -395,6 +405,9 @@
                                             Score <i class="fas fa-sort-down ms-1"></i>
                                         </button>
                                     </div>
+                                    <button type="button" class="btn btn-outline-info ms-auto" id="toggleAllStudentDetails">
+                                        <i class="fas fa-eye"></i> Show All Details
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -429,18 +442,11 @@
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                {% if student_data.missing_mandatory is defined and student_data.missing_mandatory %}
+                                                {% if student_data.missing_mandatory %}
                                                     <div class="alert alert-danger p-2 mb-0 d-flex align-items-center">
                                                         <i class="fas fa-exclamation-triangle me-2"></i>
                                                         <span>
-                                                            {% if student_data.excluded %}
-                                                            <strong>Manually Excluded</strong>
-                                                            <small class="d-block text-muted">
-                                                                <i class="fas fa-info-circle me-1"></i>Score calculations may be inaccurate
-                                                            </small>
-                                                            {% else %}
                                                             <strong>Missed Mandatory Exam</strong>
-                                                            {% endif %}
                                                         </span>
                                                     </div>
                                                 {% else %}
@@ -633,6 +639,28 @@
         window.location.href = exportUrl;
     }
     
+    /* Function to toggle all student details */
+    function toggleAllStudentDetails() {
+        const button = document.getElementById('toggleAllStudentDetails');
+        const detailRows = document.querySelectorAll('[id^="student"][id$="Details"]');
+        const isShowing = button.innerHTML.includes('Hide');
+        
+        detailRows.forEach(row => {
+            if (isShowing) {
+                row.classList.remove('show');
+            } else {
+                row.classList.add('show');
+            }
+        });
+        
+        // Update button text
+        if (isShowing) {
+            button.innerHTML = '<i class="fas fa-eye"></i> Show All Details';
+        } else {
+            button.innerHTML = '<i class="fas fa-eye-slash"></i> Hide All Details';
+        }
+    }
+    
     /* Function to show alerts */
     function showAlert(type, message) {
         var alertContainer = document.createElement('div');
@@ -696,6 +724,7 @@
                         continue;
                     }
                     
+                    try {
                     // Create the main student row
                     var row = document.createElement('tr');
                     
@@ -728,7 +757,7 @@
                             'aria-valuemin="0" ' +
                             'aria-valuemax="100" ' +
                             'data-exact-score="' + studentData.overall_percentage + '" ' +
-                            'data-rounded-score="' + studentData.overall_percentage|round(2) + '" ' +
+                            'data-rounded-score="' + studentData.overall_percentage.toFixed(2) + '" ' +
                             'data-achievement-level="' + achievement.name + '">' +
                             studentData.overall_percentage.toFixed(2) + '% (' + achievement.name + ')' +
                             '</div>' +
@@ -775,26 +804,30 @@
                     var coHtml = '<h6>Course Outcome Achievement for ' + studentData.name + '</h6>' +
                         '<div class="row">';
                     
-                    for (var coCode in studentData.course_outcomes) {
-                        var percentage = studentData.course_outcomes[coCode];
-                        var coAchievement = getAchievementLevel(percentage);
-                        
-                        coHtml += '<div class="col-md-6 mb-2">' +
-                            '<small><strong>' + coCode + ':</strong></small>' +
-                            '<div class="progress" style="height: 15px;">' +
-                            '<div class="progress-bar bg-' + coAchievement.color + '" ' +
-                            'role="progressbar" ' +
-                            'style="width: ' + percentage + '%;" ' +
-                            'aria-valuenow="' + percentage + '" ' +
-                            'aria-valuemin="0" ' +
-                            'aria-valuemax="100" ' +
-                            'data-exact-score="' + percentage + '" ' +
-                            'data-rounded-score="' + percentage|round(2) + '" ' +
-                            'data-achievement-level="' + coAchievement.name + '">' +
-                            percentage.toFixed(2) + '%' +
-                            '</div>' +
-                            '</div>' +
-                            '</div>';
+                    if (studentData.course_outcomes) {
+                        for (var coCode in studentData.course_outcomes) {
+                            var percentage = studentData.course_outcomes[coCode];
+                            var coAchievement = getAchievementLevel(percentage);
+                            
+                            coHtml += '<div class="col-md-6 mb-2">' +
+                                '<small><strong>' + coCode + ':</strong></small>' +
+                                '<div class="progress" style="height: 15px;">' +
+                                '<div class="progress-bar bg-' + coAchievement.color + '" ' +
+                                'role="progressbar" ' +
+                                'style="width: ' + percentage + '%;" ' +
+                                'aria-valuenow="' + percentage + '" ' +
+                                'aria-valuemin="0" ' +
+                                'aria-valuemax="100" ' +
+                                'data-exact-score="' + percentage + '" ' +
+                                'data-rounded-score="' + percentage.toFixed(2) + '" ' +
+                                'data-achievement-level="' + coAchievement.name + '">' +
+                                percentage.toFixed(2) + '%' +
+                                '</div>' +
+                                '</div>' +
+                                '</div>';
+                        }
+                    } else {
+                        coHtml += '<div class="col-12"><p class="text-muted">Course outcome data not available. Please refresh the page.</p></div>';
                     }
                     
                     coHtml += '</div>';
@@ -804,6 +837,9 @@
                     detailsRow.appendChild(detailsCell);
                     
                     studentTableBody.appendChild(detailsRow);
+                    } catch (error) {
+                        console.error("Error rendering student " + studentId + ": ", error);
+                    }
                 }
                 
                 // Reattach event listeners to the new exclude buttons
@@ -827,28 +863,32 @@
                     if (studentData.excluded) {
                         hasExcluded = true;
                         
-                        var row = document.createElement('tr');
-                        
-                        // Student ID cell
-                        var idCell = document.createElement('td');
-                        idCell.textContent = studentData.student_id;
-                        row.appendChild(idCell);
-                        
-                        // Name cell
-                        var nameCell = document.createElement('td');
-                        nameCell.textContent = studentData.name;
-                        row.appendChild(nameCell);
-                        
-                        // Actions cell
-                        var actionsCell = document.createElement('td');
-                        actionsCell.innerHTML = '<form method="post" action="/student/' + studentId + '/toggle_exclusion" class="d-inline include-form">' +
-                            '<button type="submit" class="btn btn-sm btn-success include-btn">' +
-                              '<i class="bi bi-plus-circle"></i> Include in Calculations' +
-                            '</button>' +
-                          '</form>';
-                        row.appendChild(actionsCell);
-                        
-                        excludedTable.appendChild(row);
+                        try {
+                            var row = document.createElement('tr');
+                            
+                            // Student ID cell
+                            var idCell = document.createElement('td');
+                            idCell.textContent = studentData.student_id;
+                            row.appendChild(idCell);
+                            
+                            // Name cell
+                            var nameCell = document.createElement('td');
+                            nameCell.textContent = studentData.name;
+                            row.appendChild(nameCell);
+                            
+                            // Actions cell
+                            var actionsCell = document.createElement('td');
+                            actionsCell.innerHTML = '<form method="post" action="/student/' + studentId + '/toggle_exclusion" class="d-inline include-form">' +
+                                '<button type="submit" class="btn btn-sm btn-success include-btn">' +
+                                  '<i class="bi bi-plus-circle"></i> Include in Calculations' +
+                                '</button>' +
+                              '</form>';
+                            row.appendChild(actionsCell);
+                            
+                            excludedTable.appendChild(row);
+                        } catch (error) {
+                            console.error("Error rendering excluded student " + studentId + ": ", error);
+                        }
                     }
                 }
                 
@@ -877,6 +917,11 @@
                 loadingSpinner.parentNode.removeChild(loadingSpinner);
             }
             showAlert('danger', 'Error refreshing data. Please reload the page manually.');
+            
+            // Enable all buttons that might have been disabled
+            document.querySelectorAll('.include-btn, .exclude-btn').forEach(function(button) {
+                button.disabled = false;
+            });
         });
     }
     
@@ -1218,6 +1263,12 @@
             excludeButton.addEventListener('click', handleExcludeButtonClick);
         });
         
+        // Add event listener to toggle all student details button
+        const toggleButton = document.getElementById('toggleAllStudentDetails');
+        if (toggleButton) {
+            toggleButton.addEventListener('click', toggleAllStudentDetails);
+        }
+        
         console.log("DOM loaded, initializing charts directly");
         
         /* Chart.js Initialization */
@@ -1269,6 +1320,9 @@
                         }]
                     },
                     options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        aspectRatio: 2,  // Add fixed aspect ratio to match the course outcomes chart
                         scales: {
                             y: {
                                 beginAtZero: true,
@@ -1352,6 +1406,9 @@
                         }]
                     },
                     options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        aspectRatio: 2,  // Add fixed aspect ratio to match the course outcomes chart
                         scales: {
                             y: {
                                 beginAtZero: true,

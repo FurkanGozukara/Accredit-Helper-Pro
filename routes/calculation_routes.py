@@ -192,8 +192,8 @@ def course_calculations(course_id):
                               get_achievement_level=get_achievement_level,
                               active_page='courses')
     
-    # Determine which calculation method to use (from course settings)
-    calculation_method = settings.success_rate_method
+    # Determine which calculation method to use (from session, like all_courses)
+    calculation_method = session.get('display_method', 'absolute')
     
     # Get regular and makeup exams separately for display purposes
     regular_exams = Exam.query.filter_by(course_id=course_id, is_makeup=False).order_by(Exam.created_at).all()
@@ -922,7 +922,7 @@ def all_courses_calculations():
         if is_excluded:
             excluded_courses.append(course)
             # Add excluded course to all_results to make it visible in the UI
-            all_results[course.code] = {
+            all_results[f"{course.code}_{course.semester}"] = {
                 'course': course,
                 'program_outcome_results': {},
                 'settings': course.settings,
@@ -971,7 +971,7 @@ def all_courses_calculations():
         course_avg_outcome_score = calculate_avg_outcome_score(program_outcome_results)
         
         # Store results for this course
-        all_results[course.code] = {
+        all_results[f"{course.code}_{course.semester}"] = {
             'course': course,
             'program_outcome_results': program_outcome_results,
             'settings': course.settings,
@@ -999,9 +999,9 @@ def all_courses_calculations():
     sorted_results = {}
     
     if sort_by == 'course_code_asc':
-        sorted_keys = sorted(all_results.keys())
+        sorted_keys = sorted(all_results.keys(), key=lambda k: (k.split('_')[0], k.split('_', 1)[1] if '_' in k else ''))
     elif sort_by == 'course_code_desc':
-        sorted_keys = sorted(all_results.keys(), reverse=True)
+        sorted_keys = sorted(all_results.keys(), key=lambda k: (k.split('_')[0], k.split('_', 1)[1] if '_' in k else ''), reverse=True)
     elif sort_by == 'course_name_asc':
         sorted_keys = sorted(all_results.keys(), key=lambda k: all_results[k]['course'].name.lower())
     elif sort_by == 'course_name_desc':
@@ -1012,7 +1012,7 @@ def all_courses_calculations():
         sorted_keys = sorted(all_results.keys(), key=lambda k: all_results[k]['avg_outcome_score'], reverse=True)
     else:
         # Default to course code ascending
-        sorted_keys = sorted(all_results.keys())
+        sorted_keys = sorted(all_results.keys(), key=lambda k: (k.split('_')[0], k.split('_', 1)[1] if '_' in k else ''))
     
     for key in sorted_keys:
         sorted_results[key] = all_results[key]
@@ -1109,7 +1109,7 @@ def export_all_courses():
         if is_excluded:
             excluded_courses.append(course)
             # Add excluded course to all_results to make it visible in the UI
-            all_results[course.code] = {
+            all_results[f"{course.code}_{course.semester}"] = {
                 'course': course,
                 'program_outcome_results': {},
                 'settings': course.settings,
@@ -1158,7 +1158,7 @@ def export_all_courses():
         course_avg_outcome_score = calculate_avg_outcome_score(program_outcome_results)
         
         # Store results for this course
-        all_results[course.code] = {
+        all_results[f"{course.code}_{course.semester}"] = {
             'course': course,
             'program_outcome_results': program_outcome_results,
             'settings': course.settings,
@@ -1185,9 +1185,9 @@ def export_all_courses():
     sorted_results = {}
     
     if sort_by == 'course_code_asc':
-        sorted_keys = sorted(all_results.keys())
+        sorted_keys = sorted(all_results.keys(), key=lambda k: (k.split('_')[0], k.split('_', 1)[1] if '_' in k else ''))
     elif sort_by == 'course_code_desc':
-        sorted_keys = sorted(all_results.keys(), reverse=True)
+        sorted_keys = sorted(all_results.keys(), key=lambda k: (k.split('_')[0], k.split('_', 1)[1] if '_' in k else ''), reverse=True)
     elif sort_by == 'course_name_asc':
         sorted_keys = sorted(all_results.keys(), key=lambda k: all_results[k]['course'].name.lower())
     elif sort_by == 'course_name_desc':
@@ -1198,7 +1198,7 @@ def export_all_courses():
         sorted_keys = sorted(all_results.keys(), key=lambda k: all_results[k]['avg_outcome_score'], reverse=True)
     else:
         # Default to course code ascending
-        sorted_keys = sorted(all_results.keys())
+        sorted_keys = sorted(all_results.keys(), key=lambda k: (k.split('_')[0], k.split('_', 1)[1] if '_' in k else ''))
     
     for key in sorted_keys:
         sorted_results[key] = all_results[key]

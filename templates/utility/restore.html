@@ -23,72 +23,12 @@
         <p>This action cannot be undone unless you have a backup of your current state!</p>
     </div>
     
-    {% if backups %}
-        <div class="card">
-            <div class="card-header bg-light">
-                <h5 class="mb-0">Available Backups</h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead class="thead-light">
-                            <tr>
-                                <th>Date Created</th>
-                                <th>Type</th>
-                                <th>Description</th>
-                                <th>File Size</th>
-                                <th class="text-center">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for backup in backups %}
-                                <tr>
-                                    <td>{{ backup.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-                                    <td>
-                                        <span class="badge
-                                                {% if backup.type == 'Regular' %}bg-primary
-                                                {% elif backup.type == 'Pre-Restore' %}bg-warning
-                                                {% elif backup.type == 'Pre-Import' %}bg-info
-                                                {% else %}bg-secondary{% endif %}">
-                                            {{ backup.type }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        {% if backup.description != backup.type %}
-                                            {{ backup.description }}
-                                        {% else %}
-                                            <span class="text-muted">-</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ backup.size_formatted }}</td>
-                                    <td class="text-center">
-                                        <button type="button" class="btn btn-sm btn-warning" 
-                                                data-bs-toggle="modal" 
-                                                data-bs-target="#confirmRestoreModal" 
-                                                data-backup-id="{{ backup.filename }}"
-                                                data-backup-date="{{ backup.created_at.strftime('%Y-%m-%d %H:%M:%S') }}">
-                                            <i class="fas fa-undo"></i> Restore
-                                        </button>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    {% else %}
-        <div class="alert alert-info">
-            <i class="fas fa-info-circle"></i> No backups available. Please <a href="{{ url_for('utility.backup_database') }}" class="alert-link">create a backup</a> first.
-        </div>
-    {% endif %}
-    
-    <div class="card mt-4">
+    <div class="card mb-4">
         <div class="card-header bg-light">
             <h5 class="mb-0">Restore from File</h5>
         </div>
         <div class="card-body">
-            <p>You can also restore from a backup file that was previously exported or transferred from another installation.</p>
+            <p>Restore from a backup file that was previously exported or transferred from another installation.</p>
             
             <form method="POST" action="{{ url_for('utility.restore_from_file') }}" enctype="multipart/form-data">
                 <div class="mb-3">
@@ -110,6 +50,88 @@
             </form>
         </div>
     </div>
+    
+    {% if backups %}
+        <div class="card">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Available Backups</h5>
+                <button id="batch-delete-btn" class="btn btn-danger btn-sm" disabled>
+                    <i class="fas fa-trash"></i> Delete Selected
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="select-all-backups">
+                                    </div>
+                                </th>
+                                <th>Date Created</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                                <th>File Size</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for backup in backups %}
+                                <tr>
+                                    <td>
+                                        <div class="form-check">
+                                            <input class="form-check-input backup-checkbox" type="checkbox" value="{{ backup.filename }}" data-backup-date="{{ backup.created_at.strftime('%Y-%m-%d %H:%M:%S') }}">
+                                        </div>
+                                    </td>
+                                    <td>{{ backup.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                    <td>
+                                        <span class="badge
+                                                {% if backup.type == 'Regular' %}bg-primary
+                                                {% elif backup.type == 'Pre-Restore' %}bg-warning
+                                                {% elif backup.type == 'Pre-Import' %}bg-info
+                                                {% else %}bg-secondary{% endif %}">
+                                            {{ backup.type }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if backup.description != backup.type %}
+                                            {{ backup.description }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ backup.size_formatted }}</td>
+                                    <td class="text-center">
+                                        <div class="btn-group">
+                                            <button type="button" class="btn btn-sm btn-warning" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#confirmRestoreModal" 
+                                                    data-backup-id="{{ backup.filename }}"
+                                                    data-backup-date="{{ backup.created_at.strftime('%Y-%m-%d %H:%M:%S') }}">
+                                                <i class="fas fa-undo"></i> Restore
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-danger" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#confirmDeleteModal" 
+                                                    data-backup-id="{{ backup.filename }}"
+                                                    data-backup-date="{{ backup.created_at.strftime('%Y-%m-%d %H:%M:%S') }}">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> No backups available. Please <a href="{{ url_for('utility.backup_database') }}" class="alert-link">create a backup</a> first.
+        </div>
+    {% endif %}
 </div>
 
 <!-- Confirm Restore Modal -->
@@ -147,6 +169,69 @@
     </div>
 </div>
 
+<!-- Confirm Delete Modal -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the backup created on <strong id="backupDateToDelete"></strong>?</p>
+                <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> This action cannot be undone!</p>
+                
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="confirm_delete" required>
+                    <label class="form-check-label" for="confirm_delete">
+                        I understand this will permanently delete this backup
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" action="">
+                    <button type="submit" class="btn btn-danger" id="deleteButton" disabled>
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Batch Delete Modal -->
+<div class="modal fade" id="confirmBatchDeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Confirm Batch Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="selectedBackupsCount"></strong> selected backups?</p>
+                <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> This action cannot be undone!</p>
+                
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="confirm_batch_delete" required>
+                    <label class="form-check-label" for="confirm_batch_delete">
+                        I understand this will permanently delete all selected backups
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="batchDeleteForm" method="POST" action="{{ url_for('utility.batch_delete_backups') }}">
+                    <input type="hidden" name="filenames" id="batch-delete-filenames">
+                    <button type="submit" class="btn btn-danger" id="batchDeleteButton" disabled>
+                        <i class="fas fa-trash"></i> Delete Selected
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Setup confirmation modal behavior
@@ -166,6 +251,23 @@
             });
         }
         
+        // Setup delete confirmation modal behavior
+        const confirmDeleteModal = document.getElementById('confirmDeleteModal');
+        if (confirmDeleteModal) {
+            confirmDeleteModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const backupId = button.getAttribute('data-backup-id');
+                const backupDate = button.getAttribute('data-backup-date');
+                
+                document.getElementById('backupDateToDelete').textContent = backupDate;
+                document.getElementById('deleteForm').action = "{{ url_for('utility.delete_backup', filename='') }}" + backupId;
+                
+                // Reset checkbox and button state
+                document.getElementById('confirm_delete').checked = false;
+                document.getElementById('deleteButton').disabled = true;
+            });
+        }
+        
         // Handle checkbox for enabling restore button
         const confirmCheckbox = document.getElementById('confirm_restore');
         const restoreButton = document.getElementById('restoreButton');
@@ -173,6 +275,85 @@
         if (confirmCheckbox && restoreButton) {
             confirmCheckbox.addEventListener('change', function() {
                 restoreButton.disabled = !this.checked;
+            });
+        }
+        
+        // Handle checkbox for enabling delete button
+        const confirmDeleteCheckbox = document.getElementById('confirm_delete');
+        const deleteButton = document.getElementById('deleteButton');
+        
+        if (confirmDeleteCheckbox && deleteButton) {
+            confirmDeleteCheckbox.addEventListener('change', function() {
+                deleteButton.disabled = !this.checked;
+            });
+        }
+        
+        // Handle checkbox for enabling batch delete button
+        const confirmBatchDeleteCheckbox = document.getElementById('confirm_batch_delete');
+        const batchDeleteButton = document.getElementById('batchDeleteButton');
+        
+        if (confirmBatchDeleteCheckbox && batchDeleteButton) {
+            confirmBatchDeleteCheckbox.addEventListener('change', function() {
+                batchDeleteButton.disabled = !this.checked;
+            });
+        }
+        
+        // Handle select all checkbox
+        const selectAllCheckbox = document.getElementById('select-all-backups');
+        const backupCheckboxes = document.querySelectorAll('.backup-checkbox');
+        const batchDeleteBtn = document.getElementById('batch-delete-btn');
+        
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', function() {
+                backupCheckboxes.forEach(checkbox => {
+                    checkbox.checked = this.checked;
+                });
+                updateBatchDeleteButton();
+            });
+        }
+        
+        // Handle individual backup checkboxes
+        backupCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                updateBatchDeleteButton();
+                
+                // Update "select all" checkbox state
+                const allChecked = Array.from(backupCheckboxes).every(c => c.checked);
+                const noneChecked = Array.from(backupCheckboxes).every(c => !c.checked);
+                
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.checked = allChecked;
+                    selectAllCheckbox.indeterminate = !allChecked && !noneChecked;
+                }
+            });
+        });
+        
+        // Update batch delete button state
+        function updateBatchDeleteButton() {
+            const selectedCount = document.querySelectorAll('.backup-checkbox:checked').length;
+            batchDeleteBtn.disabled = selectedCount === 0;
+        }
+        
+        // Handle batch delete button click
+        if (batchDeleteBtn) {
+            batchDeleteBtn.addEventListener('click', function() {
+                const selectedBackups = document.querySelectorAll('.backup-checkbox:checked');
+                const selectedCount = selectedBackups.length;
+                
+                if (selectedCount === 0) return;
+                
+                // Collect selected backup filenames
+                const selectedFilenames = Array.from(selectedBackups).map(checkbox => checkbox.value);
+                
+                // Set the count in the modal
+                document.getElementById('selectedBackupsCount').textContent = selectedCount;
+                
+                // Set the filenames in the hidden input
+                document.getElementById('batch-delete-filenames').value = JSON.stringify(selectedFilenames);
+                
+                // Show the confirmation modal
+                const batchDeleteModal = new bootstrap.Modal(document.getElementById('confirmBatchDeleteModal'));
+                batchDeleteModal.show();
             });
         }
         
@@ -249,13 +430,15 @@
                 }
                 
                 // Show loading overlay
-                showLoadingOverlay('Restoring database from backup...');
+                showLoadingOverlay('Restoring database...');
                 
                 // Submit form via AJAX
-                fetch(this.action, {
+                const formAction = this.getAttribute('action');
+                fetch(formAction, {
                     method: 'POST',
                     headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/json'
                     }
                 })
                 .then(response => response.json())
@@ -282,6 +465,107 @@
                 .catch(error => {
                     hideLoadingOverlay();
                     showErrorMessage('An error occurred during the restore process.');
+                    console.error('Error:', error);
+                });
+            });
+        }
+
+        // AJAX backup delete
+        const deleteForm = document.getElementById('deleteForm');
+        if (deleteForm) {
+            deleteForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Only proceed if confirm checkbox is checked
+                const confirmCheckbox = document.getElementById('confirm_delete');
+                if (!confirmCheckbox || !confirmCheckbox.checked) {
+                    return;
+                }
+                
+                // Close the modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal'));
+                if (modal) {
+                    modal.hide();
+                }
+                
+                // Show loading overlay
+                showLoadingOverlay('Deleting backup...');
+                
+                // Submit form via AJAX
+                const formAction = this.getAttribute('action');
+                fetch(formAction, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    hideLoadingOverlay();
+                    if (data.success) {
+                        showSuccessMessage(data.message);
+                        // Reload the page to refresh the backup list
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        showErrorMessage(data.message);
+                    }
+                })
+                .catch(error => {
+                    hideLoadingOverlay();
+                    showErrorMessage('An error occurred while deleting the backup.');
+                    console.error('Error:', error);
+                });
+            });
+        }
+
+        // AJAX batch delete
+        const batchDeleteForm = document.getElementById('batchDeleteForm');
+        if (batchDeleteForm) {
+            batchDeleteForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Only proceed if confirm checkbox is checked
+                const confirmCheckbox = document.getElementById('confirm_batch_delete');
+                if (!confirmCheckbox || !confirmCheckbox.checked) {
+                    return;
+                }
+                
+                // Close the modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('confirmBatchDeleteModal'));
+                if (modal) {
+                    modal.hide();
+                }
+                
+                // Show loading overlay
+                showLoadingOverlay('Deleting selected backups...');
+                
+                // Submit form via AJAX
+                const formAction = this.getAttribute('action');
+                const formData = new FormData(this);
+                
+                fetch(formAction, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    hideLoadingOverlay();
+                    if (data.success) {
+                        showSuccessMessage(data.message);
+                        // Reload the page to refresh the backup list
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        showErrorMessage(data.message);
+                    }
+                })
+                .catch(error => {
+                    hideLoadingOverlay();
+                    showErrorMessage('An error occurred while deleting the backups.');
                     console.error('Error:', error);
                 });
             });

@@ -94,6 +94,38 @@
                             </label>
                             <small class="form-text text-muted d-block">Import achievement levels (for new courses only)</small>
                         </div>
+
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="import_course_settings" name="import_course_settings" checked>
+                            <label class="form-check-label" for="import_course_settings">
+                                Course Settings
+                            </label>
+                            <small class="form-text text-muted d-block">Import course settings (for new courses only)</small>
+                        </div>
+
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="import_exam_weights" name="import_exam_weights" checked>
+                            <label class="form-check-label" for="import_exam_weights">
+                                Exam Weights
+                            </label>
+                            <small class="form-text text-muted d-block">Import exam weights (for new courses only)</small>
+                        </div>
+
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="import_attendance" name="import_attendance" checked>
+                            <label class="form-check-label" for="import_attendance">
+                                Attendance
+                            </label>
+                            <small class="form-text text-muted d-block">Import student exam attendance (for new courses only)</small>
+                        </div>
+
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="import_scores" name="import_scores" checked>
+                            <label class="form-check-label" for="import_scores">
+                                Scores
+                            </label>
+                            <small class="form-text text-muted d-block">Import student scores (for new courses only)</small>
+                        </div>
                     </div>
                 </div>
 
@@ -125,14 +157,24 @@
     {% if backups %}
     <div class="card">
         <div class="card-header bg-light">
-            <h5 class="mb-0">Available Backups</h5>
-            <small class="text-muted">These are your existing backups. You can download one and then use it for import.</small>
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Available Backups</h5>
+                <small class="text-muted">These are your existing backups. You can download one and then use it for import.</small>
+                <button id="batch-delete-btn" class="btn btn-danger btn-sm" disabled>
+                    <i class="fas fa-trash"></i> Delete Selected
+                </button>
+            </div>
         </div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-striped table-hover">
                     <thead class="thead-light">
                         <tr>
+                            <th>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="select-all-backups">
+                                </div>
+                            </th>
                             <th>Date Created</th>
                             <th>Description</th>
                             <th>File Size</th>
@@ -142,14 +184,28 @@
                     <tbody>
                         {% for backup in backups %}
                         <tr>
+                            <td>
+                                <div class="form-check">
+                                    <input class="form-check-input backup-checkbox" type="checkbox" value="{{ backup.filename }}" data-backup-date="{{ backup.created_at.strftime('%Y-%m-%d %H:%M:%S') }}">
+                                </div>
+                            </td>
                             <td>{{ backup.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                             <td>{{ backup.description or 'Backup file' }}</td>
                             <td>{{ backup.size_formatted }}</td>
                             <td class="text-center">
-                                <a href="{{ url_for('utility.download_backup', filename=backup.filename) }}"
-                                   class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-download"></i> Download
-                                </a>
+                                <div class="btn-group">
+                                    <a href="{{ url_for('utility.download_backup', filename=backup.filename) }}"
+                                    class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-download"></i> Download
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#confirmDeleteModal"
+                                            data-backup-id="{{ backup.filename }}"
+                                            data-backup-date="{{ backup.created_at.strftime('%Y-%m-%d %H:%M:%S') }}">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -161,6 +217,69 @@
     {% endif %}
 </div>
 
+<!-- Confirm Delete Modal -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the backup created on <strong id="backupDateToDelete"></strong>?</p>
+                <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> This action cannot be undone!</p>
+                
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="confirm_delete" required>
+                    <label class="form-check-label" for="confirm_delete">
+                        I understand this will permanently delete this backup
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" action="">
+                    <button type="submit" class="btn btn-danger" id="deleteButton" disabled>
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Batch Delete Modal -->
+<div class="modal fade" id="confirmBatchDeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Confirm Batch Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="selectedBackupsCount"></strong> selected backups?</p>
+                <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> This action cannot be undone!</p>
+                
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="confirm_batch_delete" required>
+                    <label class="form-check-label" for="confirm_batch_delete">
+                        I understand this will permanently delete all selected backups
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="batchDeleteForm" method="POST" action="{{ url_for('utility.batch_delete_backups') }}">
+                    <input type="hidden" name="filenames" id="batch-delete-filenames">
+                    <button type="submit" class="btn btn-danger" id="batchDeleteButton" disabled>
+                        <i class="fas fa-trash"></i> Delete Selected
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         // Set minimum requirements for import
@@ -170,6 +289,10 @@
         const outcomesCheckbox = document.getElementById('import_outcomes');
         const programOutcomesCheckbox = document.getElementById('import_program_outcomes');
         const achievementLevelsCheckbox = document.getElementById('import_achievement_levels');
+        const courseSettingsCheckbox = document.getElementById('import_course_settings');
+        const examWeightsCheckbox = document.getElementById('import_exam_weights');
+        const attendanceCheckbox = document.getElementById('import_attendance');
+        const scoresCheckbox = document.getElementById('import_scores');
         const confirmCheckbox = document.getElementById('confirm_import');
         const submitButton = document.querySelector('button[type="submit"]');
         const importForm = document.getElementById('importForm');
@@ -181,7 +304,11 @@
                 !examsCheckbox.checked && 
                 !outcomesCheckbox.checked &&
                 !programOutcomesCheckbox.checked &&
-                !achievementLevelsCheckbox.checked) {
+                !achievementLevelsCheckbox.checked &&
+                !courseSettingsCheckbox.checked &&
+                !examWeightsCheckbox.checked &&
+                !attendanceCheckbox.checked &&
+                !scoresCheckbox.checked) {
                 confirmCheckbox.disabled = true;
                 submitButton.disabled = true;
                 alert('Please select at least one data type to import');
@@ -194,7 +321,8 @@
         }
 
         // Add event listeners
-        [coursesCheckbox, studentsCheckbox, examsCheckbox, outcomesCheckbox, programOutcomesCheckbox, achievementLevelsCheckbox].forEach(checkbox => {
+        [coursesCheckbox, studentsCheckbox, examsCheckbox, outcomesCheckbox, programOutcomesCheckbox, 
+         achievementLevelsCheckbox, courseSettingsCheckbox, examWeightsCheckbox, attendanceCheckbox, scoresCheckbox].forEach(checkbox => {
             checkbox.addEventListener('change', checkAtLeastOneSelected);
         });
 
@@ -207,78 +335,366 @@
         // Show progress indicator when form is submitted
         importForm.addEventListener('submit', function() {
             if (this.checkValidity()) {
-                submitButton.disabled = true;
                 progressIndicator.style.display = 'block';
+                // Disable submit button to prevent double submission
+                submitButton.disabled = true;
             }
         });
-        
-        // Handle file validation
+
+        // Validate backup file
         const validateButton = document.getElementById('validateButton');
+        const backupFileInput = document.getElementById('backup_file');
         const validationResult = document.getElementById('validationResult');
-        
-        validateButton.addEventListener('click', function() {
-            const fileInput = document.getElementById('backup_file');
-            
-            if (!fileInput.files || fileInput.files.length === 0) {
-                showValidationMessage("Please select a file first", "danger");
-                return;
-            }
-            
-            const file = fileInput.files[0];
-            
-            // Show loading indicator
-            showValidationMessage("Validating file...", "info");
-            
-            // Create form data for validation request
-            const formData = new FormData();
-            formData.append('backup_file', file);
-            
-            // Send AJAX request to validate file
-            fetch('{{ url_for("utility.validate_backup_file") }}', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showValidationMessage(data.message, "success");
-                    
-                    // If file contains stats, show them
-                    if (data.stats) {
-                        let statsHtml = "<ul class='list-group mt-2'>";
-                        for (const [key, value] of Object.entries(data.stats)) {
-                            statsHtml += `<li class='list-group-item d-flex justify-content-between align-items-center'>
-                                ${key.replace(/_/g, ' ')}
-                                <span class='badge bg-primary rounded-pill'>${value}</span>
-                            </li>`;
-                        }
-                        statsHtml += "</ul>";
-                        validationResult.innerHTML += statsHtml;
-                    }
-                } else {
-                    showValidationMessage(data.message, "danger");
-                    
-                    // If there are validation errors, show them
-                    if (data.errors && data.errors.length > 0) {
-                        let errorsHtml = "<ul class='list-group mt-2'>";
-                        data.errors.forEach(error => {
-                            errorsHtml += `<li class='list-group-item list-group-item-danger'>${error}</li>`;
-                        });
-                        errorsHtml += "</ul>";
-                        validationResult.innerHTML += errorsHtml;
-                    }
+
+        if (validateButton && backupFileInput && validationResult) {
+            validateButton.addEventListener('click', function() {
+                if (!backupFileInput.files || backupFileInput.files.length === 0) {
+                    validationResult.innerHTML = '<div class="alert alert-warning">Please select a file first.</div>';
+                    validationResult.style.display = 'block';
+                    return;
                 }
-            })
-            .catch(error => {
-                showValidationMessage("An error occurred during validation", "danger");
-                console.error('Error:', error);
+
+                // Show loading state
+                validateButton.disabled = true;
+                validateButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Validating...';
+                validationResult.innerHTML = '<div class="alert alert-info">Validating file, please wait...</div>';
+                validationResult.style.display = 'block';
+
+                // Create FormData and send
+                const formData = new FormData();
+                formData.append('backup_file', backupFileInput.files[0]);
+
+                fetch("{{ url_for('utility.validate_backup_file') }}", {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.valid) {
+                        validationResult.innerHTML = `
+                            <div class="alert alert-success">
+                                <h5><i class="fas fa-check-circle"></i> Valid Backup File</h5>
+                                <p>${data.message}</p>
+                                ${data.summary ? `<ul>${data.summary.map(item => `<li>${item}</li>`).join('')}</ul>` : ''}
+                            </div>
+                        `;
+                    } else {
+                        validationResult.innerHTML = `
+                            <div class="alert alert-danger">
+                                <h5><i class="fas fa-times-circle"></i> Invalid Backup File</h5>
+                                <p>${data.message}</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    validationResult.innerHTML = `
+                        <div class="alert alert-danger">
+                            <h5><i class="fas fa-times-circle"></i> Error</h5>
+                            <p>An error occurred during validation: ${error.message}</p>
+                        </div>
+                    `;
+                })
+                .finally(() => {
+                    // Reset button state
+                    validateButton.disabled = false;
+                    validateButton.innerHTML = '<i class="fas fa-check-circle"></i> Validate File';
+                });
+            });
+        }
+        
+        // Setup delete confirmation modal behavior
+        const confirmDeleteModal = document.getElementById('confirmDeleteModal');
+        if (confirmDeleteModal) {
+            confirmDeleteModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const backupId = button.getAttribute('data-backup-id');
+                const backupDate = button.getAttribute('data-backup-date');
+                
+                document.getElementById('backupDateToDelete').textContent = backupDate;
+                document.getElementById('deleteForm').action = "{{ url_for('utility.delete_backup', filename='') }}" + backupId;
+                
+                // Reset checkbox and button state
+                document.getElementById('confirm_delete').checked = false;
+                document.getElementById('deleteButton').disabled = true;
+            });
+        }
+        
+        // Handle checkbox for enabling delete button
+        const confirmDeleteCheckbox = document.getElementById('confirm_delete');
+        const deleteButton = document.getElementById('deleteButton');
+        
+        if (confirmDeleteCheckbox && deleteButton) {
+            confirmDeleteCheckbox.addEventListener('change', function() {
+                deleteButton.disabled = !this.checked;
+            });
+        }
+        
+        // Handle checkbox for enabling batch delete button
+        const confirmBatchDeleteCheckbox = document.getElementById('confirm_batch_delete');
+        const batchDeleteButton = document.getElementById('batchDeleteButton');
+        
+        if (confirmBatchDeleteCheckbox && batchDeleteButton) {
+            confirmBatchDeleteCheckbox.addEventListener('change', function() {
+                batchDeleteButton.disabled = !this.checked;
+            });
+        }
+        
+        // Handle select all checkbox
+        const selectAllCheckbox = document.getElementById('select-all-backups');
+        const backupCheckboxes = document.querySelectorAll('.backup-checkbox');
+        const batchDeleteBtn = document.getElementById('batch-delete-btn');
+        
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', function() {
+                backupCheckboxes.forEach(checkbox => {
+                    checkbox.checked = this.checked;
+                });
+                updateBatchDeleteButton();
+            });
+        }
+        
+        // Handle individual backup checkboxes
+        backupCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                updateBatchDeleteButton();
+                
+                // Update "select all" checkbox state
+                const allChecked = Array.from(backupCheckboxes).every(c => c.checked);
+                const noneChecked = Array.from(backupCheckboxes).every(c => !c.checked);
+                
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.checked = allChecked;
+                    selectAllCheckbox.indeterminate = !allChecked && !noneChecked;
+                }
             });
         });
         
-        function showValidationMessage(message, type) {
-            validationResult.style.display = 'block';
-            validationResult.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+        // Update batch delete button state
+        function updateBatchDeleteButton() {
+            const selectedCount = document.querySelectorAll('.backup-checkbox:checked').length;
+            if (batchDeleteBtn) {
+                batchDeleteBtn.disabled = selectedCount === 0;
+            }
+        }
+        
+        // Handle batch delete button click
+        if (batchDeleteBtn) {
+            batchDeleteBtn.addEventListener('click', function() {
+                const selectedBackups = document.querySelectorAll('.backup-checkbox:checked');
+                const selectedCount = selectedBackups.length;
+                
+                if (selectedCount === 0) return;
+                
+                // Collect selected backup filenames
+                const selectedFilenames = Array.from(selectedBackups).map(checkbox => checkbox.value);
+                
+                // Set the count in the modal
+                document.getElementById('selectedBackupsCount').textContent = selectedCount;
+                
+                // Set the filenames in the hidden input
+                document.getElementById('batch-delete-filenames').value = JSON.stringify(selectedFilenames);
+                
+                // Show the confirmation modal
+                const batchDeleteModal = new bootstrap.Modal(document.getElementById('confirmBatchDeleteModal'));
+                batchDeleteModal.show();
+            });
+        }
+        
+        // AJAX backup delete
+        const deleteForm = document.getElementById('deleteForm');
+        if (deleteForm) {
+            deleteForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Only proceed if confirm checkbox is checked
+                const confirmCheckbox = document.getElementById('confirm_delete');
+                if (!confirmCheckbox || !confirmCheckbox.checked) {
+                    return;
+                }
+                
+                // Close the modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal'));
+                if (modal) {
+                    modal.hide();
+                }
+                
+                // Show loading overlay
+                showLoadingOverlay('Deleting backup...');
+                
+                // Submit form via AJAX
+                const formAction = this.getAttribute('action');
+                fetch(formAction, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    hideLoadingOverlay();
+                    if (data.success) {
+                        showSuccessMessage(data.message);
+                        // Reload the page to refresh the backup list
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        showErrorMessage(data.message);
+                    }
+                })
+                .catch(error => {
+                    hideLoadingOverlay();
+                    showErrorMessage('An error occurred while deleting the backup.');
+                    console.error('Error:', error);
+                });
+            });
+        }
+
+        // AJAX batch delete
+        const batchDeleteForm = document.getElementById('batchDeleteForm');
+        if (batchDeleteForm) {
+            batchDeleteForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Only proceed if confirm checkbox is checked
+                const confirmCheckbox = document.getElementById('confirm_batch_delete');
+                if (!confirmCheckbox || !confirmCheckbox.checked) {
+                    return;
+                }
+                
+                // Close the modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('confirmBatchDeleteModal'));
+                if (modal) {
+                    modal.hide();
+                }
+                
+                // Show loading overlay
+                showLoadingOverlay('Deleting selected backups...');
+                
+                // Submit form via AJAX
+                const formAction = this.getAttribute('action');
+                const formData = new FormData(this);
+                
+                fetch(formAction, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    hideLoadingOverlay();
+                    if (data.success) {
+                        showSuccessMessage(data.message);
+                        // Reload the page to refresh the backup list
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        showErrorMessage(data.message);
+                    }
+                })
+                .catch(error => {
+                    hideLoadingOverlay();
+                    showErrorMessage('An error occurred while deleting the backups.');
+                    console.error('Error:', error);
+                });
+            });
         }
     });
+    
+    // Helper functions for UI feedback
+    function showLoadingOverlay(message) {
+        // Create loading overlay if it doesn't exist
+        let overlay = document.getElementById('loading-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'loading-overlay';
+            overlay.style.position = 'fixed';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100%';
+            overlay.style.height = '100%';
+            overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            overlay.style.zIndex = '9999';
+            overlay.style.display = 'flex';
+            overlay.style.justifyContent = 'center';
+            overlay.style.alignItems = 'center';
+            overlay.style.flexDirection = 'column';
+            overlay.style.color = 'white';
+            
+            const spinner = document.createElement('div');
+            spinner.className = 'spinner-border text-light mb-3';
+            spinner.setAttribute('role', 'status');
+            
+            const messageElem = document.createElement('h5');
+            messageElem.id = 'loading-message';
+            messageElem.textContent = message || 'Loading...';
+            
+            overlay.appendChild(spinner);
+            overlay.appendChild(messageElem);
+            document.body.appendChild(overlay);
+        } else {
+            document.getElementById('loading-message').textContent = message || 'Loading...';
+            overlay.style.display = 'flex';
+        }
+    }
+    
+    function hideLoadingOverlay() {
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }
+    
+    function showSuccessMessage(message) {
+        const loadingMessage = document.getElementById('loading-message');
+        if (loadingMessage) {
+            loadingMessage.textContent = message;
+            loadingMessage.style.color = '#28a745';
+            
+            // Replace spinner with check mark
+            const spinner = document.querySelector('#loading-overlay .spinner-border');
+            if (spinner) {
+                const checkIcon = document.createElement('i');
+                checkIcon.className = 'fas fa-check-circle fa-3x text-success mb-3';
+                spinner.parentNode.replaceChild(checkIcon, spinner);
+            }
+        }
+    }
+    
+    function showErrorMessage(message) {
+        // Create or show error message
+        let errorAlert = document.getElementById('import-error-alert');
+        if (!errorAlert) {
+            errorAlert = document.createElement('div');
+            errorAlert.id = 'import-error-alert';
+            errorAlert.className = 'alert alert-danger alert-dismissible fade show mt-3';
+            errorAlert.setAttribute('role', 'alert');
+            
+            const closeButton = document.createElement('button');
+            closeButton.type = 'button';
+            closeButton.className = 'btn-close';
+            closeButton.setAttribute('data-bs-dismiss', 'alert');
+            closeButton.setAttribute('aria-label', 'Close');
+            
+            errorAlert.appendChild(document.createTextNode(message));
+            errorAlert.appendChild(closeButton);
+            
+            // Insert at the top of the content
+            const container = document.querySelector('.container');
+            container.insertBefore(errorAlert, container.firstChild);
+        } else {
+            errorAlert.textContent = message;
+            errorAlert.style.display = 'block';
+            
+            const closeButton = document.createElement('button');
+            closeButton.type = 'button';
+            closeButton.className = 'btn-close';
+            closeButton.setAttribute('data-bs-dismiss', 'alert');
+            closeButton.setAttribute('aria-label', 'Close');
+            errorAlert.appendChild(closeButton);
+        }
+    }
 </script>
 {% endblock %} 

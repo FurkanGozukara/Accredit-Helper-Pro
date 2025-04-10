@@ -786,16 +786,9 @@ def main():
         else:
             print(f"Will generate data for existing courses as well.")
     
-    # Ask if user wants to add new courses
-    response = input(f"Do you want to add new demo courses to the database? (y/n): ")
-    if response.lower() == 'y':
-        # Generate new courses
-        new_courses = generate_courses()
+    new_courses = generate_courses()
         # Combine with existing courses if any
-        all_courses = existing_courses + new_courses
-    else:
-        all_courses = existing_courses
-        print("Will not add new courses.")
+    all_courses = existing_courses + new_courses
     
     if not all_courses:
         print("No courses to generate data for. Exiting.")
