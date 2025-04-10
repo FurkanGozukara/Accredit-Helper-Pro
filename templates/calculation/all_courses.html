@@ -130,8 +130,8 @@
                         {% for course_code, data in all_results.items() %}
                         {% if not data.settings.excluded %}
                         <tr class="course-row" data-code="{{ data.course.code | lower }}" data-name="{{ data.course.name | lower }}" data-semester="{{ data.course.semester | lower }}" data-year="{{ data.course.semester.split(' ')[1] if ' ' in data.course.semester else '' }}">
-                            <td>{{ data.course.code }}<br><small class="text-muted">{{ data.course.semester }}</small></td>
-                            <td>{{ data.course.name }}</td>
+                            <td><a href="{{ url_for('calculation.course_calculations', course_id=data.course.id) }}" style="text-decoration: none; color: inherit; display: block; cursor: pointer;">{{ data.course.code }}<br><small class="text-muted">{{ data.course.semester }}</small></a></td>
+                            <td><a href="{{ url_for('calculation.course_calculations', course_id=data.course.id) }}" style="text-decoration: none; color: inherit; display: block; cursor: pointer;">{{ data.course.name }}</a></td>
                             <td class="text-center">
                                 <button type="button" class="btn btn-sm btn-outline-primary"
                                         data-bs-toggle="modal"
@@ -264,8 +264,8 @@
                         {% for course_code, data in all_results.items() %}
                         {% if data.settings.excluded %}
                         <tr class="course-row" data-code="{{ data.course.code | lower }}" data-name="{{ data.course.name | lower }}" data-semester="{{ data.course.semester | lower }}" data-year="{{ data.course.semester.split(' ')[1] if ' ' in data.course.semester else '' }}">
-                            <td>{{ data.course.code }}<br><small class="text-muted">{{ data.course.semester }}</small></td>
-                            <td>{{ data.course.name }}</td>
+                            <td><a href="{{ url_for('calculation.course_calculations', course_id=data.course.id) }}" style="text-decoration: none; color: inherit; display: block; cursor: pointer;">{{ data.course.code }}<br><small class="text-muted">{{ data.course.semester }}</small></a></td>
+                            <td><a href="{{ url_for('calculation.course_calculations', course_id=data.course.id) }}" style="text-decoration: none; color: inherit; display: block; cursor: pointer;">{{ data.course.name }}</a></td>
                             <td class="text-center">
                                 <form action="{{ url_for('calculation.toggle_course_exclusion', course_id=data.course.id) }}" method="post" class="d-inline">
                                     <button type="submit" class="btn btn-sm btn-success">

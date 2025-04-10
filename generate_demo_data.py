@@ -173,8 +173,24 @@ def generate_courses():
         }
     ]
     
-    # Randomly select 3 courses from the list
-    selected_courses = random.sample(potential_courses, 3)
+    # Get existing semester+code combinations from database
+    existing_combinations = set()
+    for course in session.query(Course).all():
+        existing_combinations.add((course.semester, course.code))
+    
+    # Filter out potential courses that already exist in the database
+    filtered_courses = [
+        course for course in potential_courses 
+        if (course["semester"], course["code"]) not in existing_combinations
+    ]
+    
+    if not filtered_courses:
+        print("All potential courses already exist in the database. No new courses created.")
+        return []
+    
+    # Randomly select up to 3 courses from the filtered list
+    num_to_select = min(3, len(filtered_courses))
+    selected_courses = random.sample(filtered_courses, num_to_select)
     
     course_objects = []
     
@@ -709,18 +725,28 @@ def generate_scores(questions, students):
     """Generate scores for each student on each question"""
     all_scores = []
     
+    # Get all courses and create a course_id to index mapping
+    all_course_ids = sorted(set(student.course_id for student in students))
+    course_index = {course_id: idx for idx, course_id in enumerate(all_course_ids)}
+    
     for student in students:
         # Get all questions for exams in this student's course
         relevant_questions = [q for q in questions if q.exam.course_id == student.course_id]
         
+        # Determine which course index this is to set the score range
+        idx = course_index.get(student.course_id, 0) % 3
+        
         for question in relevant_questions:
-            # 60% chance for scores 70 and above, 40% chance for scores below 70
-            if random.random() < 0.6:
-                # Generate a score of 70 or above (0.7 to 1.0)
-                student_score_pct = Decimal(str(random.uniform(0.7, 1.0)))
+            # Generate a score based on which course this is
+            if idx == 0:
+                # First course: 50-65 range
+                student_score_pct = Decimal(str(random.uniform(0.5, 0.65)))
+            elif idx == 1:
+                # Second course: 65-85 range
+                student_score_pct = Decimal(str(random.uniform(0.65, 0.85)))
             else:
-                # Generate a score below 70 (0.0 to 0.7)
-                student_score_pct = Decimal(str(random.uniform(0.0, 0.7)))
+                # Third course: below 50 range
+                student_score_pct = Decimal(str(random.uniform(0.0, 0.5)))
             
             # Calculate actual score based on question max score
             max_score = Decimal(str(question.max_score))
@@ -915,23 +941,33 @@ def main():
     new_scores = []
     total_scores_needed = 0
     
+    # Get all courses and create a course_id to index mapping
+    all_course_ids = sorted(set(student.course_id for student in all_students))
+    course_index = {course_id: idx for idx, course_id in enumerate(all_course_ids)}
+    
     for student in all_students:
         # Get all questions for exams in this student's course
         course_questions = [q for q in all_questions if q.exam.course_id == student.course_id]
         total_scores_needed += len(course_questions)
+        
+        # Determine which course index this is to set the score range
+        idx = course_index.get(student.course_id, 0) % 3
         
         for question in course_questions:
             # Skip if score already exists
             if (student.id, question.id) in existing_scores:
                 continue
             
-            # 60% chance for scores 70 and above, 40% chance for scores below 70
-            if random.random() < 0.6:
-                # Generate a score of 70 or above (0.7 to 1.0)
-                student_score_pct = Decimal(str(random.uniform(0.7, 1.0)))
+            # Generate a score based on which course this is
+            if idx == 0:
+                # First course: 50-65 range
+                student_score_pct = Decimal(str(random.uniform(0.5, 0.65)))
+            elif idx == 1:
+                # Second course: 65-85 range
+                student_score_pct = Decimal(str(random.uniform(0.65, 0.85)))
             else:
-                # Generate a score below 70 (0.0 to 0.7)
-                student_score_pct = Decimal(str(random.uniform(0.0, 0.7)))
+                # Third course: below 50 range
+                student_score_pct = Decimal(str(random.uniform(0.0, 0.5)))
             
             # Calculate actual score based on question max score
             max_score = Decimal(str(question.max_score))
