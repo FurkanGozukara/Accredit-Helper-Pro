@@ -73,6 +73,23 @@
                             </div>
                         </div>
                         
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_mandatory" name="is_mandatory"
+                                       {% if exam and exam.is_mandatory %}checked{% endif %}>
+                                <label class="form-check-label" for="is_mandatory">
+                                    This is a mandatory exam
+                                </label>
+                                <div class="form-text">Mark this exam as mandatory for all students.</div>
+                            </div>
+                            
+                            <div class="alert alert-info mt-2">
+                                <i class="fas fa-info-circle me-2"></i><strong>Understanding Mandatory Exams:</strong> 
+                                <p>The mandatory exam system excludes students from outcome calculations if they have not completed ANY mandatory exams (including their makeup versions).</p>
+                                <p>Students will only be included in calculations if they have a score recorded (even if it's 0) for at least one mandatory exam or its makeup. This helps ensure that outcome achievements reflect only students who actively participated in key assessments.</p>
+                            </div>
+                        </div>
+                        
                         <div class="mb-3">
                             <label for="relative_weight" class="form-label">Relative Weight (%)</label>
                             <input type="number" class="form-control" id="relative_weight" name="relative_weight"

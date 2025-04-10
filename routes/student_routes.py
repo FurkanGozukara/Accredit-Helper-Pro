@@ -150,12 +150,12 @@ def import_students(course_id):
                 # Extract student ID from parts (first element is always student ID)
                 student_id = parts[0]
                 
-                # Sanitize student ID - remove any unsafe characters but allow numbers
-                student_id = re.sub(r'[^\w\-]', '', student_id)
+                # Sanitize student ID - only remove tabs and trim whitespace
+                student_id = student_id.replace('\t', '').strip()
                 
-                # Validate student ID format - allow alphanumeric, underscore, and hyphen
-                if not re.match(r'^[\w\-]+$', student_id):
-                    errors.append(f"Line {i}: Invalid student ID format: {student_id} (only alphanumeric, underscore, and hyphen allowed)")
+                # Validate student ID format - check that it's not empty after trimming
+                if not student_id:
+                    errors.append(f"Line {i}: Empty student ID after trimming whitespace")
                     continue
                 
                 # Check for length constraints
@@ -723,12 +723,12 @@ def import_scores(exam_id):
             student_id = parts[0].strip()
             full_name = parts[1].strip()
             
-            # Sanitize student ID - remove any unsafe characters
-            student_id = re.sub(r'[^\w\-]', '', student_id)
+            # Sanitize student ID - only remove tabs and trim whitespace
+            student_id = student_id.replace('\t', '').strip()
             
-            # Validate student ID format
-            if not re.match(r'^[\w\-]+$', student_id):
-                errors.append(f"Line {i}: Invalid student ID format: {student_id} (only alphanumeric, underscore, and hyphen allowed)")
+            # Validate student ID format - check that it's not empty after trimming
+            if not student_id:
+                errors.append(f"Line {i}: Empty student ID after trimming whitespace")
                 continue
             
             # Find the student
@@ -1148,83 +1148,6 @@ def export_students(course_id):
     # Export data using utility function
     return export_to_excel_csv(data, f"students_{course.code}", headers)
 
-@student_bp.route('/exam/<int:exam_id>/export_scores')
-def export_exam_scores(exam_id):
-    """Export all scores for an exam to a CSV file"""
-    exam = Exam.query.get_or_404(exam_id)
-    course = Course.query.get_or_404(exam.course_id)
-    questions = Question.query.filter_by(exam_id=exam_id).order_by(Question.number).all()
-    students = Student.query.filter_by(course_id=course.id).order_by(Student.student_id).all()
-    
-    # Get all scores for this exam
-    scores = Score.query.filter_by(exam_id=exam_id).all()
-    scores_dict = {}
-    for score in scores:
-        key = (score.student_id, score.question_id)
-        scores_dict[key] = score.score
-    
-    # Prepare data for export
-    data = []
-    
-    # Create headers
-    headers = ['Import Format', 'Student ID', 'Student Name']
-    for question in questions:
-        headers.append(f'Q{question.number} (max: {float(question.max_score)})')
-    headers.append('Total Score')
-    headers.append('Percentage (%)')
-    
-    # Add student data
-    for student in students:
-        student_row = {}
-        student_row['Student ID'] = student.student_id
-        student_row['Student Name'] = f"{student.first_name} {student.last_name}".strip()
-        
-        # Calculate total score
-        total_score = 0
-        max_score = 0
-        
-        for question in questions:
-            score = scores_dict.get((student.id, question.id))
-            max_score += float(question.max_score)
-            
-            if score is not None:
-                student_row[f'Q{question.number} (max: {float(question.max_score)})'] = float(score)
-                total_score += float(score)
-            else:
-                student_row[f'Q{question.number} (max: {float(question.max_score)})'] = ""
-        
-        # Format total score without decimal if it's a whole number
-        rounded_total = round(total_score, 2)
-        student_row['Total Score'] = "{:.2f}".format(rounded_total)
-        
-        # Calculate percentage
-        if max_score > 0:
-            percentage = (total_score / max_score) * 100
-            student_row['Percentage (%)'] = "{:.2f}".format(round(percentage, 2))
-        else:
-            student_row['Percentage (%)'] = "0.00"
-        
-        # Add Import Format column (student_id;score)
-        if max_score > 0:
-            # Use integer format for whole numbers, decimal format for fractions
-            if rounded_total == int(rounded_total):
-                student_row['Import Format'] = f"{student.student_id};{int(rounded_total)}"
-            else:
-                student_row['Import Format'] = f"{student.student_id};{'{:.2f}'.format(rounded_total)}"
-        else:
-            student_row['Import Format'] = f"{student.student_id};0"
-        
-        data.append(student_row)
-    
-    # Log action
-    log = Log(action="EXPORT_EXAM_SCORES", 
-             description=f"Exported scores for exam: {exam.name} in course: {course.code}")
-    db.session.add(log)
-    db.session.commit()
-    
-    # Export data using utility function
-    return export_to_excel_csv(data, f"exam_scores_{exam.name}_{course.code}", headers)
-
 @student_bp.route('/edit/<int:student_id>', methods=['GET', 'POST'])
 def edit_student(student_id):
     """Edit an existing student"""
@@ -1527,12 +1450,12 @@ def import_attendance(exam_id):
             student_id = parts[0].strip()
             attended_str = parts[1].strip().lower()
             
-            # Sanitize student ID - remove any unsafe characters
-            student_id = re.sub(r'[^\w\-]', '', student_id)
+            # Sanitize student ID - only remove tabs and trim whitespace
+            student_id = student_id.replace('\t', '').strip()
             
-            # Validate student ID format
-            if not re.match(r'^[\w\-]+$', student_id):
-                errors.append(f"Line {i}: Invalid student ID format: {student_id} (only alphanumeric, underscore, and hyphen allowed)")
+            # Validate student ID format - check that it's not empty after trimming
+            if not student_id:
+                errors.append(f"Line {i}: Empty student ID after trimming whitespace")
                 continue
             
             # Check if student exists

@@ -105,7 +105,7 @@
                 <button type="button" class="btn btn-outline-success" id="saveAllButton">
                     <i class="fas fa-save"></i> Save All Changes
                 </button>
-                <a href="{{ url_for('student.export_exam_scores', exam_id=exam.id) }}" class="btn btn-outline-primary ms-2">
+                <a href="{{ url_for('exam.export_exam_scores', exam_id=exam.id) }}" class="btn btn-outline-primary ms-2">
                     <i class="fas fa-file-export"></i> Export Scores
                 </a>
                 <a href="{{ url_for('exam.exam_detail', exam_id=exam.id) }}" class="btn btn-outline-secondary ms-2">

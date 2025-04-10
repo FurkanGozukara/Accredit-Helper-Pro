@@ -23,6 +23,7 @@ def add_exam(course_id):
         exam_date_str = request.form.get('exam_date')
         is_makeup = True if request.form.get('is_makeup') else False
         is_final = True if request.form.get('is_final') else False
+        is_mandatory = True if request.form.get('is_mandatory') else False
         makeup_for = request.form.get('makeup_for')
         relative_weight = request.form.get('relative_weight', '40')
         
@@ -56,7 +57,8 @@ def add_exam(course_id):
                 exam_date=exam_date,
                 course_id=course_id,
                 is_makeup=is_makeup,
-                is_final=is_final
+                is_final=is_final,
+                is_mandatory=is_mandatory
             )
             
             # Set makeup exam relationship if applicable
@@ -124,6 +126,7 @@ def edit_exam(exam_id):
         exam_date_str = request.form.get('exam_date')
         is_makeup = True if request.form.get('is_makeup') else False
         is_final = True if request.form.get('is_final') else False
+        is_mandatory = True if request.form.get('is_mandatory') else False
         makeup_for = request.form.get('makeup_for')
         relative_weight = request.form.get('relative_weight', '40')
         
@@ -162,6 +165,7 @@ def edit_exam(exam_id):
             exam.exam_date = exam_date
             exam.is_makeup = is_makeup
             exam.is_final = is_final
+            exam.is_mandatory = is_mandatory
             exam.updated_at = datetime.now()
             
             # Handle makeup relationship changes
