@@ -1,6 +1,6 @@
 # Accredit Helper Pro
 
-**Accredit Helper Pro** is a comprehensive tool designed for educational institutions to manage course data, track student performance against learning outcomes (POs and COs), and streamline the accreditation assessment process (e.g., Bologna, WFME, IEA Accords, ENQA, AACSB International, NQFs, CanMEDS Framework, ABET, MÜDEK and more). Alrights reserved.
+**Accredit Helper Pro** is a comprehensive tool designed for educational institutions to manage course data, track student performance against learning outcomes (POs and COs), and streamline the accreditation assessment process (e.g., Bologna, WFME, IEA Accords, ENQA, AACSB International, NQFs, CanMEDS Framework, ABET, MÜDEK and more). Al rights reserved.
 
 ## 🛒 Purchase Department License here (all department staff can use): 
 💵 https://www.patreon.com/SECourses/shop/accredit-helper-pro-10x-speed-up-your-1440486
