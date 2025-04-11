@@ -494,11 +494,11 @@
                                                 <li>From an Exam's detail page, look for the "Mass Associate Outcomes" button</li>
                                                 <li>In the dialog that appears, you'll see a text area where you can enter associations using the following syntax:</li>
                                             </ol>
-                                            <pre class="bg-light p-2">q1:oc1;q2:oc2:oc3;q3:oc1:oc4</pre>
+                                            <pre class="bg-light p-2">q1:co1;q2:co2:co3;q3:co1:co4</pre>
                                             <p>Where:</p>
                                             <ul>
                                                 <li><code>q#</code> represents the question number (e.g., q1 is question 1)</li>
-                                                <li><code>oc#</code> represents the course outcome number (e.g., oc1 is CO1)</li>
+                                                <li><code>co#</code> represents the course outcome number (e.g., co1 is CO1)</li>
                                                 <li>Use colon <code>:</code> to separate the question from its outcomes</li>
                                                 <li>Use multiple colons to associate a question with multiple outcomes</li>
                                                 <li>Use semicolon <code>;</code> to separate different question associations</li>
@@ -508,7 +508,7 @@
                                             </ol>
 
                                             <div class="alert alert-success">
-                                                <i class="fas fa-lightbulb me-2"></i><strong>Example:</strong> <code>q1:oc1:oc2;q2:oc3;q3:oc1:oc3:oc4;</code><br>
+                                                <i class="fas fa-lightbulb me-2"></i><strong>Example:</strong> <code>q1:co1:co2;q2:co3;q3:co1:co3:co4;</code><br>
                                                 This will:
                                                 <ul class="mb-0">
                                                     <li>Associate Question 1 with Course Outcomes 1 and 2</li>
@@ -1465,11 +1465,11 @@
                                 </div>
                                 <div class="card-body">
                                     <p>The Mass Association Tool allows you to quickly connect multiple questions to outcomes using a simple text format:</p>
-                                    <pre class="bg-light p-2">q1:oc1:oc3:oc5;q2:oc2;q3:oc3:oc4</pre>
+                                    <pre class="bg-light p-2">q1:co1:co3:co5;q2:co2;q3:co3:co4</pre>
                                     <p>Where:</p>
                                     <ul>
                                         <li><code>q1</code> is question 1</li>
-                                        <li><code>oc1</code> is course outcome 1</li>
+                                        <li><code>co1</code> is course outcome 1</li>
                                         <li>Use colons (<code>:</code>) to separate questions from outcomes and to list multiple outcomes</li>
                                         <li>Use semicolons (<code>;</code>) to separate different question mappings</li>
                                     </ul>

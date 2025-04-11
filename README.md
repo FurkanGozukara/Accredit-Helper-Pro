@@ -440,15 +440,15 @@ Record performance on each question.
 Quickly link multiple questions to outcomes.
 
 1.  Go to Exam Detail -> `Mass Associate Outcomes` button (also available during Batch Add Questions).
-2.  Enter associations in the text area using syntax: `q#:oc#:oc#;q#:oc#`
+2.  Enter associations in the text area using syntax: `q#:co#:co#;q#:co#`
     *   `q#`: Question number (e.g., `q1` for Question 1).
-    *   `oc#`: Course Outcome number (e.g., `oc1` for CO1).
+    *   `co#`: Course Outcome number (e.g., `co1` for CO1).
     *   Use colon `:` to separate the question number from its outcome(s). Use multiple colons for multiple outcomes per question.
     *   Use semicolon `;` to separate different question associations.
-    *   Example: `q1:oc1:oc2;q2:oc3;q3:oc1:oc3:oc4;`
+    *   Example: `q1:co1:co2;q2:co3;q3:co1:co3:co4;`
 3.  Click `Apply Associations`.
 
-> **✅ Example:** `q1:oc1:oc2;q2:oc3;` maps Q1 to CO1 & CO2, and Q2 to CO3.
+> **✅ Example:** `q1:co1:co2;q2:co3;` maps Q1 to CO1 & CO2, and Q2 to CO3.
 
 > **⚠️ Important:** This tool **replaces** any existing outcome associations for the specified questions. Ensure you include all desired links for a question when using this tool.
 
@@ -651,7 +651,7 @@ For efficiency when dealing with many questions (on Exam Detail page):
     *   Click `Save All Questions`.
 *   **Mass Association Tool:**
     *   Click `Mass Associate Outcomes` button (or use during Batch Add).
-    *   Use text syntax (`q#:oc#:oc#;...`) to define links for multiple questions at once.
+    *   Use text syntax (`q#:co#:co#;...`) to define links for multiple questions at once.
     *   **Warning:** Replaces existing links for the specified questions.
 
 ### Exporting Exam Data

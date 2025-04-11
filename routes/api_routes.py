@@ -186,9 +186,9 @@ def mass_associate_outcomes():
             # Extract outcomes (oc1 -> 1)
             outcome_ids = []
             for i in range(1, len(parts)):
-                oc_match = re.match(r'oc(\d+)', parts[i].lower())
-                if oc_match:
-                    outcome_num = int(oc_match.group(1))
+                co_match = re.match(r'co(\d+)', parts[i].lower())
+                if co_match:
+                    outcome_num = int(co_match.group(1))
                     if outcome_num in outcome_map:
                         outcome_ids.append(outcome_map[outcome_num])
                     else:

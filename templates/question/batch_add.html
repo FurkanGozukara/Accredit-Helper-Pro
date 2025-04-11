@@ -127,16 +127,15 @@
                     <div class="card-body">
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle"></i>
-                            Import relationships in format: <code>q1:oc1:oc3:oc5;q2:oc2;q3:oc3:oc4</code><br>
-                            Where <code>q1</code> is question 1, <code>oc1</code> is outcome 1, etc.
+                            Import relationships in format: <code>q1:co1:co3:co5;q2:co2;q3:co3:co4</code><br>
+                            Where <code>q1</code> is question 1, <code>co1</code> is outcome 1, etc. Use question numbers based on the final number of questions.
                         </div>
-                        <div class="mb-3">
-                            <label for="mass_import" class="form-label">Import Relationships:</label>
-                            <textarea id="mass_import" class="form-control" rows="3" placeholder="e.g., q1:oc1:oc3:oc5;q2:oc2;q3:oc3:oc4"></textarea>
+                        <div class="input-group mb-3">
+                            <textarea id="mass_import" class="form-control" rows="2" placeholder="e.g., q1:co1:co3:co5;q2:co2;q3:co3:co4"></textarea>
+                            <button class="btn btn-success" type="button" id="apply_mass_import">
+                                <i class="fas fa-check"></i> Apply Import
+                            </button>
                         </div>
-                        <button type="button" id="apply_mass_import" class="btn btn-success">
-                            <i class="fas fa-file-import"></i> Apply Import
-                        </button>
                     </div>
                 </div>
             </form>
@@ -406,12 +405,12 @@
                         // Question index is 0-based (UI is 1-based)
                         const questionIndex = questionNum - 1;
 
-                        // Extract outcomes (oc1 -> 1)
+                        // Extract outcomes (co1 -> 1) - Updated regex
                         const outcomes = [];
                         for (let i = 1; i < parts.length; i++) {
-                            const ocMatch = parts[i].match(/oc(\d+)/i);
-                            if (ocMatch) {
-                                const outcomeNum = parseInt(ocMatch[1]);
+                            const coMatch = parts[i].match(/co(\d+)/i); // Changed 'oc' to 'co'
+                            if (coMatch) {
+                                const outcomeNum = parseInt(coMatch[1]);
                                 if (!isNaN(outcomeNum) && outcomeNum > 0) {
                                     outcomes.push(outcomeNum);
                                 }
@@ -438,9 +437,9 @@
                         });
 
                         // Set the checkboxes
-                        outcomes.forEach(ocNum => {
-                            if (outcomeMap[ocNum]) {
-                                const checkbox = document.getElementById(`outcome_${questionIndex}_${outcomeMap[ocNum]}`);
+                        outcomes.forEach(coNum => { // Changed ocNum to coNum for clarity
+                            if (outcomeMap[coNum]) {
+                                const checkbox = document.getElementById(`outcome_${questionIndex}_${outcomeMap[coNum]}`);
                                 if (checkbox) {
                                     checkbox.checked = true;
 
@@ -453,8 +452,8 @@
 
                                     // Save to session storage
                                     const storedOutcomes = JSON.parse(sessionStorage.getItem(`outcomes_${questionIndex}`) || '[]');
-                                    if (!storedOutcomes.includes(outcomeMap[ocNum].toString())) {
-                                        storedOutcomes.push(outcomeMap[ocNum].toString());
+                                    if (!storedOutcomes.includes(outcomeMap[coNum].toString())) {
+                                        storedOutcomes.push(outcomeMap[coNum].toString());
                                         sessionStorage.setItem(`outcomes_${questionIndex}`, JSON.stringify(storedOutcomes));
                                     }
                                 }
@@ -598,4 +597,4 @@
         });
     });
 </script>
-{% endblock %} 
+{% endblock %}
