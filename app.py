@@ -423,7 +423,7 @@ if __name__ == '__main__':
     
     # Start cloudflared if requested
     tunnel_info = None
-    if args.cloud:
+    if args.cloud and os.environ.get('WERKZEUG_RUN_MAIN') == 'true':  # Check WERKZEUG_RUN_MAIN
         tunnel_info = start_cloudflared_tunnel(port)
         if tunnel_info and tunnel_info.get('url'):
             print("=" * 70)
@@ -437,10 +437,11 @@ if __name__ == '__main__':
     
     # Open browser after a slight delay to ensure server is up
     def open_browser_with_port():
-        if not os.environ.get('WERKZEUG_RUN_MAIN'):
+        # Check if running in the main Werkzeug process to avoid opening multiple tabs
+        if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
             webbrowser.open(f'http://localhost:{port}/')
     
-    if not tunnel_info:  # Only open browser automatically for local access
+    if not args.cloud:  # Only open browser automatically for local access
         threading.Timer(1.0, open_browser_with_port).start()
     
     # Run the application
