@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block title %}Mass Edit Course Outcomes | {{ course.code }} | Accredit Calculator{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('course.course_detail', course_id=course.id) }}">{{ course.code }}</a></li>
+<li class="breadcrumb-item active">Mass Edit Course Outcomes</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2>Mass Edit Course Outcomes - {{ course.code }}: {{ course.name }}</h2>
+            <p class="text-muted">Edit multiple course outcomes at once. Changes will be applied when you click Save Changes.</p>
+        </div>
+    </div>
+
+    {% if course_outcomes %}
+    <form method="POST" action="{{ url_for('outcome.mass_edit_outcomes', course_id=course.id) }}">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Course Outcomes</span>
+                <div>
+                    <a href="{{ url_for('course.course_detail', course_id=course.id) }}" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-arrow-left"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Save Changes
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped">
+                        <thead>
+                            <tr>
+                                <th style="width: 15%">Code</th>
+                                <th>Description</th>
+                                <th style="width: 10%">Program Outcomes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for outcome in course_outcomes %}
+                            <tr>
+                                <td>
+                                    <input type="text" class="form-control" 
+                                           name="code_{{ outcome.id }}" 
+                                           value="{{ outcome.code }}" 
+                                           required>
+                                </td>
+                                <td>
+                                    <textarea class="form-control" 
+                                              name="description_{{ outcome.id }}" 
+                                              rows="2">{{ outcome.description }}</textarea>
+                                </td>
+                                <td>
+                                    {% for po in outcome.program_outcomes %}
+                                    <span class="badge bg-primary me-1">{{ po.code }}</span>
+                                    {% else %}
+                                    <span class="text-muted fst-italic">None</span>
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer d-flex justify-content-end">
+                <a href="{{ url_for('course.course_detail', course_id=course.id) }}" class="btn btn-outline-secondary me-2">
+                    <i class="bi bi-arrow-left"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </form>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> No course outcomes found for this course.
+        <a href="{{ url_for('outcome.add_course_outcome', course_id=course.id) }}" class="alert-link">Add course outcomes</a> first.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add event listener to handle Enter key in textboxes (prevent form submission)
+        document.querySelectorAll('input[type="text"], textarea').forEach(input => {
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && this.tagName.toLowerCase() === 'input') {
+                    e.preventDefault();
+                    // Find the next input in the form and focus it
+                    const inputs = Array.from(this.form.elements);
+                    const currentIndex = inputs.indexOf(this);
+                    const nextInput = inputs[currentIndex + 1];
+                    if (nextInput) {
+                        nextInput.focus();
+                    }
+                }
+            });
+        });
+    });
+</script>
+{% endblock %} 

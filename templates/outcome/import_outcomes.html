@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mt-4 mb-4">Import Course Outcomes</h1>
+    
+    <div class="alert alert-info">
+        <p>This page allows you to import course outcomes from another course.</p>
+        <p>This is useful when creating a new instance of the same course for a different semester.</p>
+        <p>All course outcomes and their program outcome associations (including relative weights) will be copied.</p>
+        <p>If a course outcome with the same code already exists in the target course, it will be skipped.</p>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h5>Import Course Outcomes to: {{ target_course.code }} - {{ target_course.name }} ({{ target_course.semester }})</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('outcome.import_outcomes_from_course', course_id=target_course.id) }}">
+                <div class="mb-3">
+                    <label for="source_course_id" class="form-label">Source Course:</label>
+                    <select class="form-select" id="source_course_id" name="source_course_id" required>
+                        <option value="">Select a source course</option>
+                        {% for course in courses %}
+                        <option value="{{ course.id }}">{{ course.code }} - {{ course.name }} ({{ course.semester }})</option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">Select the course from which to import outcomes</div>
+                </div>
+                
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('course.course_detail', course_id=target_course.id) }}" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Import Outcomes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %} 

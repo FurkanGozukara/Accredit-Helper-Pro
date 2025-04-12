@@ -22,6 +22,7 @@ course_outcome_program_outcome = db.Table(
     'course_outcome_program_outcome',
     db.Column('course_outcome_id', db.Integer, db.ForeignKey('course_outcome.id'), primary_key=True),
     db.Column('program_outcome_id', db.Integer, db.ForeignKey('program_outcome.id'), primary_key=True),
+    db.Column('relative_weight', db.Numeric(10, 2), nullable=False, default=1.0),  # New column for CO-PO weight
     Index('idx_co_po_co_id', 'course_outcome_id'),
     Index('idx_co_po_po_id', 'program_outcome_id'),
     Index('idx_co_po_combined', 'course_outcome_id', 'program_outcome_id')

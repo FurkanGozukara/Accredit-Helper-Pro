@@ -1685,8 +1685,8 @@ def import_database():
                 'exam_weights_imported': 0,
                 'scores_imported': 0,
                 'attendance_imported': 0,
-                'co_po_relationships_imported': 0,
-                'question_co_relationships_imported': 0,
+                'co_po_imported': 0,
+                'question_co_imported': 0,
                 'errors': []  # Track any errors during import
             }
             course_id_map = {}          # backup course id -> current course id
@@ -2099,49 +2099,125 @@ def import_database():
                             dest_makeup_for = exam_id_map[source_makeup_for]
                             current_db.execute("UPDATE exam SET makeup_for=? WHERE id=?", (dest_makeup_for, dest_exam_id))
                     
-                    # STEP 13: IMPORT COURSE_OUTCOME – PROGRAM_OUTCOME RELATIONSHIPS
-                    table_exist = import_db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='course_outcome_program_outcome'").fetchone()
-                    if table_exist:
-                        for row in import_db.execute("SELECT * FROM course_outcome_program_outcome").fetchall():
-                            source_co_id = safe_get(row, 'course_outcome_id')
-                            source_po_id = safe_get(row, 'program_outcome_id')
-                            if source_co_id in outcome_id_map and source_po_id in program_outcome_id_map:
-                                curr_co = outcome_id_map[source_co_id]
-                                curr_po = program_outcome_id_map[source_po_id]
-                                existing = current_db.execute(
-                                    "SELECT * FROM course_outcome_program_outcome WHERE course_outcome_id=? AND program_outcome_id=?",
-                                    (curr_co, curr_po)
-                                ).fetchone()
-                                if existing:
+                    # STEP 13: IMPORT CO-PO ASSOCIATIONS AND WEIGHTS
+                    if import_outcomes and import_program_outcomes:
+                        # First check if the table has relative_weight column for older backups
+                        has_relative_weight = False
+                        try:
+                            columns = [col[1] for col in import_db.execute("PRAGMA table_info(course_outcome_program_outcome)").fetchall()]
+                            has_relative_weight = 'relative_weight' in columns
+                        except:
+                            import_summary['errors'].append("Could not determine if course_outcome_program_outcome table has relative_weight column")
+                        
+                        # Check if destination table has relative_weight column
+                        dest_has_relative_weight = False
+                        try:
+                            dest_columns = [col[1] for col in current_db.execute("PRAGMA table_info(course_outcome_program_outcome)").fetchall()]
+                            dest_has_relative_weight = 'relative_weight' in dest_columns
+                        except:
+                            import_summary['errors'].append("Could not determine if destination course_outcome_program_outcome table has relative_weight column")
+                        
+                        # Fetch CO-PO associations
+                        try:
+                            if has_relative_weight:
+                                associations = import_db.execute(
+                                    "SELECT course_outcome_id, program_outcome_id, relative_weight FROM course_outcome_program_outcome"
+                                ).fetchall()
+                            else:
+                                associations = import_db.execute(
+                                    "SELECT course_outcome_id, program_outcome_id FROM course_outcome_program_outcome"
+                                ).fetchall()
+                                
+                            for row in associations:
+                                backup_co_id = safe_get(row, 'course_outcome_id')
+                                backup_po_id = safe_get(row, 'program_outcome_id')
+                                
+                                if backup_co_id not in outcome_id_map or backup_po_id not in program_outcome_id_map:
+                                    import_summary['errors'].append(
+                                        f"Skipped CO-PO association with invalid IDs: co{backup_co_id}, po{backup_po_id}"
+                                    )
                                     continue
-                                current_db.execute(
-                                    "INSERT INTO course_outcome_program_outcome (course_outcome_id, program_outcome_id) VALUES (?, ?)",
-                                    (curr_co, curr_po)
-                                )
-                                import_summary['co_po_relationships_imported'] += 1
-                    
-                    # STEP 14: IMPORT QUESTION – COURSE_OUTCOME RELATIONSHIPS
-                    table_exist = import_db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='question_course_outcome'").fetchone()
-                    if table_exist:
-                        for row in import_db.execute("SELECT * FROM question_course_outcome").fetchall():
-                            source_q_id = safe_get(row, 'question_id')
-                            source_co_id = safe_get(row, 'course_outcome_id')
-                            if source_q_id in question_id_map and source_co_id in outcome_id_map:
-                                curr_q = question_id_map[source_q_id]
-                                curr_co = outcome_id_map[source_co_id]
-                                existing = current_db.execute(
-                                    "SELECT * FROM question_course_outcome WHERE question_id=? AND course_outcome_id=?",
-                                    (curr_q, curr_co)
+                                
+                                curr_co_id = outcome_id_map[backup_co_id]
+                                curr_po_id = program_outcome_id_map[backup_po_id]
+                                
+                                # Check if association already exists
+                                exists = current_db.execute(
+                                    "SELECT 1 FROM course_outcome_program_outcome WHERE course_outcome_id=? AND program_outcome_id=?",
+                                    (curr_co_id, curr_po_id)
                                 ).fetchone()
-                                if existing:
-                                    continue
-                                current_db.execute(
-                                    "INSERT INTO question_course_outcome (question_id, course_outcome_id) VALUES (?, ?)",
-                                    (curr_q, curr_co)
-                                )
-                                import_summary['question_co_relationships_imported'] += 1
+                                
+                                if not exists:
+                                    # Check if destination table has relative_weight column
+                                    dest_columns = [col[1] for col in current_db.execute("PRAGMA table_info(course_outcome_program_outcome)").fetchall()]
+                                    dest_has_relative_weight = 'relative_weight' in dest_columns
+                                    
+                                    if dest_has_relative_weight:
+                                        # Get the relative weight with default of 1.0
+                                        relative_weight = safe_get(row, 'relative_weight', 1.0)
+                                        current_db.execute(
+                                            "INSERT INTO course_outcome_program_outcome (course_outcome_id, program_outcome_id, relative_weight) VALUES (?, ?, ?)",
+                                            (curr_co_id, curr_po_id, relative_weight)
+                                        )
+                                    else:
+                                        # For older backups without the relative_weight column
+                                        current_db.execute(
+                                            "INSERT INTO course_outcome_program_outcome (course_outcome_id, program_outcome_id) VALUES (?, ?)",
+                                            (curr_co_id, curr_po_id)
+                                        )
+                                    import_summary['co_po_imported'] += 1
+                                elif has_relative_weight and dest_has_relative_weight:
+                                    # Update the weight if the association already exists and both tables have relative_weight
+                                    relative_weight = safe_get(row, 'relative_weight', 1.0)
+                                    try:
+                                        current_db.execute(
+                                            "UPDATE course_outcome_program_outcome SET relative_weight=? WHERE course_outcome_id=? AND program_outcome_id=?",
+                                            (relative_weight, curr_co_id, curr_po_id)
+                                        )
+                                    except Exception as e:
+                                        import_summary['errors'].append(f"Error updating CO-PO weight: {str(e)}")
+                        except Exception as e:
+                            import_summary['errors'].append(f"Error importing CO-PO associations: {str(e)}")
                     
-                    # Commit all changes.
+                    # STEP 14: IMPORT COURSE-OUTCOME QUESTION ASSOCIATIONS
+                    if import_outcomes and import_exams:
+                        try:
+                            associations = import_db.execute(
+                                "SELECT question_id, course_outcome_id FROM question_course_outcome"
+                            ).fetchall()
+                            for row in associations:
+                                backup_q_id = safe_get(row, 'question_id')
+                                backup_co_id = safe_get(row, 'course_outcome_id')
+                                
+                                if backup_q_id not in question_id_map or backup_co_id not in outcome_id_map:
+                                    import_summary['errors'].append(
+                                        f"Skipped question-CO association with invalid IDs: q{backup_q_id}, co{backup_co_id}"
+                                    )
+                                    continue
+                                
+                                curr_q_id = question_id_map[backup_q_id]
+                                curr_co_id = outcome_id_map[backup_co_id]
+                                
+                                # Check if association already exists
+                                exists = current_db.execute(
+                                    "SELECT 1 FROM question_course_outcome WHERE question_id=? AND course_outcome_id=?",
+                                    (curr_q_id, curr_co_id)
+                                ).fetchone()
+                                
+                                if not exists:
+                                    try:
+                                        current_db.execute(
+                                            "INSERT INTO question_course_outcome (question_id, course_outcome_id) VALUES (?, ?)",
+                                            (curr_q_id, curr_co_id)
+                                        )
+                                        if 'question_co_imported' not in import_summary:
+                                            import_summary['question_co_imported'] = 0
+                                        import_summary['question_co_imported'] += 1
+                                    except Exception as qe:
+                                        import_summary['errors'].append(f"Error associating question {curr_q_id} with outcome {curr_co_id}: {str(qe)}")
+                        except Exception as e:
+                            import_summary['errors'].append(f"Error importing question-CO associations: {str(e)}")
+                    
                     current_db.execute("COMMIT")
                     
                     # OPTIONAL: Perform an integrity check.

@@ -152,15 +152,27 @@
                 <a href="{{ url_for('outcome.export_course_outcomes', course_id=course.id) }}" class="btn btn-outline-success me-2">
                     <i class="bi bi-file-earmark-excel"></i> Export Outcomes
                 </a>
+                <a href="{{ url_for('outcome.import_outcomes_from_course', course_id=course.id) }}" class="btn btn-outline-info me-2">
+                    <i class="bi bi-box-arrow-in-down"></i> Import Outcomes
+                </a>
                 <button type="button" id="batch-delete-outcomes-btn" class="btn btn-outline-danger me-2" onclick="toggleBatchDeleteOutcomesMode()">
                     <i class="bi bi-trash"></i> Batch Delete
                 </button>
-                <a href="{{ url_for('outcome.add_course_outcome', course_id=course.id) }}" class="btn btn-primary">
+                <a href="{{ url_for('outcome.add_course_outcome', course_id=course.id) }}" class="btn btn-primary me-2">
                     <i class="bi bi-plus-circle"></i> Add Course Outcome
+                </a>
+                <a href="{{ url_for('outcome.mass_edit_outcomes', course_id=course.id) }}" class="btn btn-secondary">
+                    <i class="bi bi-pencil"></i> Edit Course Outcomes
                 </a>
             </div>
         </div>
 
+        <!-- PO-CO Weight Explanation -->
+        <div class="alert alert-info mb-3">
+            <h5><i class="bi bi-info-circle"></i> Understanding PO-CO Weight Relationship</h5>
+            <p>Each Course Outcome (CO) can contribute to one or more Program Outcomes (PO) with different weights. The weight values determine how much a particular CO contributes to a PO in calculations. 1.0 default - all are equal</p>
+            <p>These weights are used when calculating program outcome achievement scores, where each CO's achievement is multiplied by its weight for the corresponding PO.</p>
+        </div>
         {% if course_outcomes %}
         <form id="mass-delete-outcomes-form" action="{{ url_for('outcome.mass_delete_outcomes') }}" method="post">
             <input type="hidden" name="course_id" value="{{ course.id }}">
@@ -202,7 +214,25 @@
                             <td>{{ outcome.description }}</td>
                             <td>
                                 {% for po in outcome.program_outcomes %}
-                                <span class="badge bg-primary badge-outcome">{{ po.code }}</span>
+                                <div class="d-inline-block me-2 mb-1">
+                                    <span class="badge bg-primary badge-outcome">{{ po.code }}</span>
+                                    <div class="input-group input-group-sm weight-group">
+                                        <input type="number" min="0.00" max="9.99" step="0.01" 
+                                            class="form-control form-control-sm weight-input" 
+                                            style="max-width: 70px;" 
+                                            data-co-id="{{ outcome.id }}" 
+                                            data-po-id="{{ po.id }}" 
+                                            value="1.0" 
+                                            title="Relative weight for {{ outcome.code }} → {{ po.code }}">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary save-weight-btn" 
+                                            data-co-id="{{ outcome.id }}" 
+                                            data-po-id="{{ po.id }}"
+                                            style="font-size: 0.7rem; padding: 0.1rem 0.3rem;"
+                                            title="Manual save">
+                                            <i class="bi bi-check"></i>
+                                        </button>
+                                    </div>
+                                </div>
                                 {% else %}
                                 <span class="text-muted fst-italic">None</span>
                                 {% endfor %}
@@ -336,6 +366,206 @@
 
 {% block scripts %}
 <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Load CO-PO weights
+        loadWeights();
+
+        // Debounce function to limit how often a function can be called
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                const context = this;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(context, args), wait);
+            };
+        }
+
+        // Add event listeners for save weight buttons
+        document.querySelectorAll('.save-weight-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const coId = this.getAttribute('data-co-id');
+                const poId = this.getAttribute('data-po-id');
+                const input = document.querySelector(`input[data-co-id="${coId}"][data-po-id="${poId}"]`);
+                updateWeight(coId, poId, input.value, this);
+            });
+        });
+
+        // Add event listeners for weight inputs (save on Enter)
+        document.querySelectorAll('.weight-input').forEach(input => {
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const coId = this.getAttribute('data-co-id');
+                    const poId = this.getAttribute('data-po-id');
+                    const button = document.querySelector(`.save-weight-btn[data-co-id="${coId}"][data-po-id="${poId}"]`);
+                    updateWeight(coId, poId, this.value, button);
+                }
+            });
+
+            // Add event listener for input change to auto-save with debounce
+            const debouncedUpdate = debounce(function() {
+                const coId = this.getAttribute('data-co-id');
+                const poId = this.getAttribute('data-po-id');
+                const button = document.querySelector(`.save-weight-btn[data-co-id="${coId}"][data-po-id="${poId}"]`);
+                updateWeight(coId, poId, this.value, button);
+            }, 500); // 500ms debounce time
+            
+            input.addEventListener('change', debouncedUpdate);
+            input.addEventListener('input', debouncedUpdate);
+        });
+
+        // Function to load weights from the server
+        function loadWeights() {
+            // Get all weight inputs
+            const inputs = document.querySelectorAll('.weight-input');
+            
+            // For each input, make a query to the server to get the current weight
+            inputs.forEach(input => {
+                const coId = input.getAttribute('data-co-id');
+                const poId = input.getAttribute('data-po-id');
+                
+                // Use SQLite query to get weight
+                fetch('/api/course_outcome_program_outcome/get_weight', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        course_outcome_id: coId,
+                        program_outcome_id: poId
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        input.value = data.weight;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading weight:', error);
+                    // Default to 1.0 if error
+                    input.value = 1.0;
+                });
+            });
+        }
+
+        // Function to update weight via AJAX
+        function updateWeight(coId, poId, weight, button) {
+            // Show loading state
+            const originalContent = button.innerHTML;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            button.disabled = true;
+            
+            // Validate weight value
+            let weightValue = parseFloat(weight);
+            if (isNaN(weightValue) || weightValue < 0) {
+                weightValue = 1.0; // Default to 1.0 if invalid
+            }
+            if (weightValue > 9.99) {
+                weightValue = 9.99; // Cap at 9.99
+            }
+            weightValue = Math.round(weightValue * 100) / 100; // Round to 2 decimal places
+            
+            // Update in UI
+            const input = document.querySelector(`input[data-co-id="${coId}"][data-po-id="${poId}"]`);
+            input.value = weightValue;
+            
+            // Create or get the status indicator element
+            let statusIndicator = document.querySelector(`#status_${coId}_${poId}`);
+            if (!statusIndicator) {
+                statusIndicator = document.createElement('span');
+                statusIndicator.id = `status_${coId}_${poId}`;
+                statusIndicator.className = 'ms-1 save-status';
+                statusIndicator.style.fontSize = '0.7rem';
+                statusIndicator.style.opacity = '0';
+                statusIndicator.style.transition = 'opacity 0.3s';
+                input.parentNode.appendChild(statusIndicator);
+            }
+            
+            // Show saving indicator
+            statusIndicator.textContent = 'Saving...';
+            statusIndicator.style.opacity = '1';
+            
+            // Send to server
+            fetch('{{ url_for("outcome.update_outcome_weights") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    course_outcome_id: coId,
+                    program_outcome_id: poId,
+                    weight: weightValue
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Restore button
+                button.innerHTML = originalContent;
+                button.disabled = false;
+                
+                if (data.success) {
+                    // Show success indicator
+                    button.classList.remove('btn-outline-secondary');
+                    button.classList.add('btn-success');
+                    setTimeout(() => {
+                        button.classList.remove('btn-success');
+                        button.classList.add('btn-outline-secondary');
+                    }, 1000);
+                    
+                    // Update input value with returned value
+                    if (data.new_weight) {
+                        input.value = data.new_weight;
+                    }
+                    
+                    // Update status indicator
+                    statusIndicator.textContent = 'Saved!';
+                    statusIndicator.style.color = 'green';
+                    setTimeout(() => {
+                        statusIndicator.style.opacity = '0';
+                    }, 1500);
+                } else {
+                    // Show error
+                    button.classList.remove('btn-outline-secondary');
+                    button.classList.add('btn-danger');
+                    setTimeout(() => {
+                        button.classList.remove('btn-danger');
+                        button.classList.add('btn-outline-secondary');
+                    }, 1000);
+                    
+                    // Update status indicator
+                    statusIndicator.textContent = 'Error!';
+                    statusIndicator.style.color = 'red';
+                    setTimeout(() => {
+                        statusIndicator.style.opacity = '0';
+                    }, 1500);
+                    
+                    console.error('Error updating weight:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error updating weight:', error);
+                button.innerHTML = originalContent;
+                button.disabled = false;
+                
+                // Show error
+                button.classList.remove('btn-outline-secondary');
+                button.classList.add('btn-danger');
+                setTimeout(() => {
+                    button.classList.remove('btn-danger');
+                    button.classList.add('btn-outline-secondary');
+                }, 1000);
+                
+                // Update status indicator
+                statusIndicator.textContent = 'Error!';
+                statusIndicator.style.color = 'red';
+                setTimeout(() => {
+                    statusIndicator.style.opacity = '0';
+                }, 1500);
+            });
+        }
+    });
+
     // Mass delete functionality
     document.addEventListener('DOMContentLoaded', function () {
         // Select all students checkboxes

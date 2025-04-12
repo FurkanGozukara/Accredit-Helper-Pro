@@ -18,6 +18,8 @@ import time
 
 # Import db from models
 from models import db, init_db_session
+# Import database migration function
+from db_migrations import check_and_update_database
 
 def create_app():
     app = Flask(__name__)
@@ -43,7 +45,7 @@ def create_app():
     # Setup logging
     logging.basicConfig(
         filename='app.log',
-        level=logging.INFO,
+        level=logging.DEBUG,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
     
@@ -72,6 +74,8 @@ def create_app():
     # Create tables if they don't exist - moved after imports
     with app.app_context():
         db.create_all()
+        # Run database migrations to update schema for existing installations
+        check_and_update_database(app)
         # Initialize default program outcomes if they don't exist
         initialize_program_outcomes()
     

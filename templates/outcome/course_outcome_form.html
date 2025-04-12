@@ -9,60 +9,171 @@
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row justify-content-center">
-        <div class="col-md-10">
-            <div class="card">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">{{ 'Edit' if outcome else 'Add' }} Course Outcome for {{ course.code }}: {{ course.name }}</h5>
+<div class="container-fluid">
+    <h1 class="mt-4 mb-4">
+        {% if outcome %}
+        Edit Course Outcome
+        {% else %}
+        Add Course Outcome
+        {% endif %}
+    </h1>
+    
+    <div class="alert alert-info">
+        <p><strong>Course:</strong> {{ course.code }} - {{ course.name }} ({{ course.semester }})</p>
+        <p><strong>About CO-PO Relative Weights:</strong> These weights determine how much each Course Outcome contributes to a Program Outcome when calculating program outcome scores. Default is 1.0. Values range from 0.00 to 9.99.</p>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h5>Outcome Details</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" 
+                {% if outcome %}
+                action="{{ url_for('outcome.edit_course_outcome', outcome_id=outcome.id) }}"
+                {% else %}
+                action="{{ url_for('outcome.add_course_outcome', course_id=course.id) }}"
+                {% endif %}
+            >
+                <div class="mb-3">
+                    <label for="code" class="form-label">Code:</label>
+                    <input type="text" class="form-control" id="code" name="code" required
+                        value="{{ outcome.code if outcome else form_data.code if form_data else '' }}">
                 </div>
-                <div class="card-body">
-                    <form method="POST" action="{% if outcome %}{{ url_for('outcome.edit_course_outcome', outcome_id=outcome.id) }}{% else %}{{ url_for('outcome.add_course_outcome', course_id=course.id) }}{% endif %}">
-                        <div class="mb-3">
-                            <label for="code" class="form-label">Outcome Code <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="code" name="code" required
-                                   value="{{ outcome.code if outcome else '' }}" placeholder="e.g., CO1">
-                            <div class="form-text">A short code to identify this course outcome (e.g., CO1, LO1)</div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="description" class="form-label">Description <span class="text-danger">*</span></label>
-                            <textarea class="form-control" id="description" name="description" rows="3" required
-                                      placeholder="Enter a detailed description of this course outcome">{{ outcome.description if outcome else '' }}</textarea>
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="form-label">Associated Program Outcomes</label>
-                            <div class="row">
+                <div class="mb-3">
+                    <label for="description" class="form-label">Description:</label>
+                    <textarea class="form-control" id="description" name="description" rows="3" required>{{ outcome.description if outcome else form_data.description if form_data else '' }}</textarea>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Program Outcomes:</label>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th style="width: 10%">Select</th>
+                                    <th style="width: 15%">Code</th>
+                                    <th style="width: 50%">Description</th>
+                                    <th style="width: 25%">Relative Weight</th>
+                                </tr>
+                            </thead>
+                            <tbody>
                                 {% for po in program_outcomes %}
-                                <div class="col-md-6 mb-2">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox"
-                                               name="program_outcomes" value="{{ po.id }}"
-                                               id="po_{{ po.id }}"
-                                               {% if outcome and po in outcome.program_outcomes %}checked{% endif %}>
-                                        <label class="form-check-label" for="po_{{ po.id }}">
-                                            <strong>{{ po.code }}</strong> - {{ po.description|truncate(100) }}
-                                        </label>
-                                    </div>
-                                </div>
+                                <tr>
+                                    <td class="text-center">
+                                        <input type="checkbox" class="form-check-input" name="program_outcomes" 
+                                            value="{{ po.id }}" id="po_{{ po.id }}"
+                                            {% if outcome and po in outcome.program_outcomes %}checked{% endif %}
+                                            {% if form_data and form_data.selected_outcomes and po.id|string in form_data.selected_outcomes %}checked{% endif %}>
+                                    </td>
+                                    <td>{{ po.code }}</td>
+                                    <td>{{ po.description }}</td>
+                                    <td>
+                                        <input type="number" class="form-control weight-input" 
+                                               name="po_weight_{{ po.id }}" id="po_weight_{{ po.id }}"
+                                               min="0.00" max="9.99" step="0.01"
+                                               value="{{ current_weights[po.id] if current_weights and po.id in current_weights else 1.0 }}"
+                                               {% if not outcome or po not in outcome.program_outcomes %}disabled{% endif %}>
+                                        <small class="weight-status d-none text-muted" id="weight_status_{{ po.id }}"></small>
+                                    </td>
+                                </tr>
                                 {% endfor %}
-                            </div>
-                            <div class="form-text">Select the program outcomes that this course outcome supports.</div>
-                        </div>
-
-                        <div class="d-flex justify-content-between">
-                            <a href="{{ url_for('course.course_detail', course_id=course.id) }}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left"></i> Back to Course
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> {{ 'Update' if outcome else 'Save' }} Course Outcome
-                            </button>
-                        </div>
-                    </form>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
+                
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('course.course_detail', course_id=course.id) }}" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Enable/disable weight inputs based on checkbox selection
+    const checkboxes = document.querySelectorAll('input[name="program_outcomes"]');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const poId = this.id.replace('po_', '');
+            const weightInput = document.getElementById(`po_weight_${poId}`);
+            
+            if (this.checked) {
+                weightInput.disabled = false;
+            } else {
+                weightInput.disabled = true;
+            }
+        });
+    });
+
+    {% if outcome %}
+    // Add real-time weight updating via AJAX
+    const weightInputs = document.querySelectorAll('.weight-input:not([disabled])');
+    weightInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            const poId = this.id.replace('po_weight_', '');
+            const weight = this.value;
+            const statusEl = document.getElementById(`weight_status_${poId}`);
+            
+            // Only proceed if we have a valid outcome ID
+            const outcomeId = {{ outcome.id|tojson }};
+            if (outcomeId > 0) {
+                // Show saving status
+                statusEl.textContent = 'Saving...';
+                statusEl.classList.remove('d-none', 'text-success', 'text-danger');
+                statusEl.classList.add('text-muted');
+                
+                // Send AJAX request to update weight
+                fetch('{{ url_for("outcome.update_outcome_weights") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        course_outcome_id: outcomeId,
+                        program_outcome_id: poId,
+                        weight: weight
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success message
+                        statusEl.textContent = 'Saved';
+                        statusEl.classList.remove('text-muted', 'text-danger');
+                        statusEl.classList.add('text-success');
+                        
+                        // Update input value if needed
+                        if (data.new_weight) {
+                            this.value = data.new_weight;
+                        }
+                        
+                        // Hide status after 2 seconds
+                        setTimeout(() => {
+                            statusEl.classList.add('d-none');
+                        }, 2000);
+                    } else {
+                        // Show error message
+                        statusEl.textContent = data.message || 'Error saving';
+                        statusEl.classList.remove('text-muted', 'text-success');
+                        statusEl.classList.add('text-danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    // Show error message
+                    statusEl.textContent = 'Failed to save';
+                    statusEl.classList.remove('text-muted', 'text-success');
+                    statusEl.classList.add('text-danger');
+                });
+            }
+        });
+    });
+    {% endif %}
+});
+</script>
 {% endblock %} 

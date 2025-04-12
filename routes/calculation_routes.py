@@ -1623,6 +1623,54 @@ def calculate_program_outcome_score_optimized(student_id, outcome_id, course_id,
     total_weighted_score = Decimal('0')
     total_weight = Decimal('0')
     
+    # Get CO-PO relative weights from the database
+    co_po_weights = {}
+    co_ids = [co.id for co in related_course_outcomes]
+    
+    try:
+        # Properly handle SQLite IN clause
+        if co_ids:
+            from sqlalchemy import text
+            
+            # Log the query parameters for debugging
+            logging.info(f"Querying weights for PO ID: {outcome_id}, CO IDs: {co_ids}")
+            
+            # For SQLite, we need to construct the query differently based on the number of IDs
+            if len(co_ids) == 1:
+                query = """
+                    SELECT course_outcome_id, program_outcome_id, relative_weight
+                    FROM course_outcome_program_outcome
+                    WHERE program_outcome_id = :po_id AND course_outcome_id = :co_id
+                """
+                params = {"po_id": outcome_id, "co_id": co_ids[0]}
+            else:
+                # For multiple IDs, build the placeholders manually
+                placeholders = ', '.join([f':co_id_{i}' for i in range(len(co_ids))])
+                query = f"""
+                    SELECT course_outcome_id, program_outcome_id, relative_weight
+                    FROM course_outcome_program_outcome
+                    WHERE program_outcome_id = :po_id AND course_outcome_id IN ({placeholders})
+                """
+                # Create a dictionary of parameters with named placeholders
+                params = {"po_id": outcome_id}
+                for i, co_id in enumerate(co_ids):
+                    params[f"co_id_{i}"] = co_id
+            
+            with db.engine.connect() as conn:
+                result = conn.execute(text(query), params)
+                for row in result:
+                    co_po_weights[(row[0], row[1])] = Decimal(str(row[2]))
+                    
+            # Log weights for debugging
+            logging.info(f"Retrieved CO-PO weights for PO {outcome_id}: {co_po_weights}")
+            
+    except Exception as e:
+        logging.error(f"Error retrieving CO-PO weights: {str(e)}")
+        # Fall back to default weights of 1.0
+    
+    # Store all score and weight pairs for final calculation
+    co_scores_and_weights = []
+    
     # Get individual course outcome scores and apply weights
     for course_outcome in related_course_outcomes:
         # Calculate the score for this course outcome, passing through the normalized weights and attendance_dict
@@ -1632,13 +1680,25 @@ def calculate_program_outcome_score_optimized(student_id, outcome_id, course_id,
         )
         
         if co_score is not None:
-            # Each course outcome contributes equally by default (can be customized if needed)
-            total_weighted_score += co_score
-            total_weight += Decimal('1')
+            # Get the relative weight for this CO-PO pair, default to 1.0 if not found
+            weight_key = (course_outcome.id, outcome_id)
+            relative_weight = co_po_weights.get(weight_key, Decimal('1.0'))
+            
+            # Add to our collection for weighted average calculation
+            co_scores_and_weights.append((co_score, relative_weight))
+            
+            # Log individual outcome contribution
+            logging.info(f"CO {course_outcome.id} score: {co_score}, weight: {relative_weight}")
+            
+            # Add to running totals
+            total_weighted_score += co_score * relative_weight
+            total_weight += relative_weight
     
-    # Calculate the weighted average if there are valid scores
+    # Calculate weighted average
     if total_weight > Decimal('0'):
-        return total_weighted_score / total_weight
+        final_score = total_weighted_score / total_weight
+        logging.info(f"Final weighted PO {outcome_id} score: {final_score} (total weight: {total_weight})")
+        return final_score
     else:
         return Decimal('0')  # Return 0 instead of None when no valid scores
 
@@ -3385,3 +3445,340 @@ def manage_global_achievement_levels():
     return render_template('calculation/global_achievement_levels.html', 
                          achievement_levels=achievement_levels, 
                          active_page='all_courses')
+
+@calculation_bp.route('/cross_course_outcomes', methods=['GET'])
+def cross_course_outcomes():
+    """
+    Analyze and compare similar course outcomes across different courses
+    using similarity matching and showing their success rates.
+    """
+    # Get similarity threshold from request parameter (default to 0.9 / 90%)
+    raw_similarity = request.args.get('similarity', 90, type=float)
+    # Convert from percentage to decimal (divide by 100)
+    similarity_threshold = raw_similarity / 100
+    # Get search query if any
+    search_query = request.args.get('search', '')
+    # Get sort parameter
+    sort_by = request.args.get('sort', 'code_asc')
+    # Get refresh parameter to force recalculation
+    force_refresh = request.args.get('refresh', False, type=bool)
+    # Get show non-grouped parameter (checkbox presence indicates True)
+    show_non_grouped = 'show_non_grouped' in request.args
+    
+    print(f"DEBUG [cross_course_outcomes]: Request started - show_non_grouped={show_non_grouped}, force_refresh={force_refresh}")
+    
+    # Check if we have cached results from a previous calculation during this app runtime
+    cached_results = getattr(cross_course_outcomes, 'cached_results', None)
+    cached_threshold = getattr(cross_course_outcomes, 'cached_threshold', None)
+    cached_non_grouped = getattr(cross_course_outcomes, 'cached_non_grouped', None)
+    
+    print(f"DEBUG [cross_course_outcomes]: Cache state - cached_results={cached_results is not None}, cached_threshold={cached_threshold}, cached_non_grouped={len(cached_non_grouped) if cached_non_grouped else 0} items")
+    
+    # Force refresh if cached_non_grouped is None but show_non_grouped is True
+    if show_non_grouped and cached_non_grouped is None:
+        force_refresh = True
+        print("DEBUG [cross_course_outcomes]: Forcing refresh because show_non_grouped is True but cached_non_grouped is None")
+    
+    if cached_results is None or cached_threshold != similarity_threshold or force_refresh:
+        # We need to compute groups - this may take time
+        try:
+            print(f"DEBUG [cross_course_outcomes]: Computing new groups with threshold={similarity_threshold}")
+            # Import Jaro-Winkler similarity
+            import jellyfish
+            
+            # Get all course outcomes
+            course_outcomes = CourseOutcome.query.all()
+            print(f"DEBUG [cross_course_outcomes]: Found {len(course_outcomes)} total course outcomes in database")
+            
+            if not course_outcomes:
+                flash('No course outcomes found in the database', 'warning')
+                return render_template('calculation/cross_course_outcomes.html',
+                                    similarity=similarity_threshold,
+                                    raw_similarity=raw_similarity,
+                                    search=search_query,
+                                    sort=sort_by,
+                                    outcome_groups=[],
+                                    non_grouped_outcomes=[],
+                                    show_non_grouped=show_non_grouped,
+                                    loading=False,
+                                    active_page='calculations')
+            
+            # Group outcomes by similarity
+            outcome_groups = []
+            processed_outcomes = set()
+            
+            for i, outcome1 in enumerate(course_outcomes):
+                if outcome1.id in processed_outcomes:
+                    continue
+                
+                # Create a new group with this outcome as the representative
+                group = {
+                    'representative': outcome1,
+                    'outcomes': [outcome1],
+                    'course_ids': set([outcome1.course_id]),
+                    'courses': [outcome1.course]
+                }
+                processed_outcomes.add(outcome1.id)
+                
+                # Track if this outcome has any similar ones
+                has_similar = False
+                
+                # Find similar outcomes
+                for j, outcome2 in enumerate(course_outcomes):
+                    if i == j or outcome2.id in processed_outcomes:
+                        continue
+                    
+                    # Calculate similarity using Jaro-Winkler
+                    description_similarity = jellyfish.jaro_winkler_similarity(
+                        outcome1.description.lower(),
+                        outcome2.description.lower()
+                    )
+                    
+                    # Check if similarity meets threshold
+                    if description_similarity >= similarity_threshold:
+                        group['outcomes'].append(outcome2)
+                        group['course_ids'].add(outcome2.course_id)
+                        group['courses'].append(outcome2.course)
+                        processed_outcomes.add(outcome2.id)
+                        has_similar = True
+                
+                # Only add groups with multiple outcomes
+                if has_similar:
+                    outcome_groups.append(group)
+                else:
+                    # Remove the outcome from processed_outcomes if it doesn't have similar ones
+                    processed_outcomes.remove(outcome1.id)
+            
+            # Get non-grouped outcomes by finding all outcomes that aren't in processed_outcomes
+            non_grouped_outcomes = [o for o in course_outcomes if o.id not in processed_outcomes]
+            
+            print(f"DEBUG [cross_course_outcomes]: Computation results - {len(outcome_groups)} groups, {len(non_grouped_outcomes)} non-grouped outcomes")
+            print(f"DEBUG [cross_course_outcomes]: First few non-grouped outcomes: {[o.code for o in non_grouped_outcomes[:5]] if non_grouped_outcomes else 'None'}")
+            
+            # Cache the results for future requests
+            cross_course_outcomes.cached_results = outcome_groups
+            cross_course_outcomes.cached_threshold = similarity_threshold
+            cross_course_outcomes.cached_non_grouped = non_grouped_outcomes
+            
+            print(f"DEBUG [cross_course_outcomes]: Cached {len(outcome_groups)} groups and {len(non_grouped_outcomes)} non-grouped outcomes")
+            print(f"DEBUG [cross_course_outcomes]: Rendering template with show_non_grouped={show_non_grouped}, passing {len(non_grouped_outcomes) if show_non_grouped else 0} non-grouped outcomes")
+            
+            # Return template with the groups but mark as loading
+            # The actual scores will be calculated via AJAX
+            return render_template('calculation/cross_course_outcomes.html',
+                                similarity=similarity_threshold,
+                                raw_similarity=raw_similarity,
+                                search=search_query,
+                                sort=sort_by,
+                                outcome_groups=outcome_groups,
+                                non_grouped_outcomes=non_grouped_outcomes if show_non_grouped else [],
+                                show_non_grouped=show_non_grouped,
+                                loading=True,
+                                active_page='calculations')
+                                
+        except ImportError:
+            flash('The jellyfish library is required for outcome similarity analysis. Please install it with "pip install jellyfish".', 'error')
+            return render_template('calculation/cross_course_outcomes.html',
+                                similarity=similarity_threshold,
+                                raw_similarity=raw_similarity,
+                                search=search_query,
+                                sort=sort_by,
+                                outcome_groups=[],
+                                non_grouped_outcomes=[],
+                                show_non_grouped=show_non_grouped,
+                                loading=False,
+                                active_page='calculations')
+    else:
+        # Use cached results
+        outcome_groups = cached_results
+        non_grouped_outcomes = cached_non_grouped if cached_non_grouped is not None and show_non_grouped else []
+        
+        print(f"DEBUG [cross_course_outcomes]: Using cached results - {len(outcome_groups)} groups")
+        print(f"DEBUG [cross_course_outcomes]: show_non_grouped={show_non_grouped}")
+        print(f"DEBUG [cross_course_outcomes]: Non-grouped outcomes before filtering: {len(non_grouped_outcomes)}")
+        
+        # Filter by search query if provided
+        if search_query:
+            filtered_groups = []
+            for group in outcome_groups:
+                rep = group['representative']
+                if (search_query.lower() in rep.code.lower() or 
+                    search_query.lower() in rep.description.lower()):
+                    filtered_groups.append(group)
+            outcome_groups = filtered_groups
+            
+            # Also filter non-grouped outcomes
+            if show_non_grouped and non_grouped_outcomes:
+                filtered_non_grouped = []
+                for outcome in non_grouped_outcomes:
+                    if (search_query.lower() in outcome.code.lower() or 
+                        search_query.lower() in outcome.description.lower()):
+                        filtered_non_grouped.append(outcome)
+                non_grouped_outcomes = filtered_non_grouped
+                print(f"DEBUG [cross_course_outcomes]: Non-grouped outcomes after search filtering: {len(non_grouped_outcomes)}")
+        
+        # Sort the groups
+        if sort_by == 'code_asc':
+            outcome_groups.sort(key=lambda g: g['representative'].code)
+        elif sort_by == 'code_desc':
+            outcome_groups.sort(key=lambda g: g['representative'].code, reverse=True)
+        elif sort_by == 'description_asc':
+            outcome_groups.sort(key=lambda g: g['representative'].description)
+        elif sort_by == 'description_desc':
+            outcome_groups.sort(key=lambda g: g['representative'].description, reverse=True)
+        elif sort_by == 'count_asc':
+            outcome_groups.sort(key=lambda g: len(g['outcomes']))
+        elif sort_by == 'count_desc':
+            outcome_groups.sort(key=lambda g: len(g['outcomes']), reverse=True)
+            
+        # Sort non-grouped outcomes
+        if non_grouped_outcomes:
+            if sort_by == 'code_asc':
+                non_grouped_outcomes.sort(key=lambda o: o.code)
+            elif sort_by == 'code_desc':
+                non_grouped_outcomes.sort(key=lambda o: o.code, reverse=True)
+            elif sort_by == 'description_asc':
+                non_grouped_outcomes.sort(key=lambda o: o.description)
+            elif sort_by == 'description_desc':
+                non_grouped_outcomes.sort(key=lambda o: o.description, reverse=True)
+        
+        # Final check before rendering
+        final_non_grouped = non_grouped_outcomes if show_non_grouped else []
+        print(f"DEBUG [cross_course_outcomes]: Final rendering with show_non_grouped={show_non_grouped}, passing {len(final_non_grouped)} non-grouped outcomes")
+        print(f"DEBUG [cross_course_outcomes]: First few non-grouped outcomes: {[o.code for o in final_non_grouped[:5]] if final_non_grouped else 'None'}")
+        
+        return render_template('calculation/cross_course_outcomes.html',
+                            similarity=similarity_threshold,
+                            raw_similarity=raw_similarity,
+                            search=search_query,
+                            sort=sort_by,
+                            outcome_groups=outcome_groups,
+                            non_grouped_outcomes=final_non_grouped,
+                            show_non_grouped=show_non_grouped,
+                            loading=False,
+                            active_page='calculations')
+
+@calculation_bp.route('/cross_course_outcomes/data', methods=['POST'])
+def cross_course_outcomes_data():
+    """API endpoint to calculate course outcome scores for cross-course analysis"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'success': False, 'message': 'No data provided'}), 400
+        
+        outcome_ids = data.get('outcome_ids', [])
+        if not outcome_ids:
+            return jsonify({'success': False, 'message': 'No outcome IDs provided'}), 400
+        
+        # Get global achievement levels for display
+        achievement_levels = GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()
+        if not achievement_levels:
+            # Create default achievement levels if none exist
+            default_levels = [
+                {"name": "Excellent", "min_score": 90.00, "max_score": 100.00, "color": "success"},
+                {"name": "Better", "min_score": 70.00, "max_score": 89.99, "color": "info"},
+                {"name": "Good", "min_score": 60.00, "max_score": 69.99, "color": "primary"},
+                {"name": "Need Improvements", "min_score": 50.00, "max_score": 59.99, "color": "warning"},
+                {"name": "Failure", "min_score": 0.01, "max_score": 49.99, "color": "danger"}
+            ]
+            
+            for level_data in default_levels:
+                level = GlobalAchievementLevel(
+                    name=level_data["name"],
+                    min_score=level_data["min_score"],
+                    max_score=level_data["max_score"],
+                    color=level_data["color"]
+                )
+                db.session.add(level)
+            
+            db.session.commit()
+            achievement_levels = GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()
+        
+        # Get course outcomes
+        outcomes = CourseOutcome.query.filter(CourseOutcome.id.in_(outcome_ids)).all()
+        if not outcomes:
+            return jsonify({'success': False, 'message': 'No outcomes found with the provided IDs'}), 404
+        
+        # Calculate results for each outcome
+        results = []
+        total_weighted_score = Decimal('0')
+        total_weight = Decimal('0')
+        
+        for outcome in outcomes:
+            # Get course for this outcome
+            course = Course.query.get(outcome.course_id)
+            if not course:
+                continue
+            
+            # Calculate the course results to get outcome scores
+            course_results = calculate_single_course_results(course.id, 'absolute')
+            if not course_results or not course_results.get('is_valid_for_aggregation'):
+                continue
+            
+            # Get outcome score from course results
+            outcome_score = None
+            if 'course_outcome_scores' in course_results:
+                outcome_score = course_results['course_outcome_scores'].get(outcome.id)
+            
+            if outcome_score is not None:
+                # Get achievement level for this score
+                achievement_level = {
+                    'name': 'Unknown',
+                    'color': 'secondary'
+                }
+                
+                for level in achievement_levels:
+                    if float(outcome_score) >= float(level.min_score) and float(outcome_score) <= float(level.max_score):
+                        achievement_level = {
+                            'name': level.name,
+                            'color': level.color
+                        }
+                        break
+                
+                # Add to results
+                results.append({
+                    'outcome_id': outcome.id,
+                    'outcome_code': outcome.code,
+                    'outcome_description': outcome.description,
+                    'course_id': course.id,
+                    'course_code': course.code,
+                    'course_name': course.name,
+                    'course_semester': course.semester,
+                    'course_weight': float(course.course_weight),
+                    'score': float(outcome_score),
+                    'achievement_level': achievement_level
+                })
+                
+                # Add to weighted average calculation
+                total_weighted_score += Decimal(str(outcome_score)) * Decimal(str(course.course_weight))
+                total_weight += Decimal(str(course.course_weight))
+        
+        # Calculate overall weighted average
+        overall_average = None
+        if total_weight > Decimal('0'):
+            overall_average = float(total_weighted_score / total_weight)
+            
+            # Get overall achievement level
+            overall_level = {
+                'name': 'Unknown',
+                'color': 'secondary'
+            }
+            
+            for level in achievement_levels:
+                if overall_average >= float(level.min_score) and overall_average <= float(level.max_score):
+                    overall_level = {
+                        'name': level.name,
+                        'color': level.color
+                    }
+                    break
+        
+        return jsonify({
+            'success': True,
+            'results': results,
+            'overall_average': overall_average,
+            'overall_level': overall_level if overall_average is not None else None
+        })
+        
+    except Exception as e:
+        logging.error(f"Error calculating cross-course outcome data: {str(e)}")
+        return jsonify({'success': False, 'message': f'An error occurred: {str(e)}'}), 500

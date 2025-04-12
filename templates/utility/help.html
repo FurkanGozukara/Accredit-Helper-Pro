@@ -93,6 +93,7 @@
                                         <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Enhanced Search</strong> - Find specific information across courses with the built-in search functionality</li>
                                         <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Data Visualization</strong> - View interactive charts and graphs for outcome achievements</li>
                                         <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Course Duplication</strong> - Quickly set up new courses based on existing templates</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Cross-Course Outcomes Analysis</strong> - Advanced program-wide outcome assessment across all courses</li>
                                     </ul>
                                 </div>
                                 <div class="col-md-6">
@@ -109,6 +110,9 @@
                                         <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>AJAX-based Interface</strong> - Responsive, real-time updates for score entry and attendance tracking</li>
                                         <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Secure Remote Access</strong> - Use Cloudflare Tunnel for accessing the application from anywhere</li>
                                         <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Multi-course Analysis</strong> - Analyze program outcomes across all courses with optimized performance</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Import Course Outcomes</strong> - Import outcomes from existing courses for consistency</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Mass Edit Outcomes</strong> - Edit multiple outcomes simultaneously</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Weighted CO-PO Relationships</strong> - Define how course outcomes contribute to program outcomes</li>
                                         <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Student Score Export</strong> - Export detailed student performance data in multiple formats</li>
                                         <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Detailed Exam Data Exports</strong> - Export exam structure, questions, outcomes, and scores for analysis or backup</li>
                                     </ul>
@@ -685,349 +689,237 @@
 
                             <div class="card mb-4 border-success">
                                 <div class="card-header bg-success text-white">
-                                    <h5 class="mb-0"><i class="fas fa-th-large me-2"></i>Course Dashboard</h5>
+                                    <h5 class="mb-0"><i class="fas fa-list-alt me-2"></i>Course Outcomes (COs)</h5>
                                 </div>
                                 <div class="card-body">
-                                    <p>The Course Detail page serves as a comprehensive dashboard for managing all aspects of your course:</p>
+                                    <p>Course Outcomes (COs) are specific, measurable learning objectives for a particular course. Each CO must be linked to one or more Program Outcomes (POs) it supports.</p>
 
                                     <div class="row">
                                         <div class="col-md-6">
-                                            <div class="card mb-3">
-                                                <div class="card-header bg-light">
-                                                    <h6 class="mb-0">Overview Section</h6>
-                                                </div>
-                                                <div class="card-body">
-                                                    <ul>
-                                                        <li>Course code, name, and semester</li>
-                                                        <li>Course weight for program calculations</li>
-                                                        <li>Edit and Delete buttons</li>
-                                                        <li>Creation and last update timestamps</li>
-                                                    </ul>
-                                                </div>
-                                            </div>
+                                            <h6><i class="fas fa-plus me-2"></i>Adding Course Outcomes</h6>
+                                            <ol>
+                                                <li>Navigate to the Course Detail page</li>
+                                                <li>Find the "Course Outcomes" section</li>
+                                                <li>Click "Add Course Outcome"</li>
+                                                <li>Enter a <strong>Course Outcome Code</strong> (e.g., <code>CO1</code>, <code>CO2</code>)</li>
+                                                <li>Write a clear, measurable <strong>Description</strong> that begins with an action verb</li>
+                                                <li><span class="text-danger"><strong>Critical Step:</strong></span> Select one or more Program Outcomes (POs) that this CO supports</li>
+                                                <li>Assign optional <strong>Weight Values</strong> if using weighted CO-PO relationships</li>
+                                                <li>Click "Save"</li>
+                                            </ol>
+
+                                            <h6><i class="fas fa-file-import me-2"></i>Importing Course Outcomes</h6>
+                                            <ol>
+                                                <li>Navigate to the Course Detail page</li>
+                                                <li>In the "Course Outcomes" section, click "Import Course Outcomes"</li>
+                                                <li>Prepare a CSV file with columns for CO code, description, and PO mappings</li>
+                                                <li>Upload the file and verify the column mappings</li>
+                                                <li>Preview the outcomes to be imported and confirm</li>
+                                                <li>Select import mode: add new only or update existing</li>
+                                            </ol>
+
+                                            <h6><i class="fas fa-eye me-2"></i>Viewing Course Outcomes</h6>
+                                            <ul>
+                                                <li>All COs for a course are listed in the "Course Outcomes" section of the Course Detail page</li>
+                                                <li>Each listing shows the CO code, description, and linked POs</li>
+                                                <li>Click "View" on any CO to see its complete details, including which exam questions assess it</li>
+                                                <li>The CO detail view shows a breakdown of how this outcome is assessed throughout the course</li>
+                                            </ul>
                                         </div>
                                         <div class="col-md-6">
-                                            <div class="card mb-3">
-                                                <div class="card-header bg-light">
-                                                    <h6 class="mb-0">Course Outcomes (COs) Section</h6>
-                                                </div>
-                                                <div class="card-body">
-                                                    <ul>
-                                                        <li>List of all course outcomes</li>
-                                                        <li>Add, Edit, Delete outcome buttons</li>
-                                                        <li>View PO mappings for each outcome</li>
-                                                    </ul>
-                                                </div>
+                                            <h6><i class="fas fa-edit me-2"></i>Editing Course Outcomes</h6>
+                                            <ol>
+                                                <li>Navigate to the Course Detail page</li>
+                                                <li>Find the CO you want to modify in the "Course Outcomes" section</li>
+                                                <li>Click the "Edit" button</li>
+                                                <li>Update the Code, Description, or PO mappings as needed</li>
+                                                <li>Adjust weights for CO-PO relationships if applicable</li>
+                                                <li>Click "Save Changes"</li>
+                                            </ol>
+
+                                            <h6><i class="fas fa-balance-scale me-2"></i>Weighted CO-PO Relationships</h6>
+                                            <p>Weighted relationships allow you to specify how strongly each course outcome supports program outcomes:</p>
+                                            <ol>
+                                                <li>When creating or editing a CO, you'll see weight options for each PO mapping</li>
+                                                <li>Choose from different weight levels: Strong (1.0), Medium (0.7), or Low (0.4)</li>
+                                                <li>These weights affect how much each CO contributes to its linked POs in calculations</li>
+                                                <li>Higher weights mean the CO has greater influence on the linked PO's overall achievement score</li>
+                                                <li>Weights can be adjusted in bulk using the "Mass Edit Outcomes" feature</li>
+                                            </ol>
+                                            <div class="alert alert-info">
+                                                <i class="fas fa-lightbulb me-2"></i><strong>Best Practice:</strong> Use weighted relationships to accurately reflect curriculum alignment with program goals. For example, a database course may strongly support technical POs but have a lower contribution to communication-related POs.
                                             </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="card mb-3">
-                                                <div class="card-header bg-light">
-                                                    <h6 class="mb-0">Exams Section</h6>
-                                                </div>
-                                                <div class="card-body">
+
+                                            <h6><i class="fas fa-edit me-2"></i>Mass Editing Outcomes</h6>
+                                            <p>Edit multiple course outcomes simultaneously for efficient outcome management:</p>
+                                            <ol>
+                                                <li>From the Course Detail page, go to the "Course Outcomes" section</li>
+                                                <li>Click the "Mass Edit Outcomes" button</li>
+                                                <li>From this view, you can:
                                                     <ul>
-                                                        <li>List of all exams for the course</li>
-                                                        <li>Add, Edit, Delete exam buttons</li>
-                                                        <li>Manage Weights button</li>
-                                                        <li>Access to exam details and score entry</li>
-                                                        <li>Indication of exam types (final, makeup, mandatory)</li>
+                                                        <li>Review all COs with their PO connections in a grid view</li>
+                                                        <li>Quickly check or uncheck PO associations for each CO</li>
+                                                        <li>Adjust the weight of each CO-PO relationship</li>
+                                                        <li>Select multiple COs and change their PO mappings together</li>
+                                                        <li>Filter COs by existing PO connections</li>
                                                     </ul>
-                                                </div>
+                                                </li>
+                                                <li>Click "Save Changes" to apply all modifications at once</li>
+                                            </ol>
+                                            <div class="alert alert-info">
+                                                <i class="fas fa-lightbulb me-2"></i><strong>Time-Saving Tip:</strong> Use this feature after curriculum revisions or when standardizing outcome connections across multiple courses.
                                             </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="card mb-3">
-                                                <div class="card-header bg-light">
-                                                    <h6 class="mb-0">Students Section</h6>
-                                                </div>
-                                                <div class="card-body">
+
+                                            <h6><i class="fas fa-file-import me-2"></i>Importing Course Outcomes</h6>
+                                            <p>Import course outcomes from other courses or from a template:</p>
+                                            <ol>
+                                                <li>From the Course Detail page, go to the "Course Outcomes" section</li>
+                                                <li>Click the "Import Outcomes" button</li>
+                                                <li>Choose the source:
                                                     <ul>
-                                                        <li>List of enrolled students</li>
-                                                        <li>Add, Edit, Delete student buttons</li>
-                                                        <li>Import/Export student data</li>
-                                                        <li>Enter/Edit scores button</li>
-                                                        <li>Student exclusion management</li>
+                                                        <li><strong>From Another Course:</strong> Select a course that already has outcomes defined</li>
+                                                        <li><strong>From CSV File:</strong> Upload a properly formatted CSV file with outcome codes, descriptions, and PO mappings</li>
                                                     </ul>
-                                                </div>
+                                                </li>
+                                                <li>Select which outcomes to import</li>
+                                                <li>Choose how to handle PO mappings (preserve from source or modify during import)</li>
+                                                <li>Decide how to handle conflicts with existing outcomes</li>
+                                                <li>Click "Import Selected" to add the outcomes to your course</li>
+                                            </ol>
+                                            <div class="alert alert-warning">
+                                                <i class="fas fa-exclamation-triangle me-2"></i><strong>Important:</strong> When importing from another course, ensure the COs are relevant to your current course content. You may need to edit descriptions or PO mappings after import.
+                                            </div>
+
+                                            <h6>Deleting COs</h6>
+                                            <ol>
+                                                <li>Navigate to the Course Detail page</li>
+                                                <li>Find the CO you want to remove in the "Course Outcomes" section</li>
+                                                <li>Click the "Delete" button</li>
+                                                <li>Confirm the deletion</li>
+                                            </ol>
+                                            <div class="alert alert-danger mt-2">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>Deleting a CO will remove all links between this CO and any Questions. Questions linked only to this CO will become "orphaned" (not linked to any CO), which will affect outcome calculations.
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div class="alert alert-info mt-3">
-                                        <i class="fas fa-lightbulb me-2"></i><strong>Navigation Tip:</strong> The Course Detail page is your central hub for all course management. From here, you can access every feature related to your course, including outcome definition, exam creation, student management, and result calculation.
+                                    <div class="card mt-3 bg-light">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">Example Course Outcomes & PO Mappings</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="table-responsive">
+                                                <table class="table table-sm table-bordered">
+                                                    <thead class="table-secondary">
+                                                        <tr>
+                                                            <th width="10%">Code</th>
+                                                            <th width="50%">Description</th>
+                                                            <th width="20%">Mapped to POs</th>
+                                                            <th width="20%">Weight Values</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr>
+                                                            <td><code>CO1</code></td>
+                                                            <td>Apply object-oriented design principles to create maintainable software systems.</td>
+                                                            <td><code>PO1</code>, <code>PO3</code></td>
+                                                            <td>0.7, 0.3</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td><code>CO2</code></td>
+                                                            <td>Conduct software testing using appropriate methods to ensure quality.</td>
+                                                            <td><code>PO2</code>, <code>PO4</code></td>
+                                                            <td>0.5, 0.5</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td><code>CO3</code></td>
+                                                            <td>Communicate software design decisions effectively through documentation and presentations.</td>
+                                                            <td><code>PO7</code></td>
+                                                            <td>1.0</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td><code>CO4</code></td>
+                                                            <td>Work effectively in a team to develop a software application project.</td>
+                                                            <td><code>PO5</code>, <code>PO6</code></td>
+                                                            <td>0.6, 0.4</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
 
-                            <div class="card mb-4 border-warning">
-                                <div class="card-header bg-warning text-dark">
-                                    <h5 class="mb-0"><i class="fas fa-balance-scale me-2"></i>Managing Exam Weights</h5>
-                                </div>
-                                <div class="card-body" id="exams-weights">
-                                    <p>Exam weights define how different assessments contribute to the final course grade and outcome calculations:</p>
-
-                                    <ol>
-                                        <li>Go to the Course Detail page.</li>
-                                        <li>Find the "Exams" section and click the "Manage Weights" button.</li>
-                                        <li>On the "Exam Weights" page, you'll see a list of all non-makeup exams for the course.</li>
-                                        <li>Enter the percentage weight for each exam type (e.g., Midterm 1: 20%, Midterm 2: 20%, Final: 40%, Assignments: 20%).</li>
-                                        <li><strong>Important:</strong> The sum of all weights MUST equal exactly 100%.</li>
-                                        <li>Click "Save Weights".</li>
-                                    </ol>
+                                    <div class="alert alert-primary mt-3">
+                                        <i class="fas fa-balance-scale me-2"></i><strong>Weighted CO-PO Relationships:</strong> You can now specify the relative contribution of each Course Outcome to its linked Program Outcomes. Weights should sum to 1.0 across all PO relationships for a single CO. If weights are not specified, the system uses uniform distribution (equal weights to all linked POs).
+                                    </div>
 
                                     <div class="alert alert-warning mt-3">
-                                        <i class="fas fa-exclamation-triangle me-2"></i><strong>Critical:</strong> Exam weights are essential for accurate outcome achievement calculations. The system uses these weights to determine each exam's contribution to the overall assessment.
-                                    </div>
-
-                                    <div class="card bg-light mt-3">
-                                        <div class="card-body">
-                                            <h6><i class="fas fa-info-circle me-2"></i>How Weights Affect Calculations</h6>
-                                            <p>Example weight distribution and its effect:</p>
-                                            <table class="table table-sm table-bordered">
-                                                <thead class="table-secondary">
-                                                    <tr>
-                                                        <th>Exam</th>
-                                                        <th>Weight</th>
-                                                        <th>Effect on Calculations</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <tr>
-                                                        <td>Midterm 1</td>
-                                                        <td>30%</td>
-                                                        <td>Contributes 30% to final grade and outcome achievement</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td>Midterm 2</td>
-                                                        <td>20%</td>
-                                                        <td>Contributes 20% to final grade and outcome achievement</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td>Final Exam</td>
-                                                        <td>40%</td>
-                                                        <td>Contributes 40% to final grade and outcome achievement</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td>Assignments</td>
-                                                        <td>10%</td>
-                                                        <td>Contributes 10% to final grade and outcome achievement</td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-
-                                    <div class="alert alert-info mt-3">
-                                        <i class="fas fa-medkit me-2"></i><strong>Makeup Exams:</strong> Makeup exams automatically inherit the weight of their corresponding original exam. You don't need to set weights for makeup exams separately.
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="card mb-4 border-secondary">
-                                <div class="card-header bg-secondary text-white">
-                                    <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Course Settings</h5>
-                                </div>
-                                <div class="card-body" id="course-settings">
-                                    <p>Course Settings allow you to customize how success rates and achievement levels are calculated and displayed for your course:</p>
-
-                                    <h6><i class="fas fa-sliders-h me-2"></i>Accessing Course Settings</h6>
-                                    <ol>
-                                        <li>Navigate to the Course Detail page.</li>
-                                        <li>Click the "Settings" button (usually located in the action buttons area).</li>
-                                        <li>Modify settings as needed.</li>
-                                        <li>Click "Save Settings" to apply changes.</li>
-                                    </ol>
-
-                                    <div class="card mt-3">
-                                        <div class="card-header bg-light">
-                                            <h6 class="mb-0">Available Settings</h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="row">
-                                                <div class="col-md-6">
-                                                    <h6><i class="fas fa-calculator me-2"></i>Success Rate Method</h6>
-                                                    <ul class="list-group list-group-flush mb-3">
-                                                        <li class="list-group-item">
-                                                            <strong>Absolute:</strong> Students pass if their final weighted score meets or exceeds a fixed threshold (typically 60%). Course outcome achievement is calculated as the average score of all students.
-                                                        </li>
-                                                        <li class="list-group-item">
-                                                            <strong>Relative:</strong> Students pass if their score is either:
-                                                            <ul>
-                                                                <li>Above the absolute threshold (e.g., 60%), OR</li>
-                                                                <li>Above a percentage of the class average (e.g., if set to 60% and class average is 70%, then passing is 0.6 × 70 = 42%)</li>
-                                                            </ul>
-                                                            Course outcome achievement is calculated as the percentage of students who achieved the threshold.
-                                                        </li>
-                                                    </ul>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <h6><i class="fas fa-award me-2"></i>Achievement Levels</h6>
-                                                    <p>Define custom performance bands with corresponding score ranges:</p>
-                                                    <table class="table table-sm table-bordered">
-                                                        <thead class="table-secondary">
-                                                            <tr>
-                                                                <th>Level Name</th>
-                                                                <th>Min Score</th>
-                                                                <th>Max Score</th>
-                                                                <th>Color</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            <tr>
-                                                                <td>Excellent</td>
-                                                                <td>90</td>
-                                                                <td>100</td>
-                                                                <td><span class="badge bg-success">Green</span></td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td>Good</td>
-                                                                <td>75</td>
-                                                                <td>89.99</td>
-                                                                <td><span class="badge bg-primary">Blue</span></td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td>Satisfactory</td>
-                                                                <td>60</td>
-                                                                <td>74.99</td>
-                                                                <td><span class="badge bg-warning">Yellow</span></td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td>Unsatisfactory</td>
-                                                                <td>0</td>
-                                                                <td>59.99</td>
-                                                                <td><span class="badge bg-danger">Red</span></td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                            <div class="form-check mt-3">
-                                                <input class="form-check-input" type="checkbox" disabled>
-                                                <label class="form-check-label">
-                                                    <strong>Exclude Course from Reports</strong> - Check this to exclude this course instance from aggregated program-level reports. This is useful for old or experimental courses that shouldn't be included in official accreditation data.
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="alert alert-info mt-3">
-                                        <i class="fas fa-lightbulb me-2"></i><strong>Achievement Level Tip:</strong> Achievement levels provide a more intuitive way to interpret raw percentages. They appear in calculation reports and visualizations, making it easier to identify strengths and weaknesses.
+                                        <i class="fas fa-pencil-alt me-2"></i><strong>Writing Effective COs:</strong> Course Outcomes should be SMART: Specific, Measurable, Achievable, Relevant, and Time-bound. Always begin with an action verb that indicates the level of cognitive skill required (e.g., "analyze," "design," "evaluate," not "understand" or "learn").
                                     </div>
                                 </div>
                             </div>
 
                             <div class="card mb-4 border-info">
                                 <div class="card-header bg-info text-white">
-                                    <h5 class="mb-0"><i class="fas fa-copy me-2"></i>Duplicating a Course</h5>
+                                    <h5 class="mb-0"><i class="fas fa-project-diagram me-2"></i>Understanding the Outcome Hierarchy</h5>
                                 </div>
                                 <div class="card-body">
-                                    <p>The Course Duplication feature allows you to quickly set up a new course instance based on an existing one. This is especially useful when teaching the same course in subsequent semesters.</p>
+                                    <p>The relationship between different components in the system is critical for accurate accreditation assessment:</p>
 
-                                    <h6><i class="fas fa-list-ol me-2"></i>Duplication Process</h6>
-                                    <ol>
-                                        <li>Navigate to the Course Detail page of the course you want to duplicate.</li>
-                                        <li>Locate and click the "Duplicate Course" button.</li>
-                                        <li>
-                                            In the duplication form, enter the details for the new course:
-                                            <ul>
-                                                <li><strong>New Course Code</strong> - Can be the same if it's the same course</li>
-                                                <li><strong>New Course Name</strong> - Can be the same or modified</li>
-                                                <li><strong>New Semester</strong> - Should be different (e.g., "Spring 2024" instead of "Fall 2023")</li>
-                                                <li><strong>Course Weight</strong> - Set the weight for program-level contributions</li>
+                                    <div class="row align-items-center">
+                                        <div class="col-md-8">
+                                            <div class="card bg-light">
+                                                <div class="card-body">
+                                                    <h6 class="text-center">Outcome Assessment Flow</h6>
+                                                    <div class="d-flex justify-content-center mt-3 mb-3">
+                                                        <div class="text-center me-3">
+                                                            <div style="border: 2px solid #6c757d; border-radius: 5px; padding: 10px; width: 120px;">
+                                                                <strong>Exam Questions</strong>
+                                                            </div>
+                                                            <div style="padding-top: 5px; padding-bottom: 5px;">
+                                                                <i class="fas fa-arrow-down"></i><br>
+                                                                <small>assess</small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="text-center me-3">
+                                                            <div style="border: 2px solid #28a745; border-radius: 5px; padding: 10px; width: 120px;">
+                                                                <strong>Course Outcomes<br>(COs)</strong>
+                                                            </div>
+                                                            <div style="padding-top: 5px; padding-bottom: 5px;">
+                                                                <i class="fas fa-arrow-down"></i><br>
+                                                                <small>support</small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="text-center">
+                                                            <div style="border: 2px solid #007bff; border-radius: 5px; padding: 10px; width: 120px;">
+                                                                <strong>Program Outcomes<br>(POs)</strong>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <ul class="list-group">
+                                                <li class="list-group-item list-group-item-secondary"><strong>Questions</strong> are individual assessment items on exams, quizzes, and assignments</li>
+                                                <li class="list-group-item list-group-item-success"><strong>COs</strong> are specific to a course and are assessed by exam questions</li>
+                                                <li class="list-group-item list-group-item-primary"><strong>POs</strong> span across the curriculum and are supported by multiple COs from different courses</li>
                                             </ul>
-                                        </li>
-                                        <li>
-                                            Select which components to copy:
-                                            <div class="form-check ms-4 mt-2">
-                                                <input class="form-check-input" type="checkbox" checked disabled>
-                                                <label class="form-check-label">Course Outcomes (COs)</label>
-                                            </div>
-                                            <div class="form-check ms-4">
-                                                <input class="form-check-input" type="checkbox" checked disabled>
-                                                <label class="form-check-label">Exams (structure only, no scores)</label>
-                                            </div>
-                                            <div class="form-check ms-4">
-                                                <input class="form-check-input" type="checkbox" checked disabled>
-                                                <label class="form-check-label">Questions</label>
-                                            </div>
-                                            <div class="form-check ms-4">
-                                                <input class="form-check-input" type="checkbox" checked disabled>
-                                                <label class="form-check-label">Exam Weights</label>
-                                            </div>
-                                            <div class="form-check ms-4">
-                                                <input class="form-check-input" type="checkbox" checked disabled>
-                                                <label class="form-check-label">Course Settings (calculation methods and achievement levels)</label>
-                                            </div>
-                                        </li>
-                                        <li>Click "Duplicate" to create the new course instance.</li>
-                                    </ol>
-
-                                    <div class="alert alert-warning mt-3">
-                                        <i class="fas fa-user-graduate me-2"></i><strong>Important:</strong> Student data and scores are <strong>never</strong> copied during duplication. You'll need to import a new student list for the duplicated course.
+                                        </div>
                                     </div>
 
-                                    <div class="alert alert-success mt-3">
-                                        <i class="fas fa-clock me-2"></i><strong>Time-Saving:</strong> Course duplication can save hours of setup time, as all the complex relationships between COs, POs, exams, and questions are preserved. You only need to import new students and record new scores.
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="card mb-4 border-primary">
-                                <div class="card-header bg-primary text-white">
-                                    <h5 class="mb-0"><i class="fas fa-search me-2"></i>Searching for Courses</h5>
-                                </div>
-                                <div class="card-body">
-                                    <p>The course search feature allows you to quickly find specific courses in your database using keywords.</p>
-                                    
-                                    <h6><i class="fas fa-search me-2"></i>How to Search for Courses</h6>
-                                    <ol>
-                                        <li>Navigate to the <a href="{{ url_for('course.list_courses') }}">Courses</a> page.</li>
-                                        <li>Locate the search box at the top of the course list.</li>
-                                        <li>Enter a search term related to the course you're looking for. You can search by:</li>
-                                        <ul>
-                                            <li>Course Code (e.g., "CENG301")</li>
-                                            <li>Course Name (e.g., "Software")</li>
-                                            <li>Semester (e.g., "Fall 2023")</li>
-                                        </ul>
-                                        <li>The results will automatically filter to show courses matching your search criteria.</li>
-                                    </ol>
-                                    
-                                    <div class="alert alert-info mt-3">
-                                        <i class="fas fa-info-circle me-2"></i><strong>Search Tips:</strong> The search is not case-sensitive and will match partial terms. For example, searching for "software" will find "Software Engineering" and "Advanced Software Development."
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="card mb-4 border-secondary">
-                                <div class="card-header bg-secondary text-white">
-                                    <h5 class="mb-0"><i class="fas fa-file-export me-2"></i>Exporting Courses</h5>
-                                </div>
-                                <div class="card-body">
-                                    <p>The Export Courses feature allows you to export a summary of all your courses to CSV or Excel format for reporting and archiving purposes.</p>
-                                    
-                                    <h6><i class="fas fa-download me-2"></i>How to Export Courses</h6>
-                                    <ol>
-                                        <li>Navigate to the <a href="{{ url_for('course.list_courses') }}">Courses</a> page.</li>
-                                        <li>Look for the "Export" button at the top of the courses list.</li>
-                                        <li>Click the "Export" button to download a CSV/Excel file with all course data.</li>
-                                    </ol>
-                                    
-                                    <div class="alert alert-info mt-3">
-                                        <i class="fas fa-info-circle me-2"></i><strong>Exported Data:</strong> The export includes the following information for each course:
+                                    <div class="alert alert-danger mt-4">
+                                        <i class="fas fa-exclamation-circle me-2"></i><strong>Critical for Accreditation:</strong> This hierarchical structure is fundamental to accreditation assessment. Ensure all connections are properly established:
                                         <ul class="mb-0">
-                                            <li>Course Code</li>
-                                            <li>Course Name</li>
-                                            <li>Semester</li>
-                                            <li>Course Weight</li>
-                                            <li>Student Count</li>
-                                            <li>Exam Count</li>
-                                            <li>Number of Course Outcomes</li>
+                                            <li>Every CO must be linked to at least one PO</li>
+                                            <li>Every exam question must be linked to at least one CO</li>
+                                            <li>All POs should be supported by multiple COs across different courses</li>
                                         </ul>
                                     </div>
-                                    
+
                                     <div class="alert alert-success mt-3">
-                                        <i class="fas fa-chart-bar me-2"></i><strong>Data Analysis:</strong> The exported course data can be used for program-level analysis and reporting, allowing you to track course statistics across semesters and identify trends in student enrollment and assessment coverage.
+                                        <i class="fas fa-check-circle me-2"></i><strong>Best Practice:</strong> When setting up a new course, define the Course Outcomes and their PO mappings first, before creating exams and questions. This ensures a clear assessment plan aligned with program goals.
+                                        <br><i class="fas fa-link me-2"></i><strong>Efficiency Tip:</strong> For linking many questions to outcomes efficiently, refer to the <a href="#exams" class="tab-link">Mass Association Tool</a> described in the Exams & Questions section.
                                     </div>
                                 </div>
                             </div>
@@ -1161,7 +1053,18 @@
                                                 <li>Enter a <strong>Course Outcome Code</strong> (e.g., <code>CO1</code>, <code>CO2</code>)</li>
                                                 <li>Write a clear, measurable <strong>Description</strong> that begins with an action verb</li>
                                                 <li><span class="text-danger"><strong>Critical Step:</strong></span> Select one or more Program Outcomes (POs) that this CO supports</li>
+                                                <li>Assign optional <strong>Weight Values</strong> if using weighted CO-PO relationships</li>
                                                 <li>Click "Save"</li>
+                                            </ol>
+
+                                            <h6><i class="fas fa-file-import me-2"></i>Importing Course Outcomes</h6>
+                                            <ol>
+                                                <li>Navigate to the Course Detail page</li>
+                                                <li>In the "Course Outcomes" section, click "Import Course Outcomes"</li>
+                                                <li>Prepare a CSV file with columns for CO code, description, and PO mappings</li>
+                                                <li>Upload the file and verify the column mappings</li>
+                                                <li>Preview the outcomes to be imported and confirm</li>
+                                                <li>Select import mode: add new only or update existing</li>
                                             </ol>
 
                                             <h6><i class="fas fa-eye me-2"></i>Viewing Course Outcomes</h6>
@@ -1179,7 +1082,17 @@
                                                 <li>Find the CO you want to modify in the "Course Outcomes" section</li>
                                                 <li>Click the "Edit" button</li>
                                                 <li>Update the Code, Description, or PO mappings as needed</li>
+                                                <li>Adjust weights for CO-PO relationships if applicable</li>
                                                 <li>Click "Save Changes"</li>
+                                            </ol>
+
+                                            <h6><i class="fas fa-edit me-2"></i>Mass Editing Outcomes</h6>
+                                            <ol>
+                                                <li>From the Course Detail page, click "Mass Edit Outcomes" in the Course Outcomes section</li>
+                                                <li>View all outcomes in a spreadsheet-like interface</li>
+                                                <li>Edit multiple outcome descriptions, codes, and PO mappings at once</li>
+                                                <li>Adjust weights for multiple CO-PO relationships simultaneously</li>
+                                                <li>Click "Save All Changes" when finished</li>
                                             </ol>
 
                                             <h6><i class="fas fa-trash-alt me-2"></i>Deleting Course Outcomes</h6>
@@ -1205,8 +1118,9 @@
                                                     <thead class="table-secondary">
                                                         <tr>
                                                             <th width="10%">Code</th>
-                                                            <th width="60%">Description</th>
-                                                            <th width="30%">Mapped to POs</th>
+                                                            <th width="50%">Description</th>
+                                                            <th width="20%">Mapped to POs</th>
+                                                            <th width="20%">Weight Values</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -1214,26 +1128,34 @@
                                                             <td><code>CO1</code></td>
                                                             <td>Apply object-oriented design principles to create maintainable software systems.</td>
                                                             <td><code>PO1</code>, <code>PO3</code></td>
+                                                            <td>0.7, 0.3</td>
                                                         </tr>
                                                         <tr>
                                                             <td><code>CO2</code></td>
                                                             <td>Conduct software testing using appropriate methods to ensure quality.</td>
                                                             <td><code>PO2</code>, <code>PO4</code></td>
+                                                            <td>0.5, 0.5</td>
                                                         </tr>
                                                         <tr>
                                                             <td><code>CO3</code></td>
                                                             <td>Communicate software design decisions effectively through documentation and presentations.</td>
                                                             <td><code>PO7</code></td>
+                                                            <td>1.0</td>
                                                         </tr>
                                                         <tr>
                                                             <td><code>CO4</code></td>
                                                             <td>Work effectively in a team to develop a software application project.</td>
                                                             <td><code>PO5</code>, <code>PO6</code></td>
+                                                            <td>0.6, 0.4</td>
                                                         </tr>
                                                     </tbody>
                                                 </table>
                                             </div>
                                         </div>
+                                    </div>
+
+                                    <div class="alert alert-primary mt-3">
+                                        <i class="fas fa-balance-scale me-2"></i><strong>Weighted CO-PO Relationships:</strong> You can now specify the relative contribution of each Course Outcome to its linked Program Outcomes. Weights should sum to 1.0 across all PO relationships for a single CO. If weights are not specified, the system uses uniform distribution (equal weights to all linked POs).
                                     </div>
 
                                     <div class="alert alert-warning mt-3">
@@ -1695,6 +1617,23 @@
                                         <li>Identify and resolve issues with weights, linking, or score entry.</li>
                                     </ul>
                                 </li>
+                                <li>
+                                    <strong>Cross-Course Outcomes Analysis:</strong>
+                                    <ul>
+                                        <li><strong>Purpose:</strong> Track and analyze the same program outcomes across multiple courses to identify patterns in student achievement.</li>
+                                        <li><strong>Access:</strong> From the "All Courses" calculation view, click the "Cross-Course Analysis" button.</li>
+                                        <li><strong>Key Features:</strong>
+                                            <ul>
+                                                <li><strong>Outcome Progression:</strong> See how student achievement for specific program outcomes develops across different courses.</li>
+                                                <li><strong>Comparative Analysis:</strong> Compare achievement levels of the same outcomes across different semesters, prerequisites, or related courses.</li>
+                                                <li><strong>Time-Series Visualization:</strong> Track outcome achievement trends over multiple semesters or years.</li>
+                                                <li><strong>Custom Grouping:</strong> Group and filter courses by semester, year, or instructor to identify contextual factors.</li>
+                                                <li><strong>Exportable Reports:</strong> Generate comprehensive reports for accreditation bodies showing outcome achievement progression.</li>
+                                            </ul>
+                                        </li>
+                                        <li><strong>Usage:</strong> Select the program outcomes you want to analyze, choose the courses to include, and customize your view by applying filters for semesters, years, or other criteria.</li>
+                                    </ul>
+                                </li>
                             </ul>
 
                             <h6>Exporting Results</h6>
@@ -2120,6 +2059,23 @@
                             </div>
                             
                             <!-- Latest Version First -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0">Version 28 <small class="ms-2">- July 2023</small></h5>
+                                </div>
+                                <div class="card-body">
+                                    <h6 class="mb-3">Key Changes:</h6>
+                                    <ul>
+                                        <li><strong>New Cross-Course Outcomes Analysis:</strong> Advanced analysis of program outcomes across multiple courses for better accreditation reporting</li>
+                                        <li><strong>Import Course Outcomes:</strong> Easily import course outcomes from other courses to save time and ensure consistency</li>
+                                        <li><strong>Mass Edit Outcomes:</strong> Edit multiple course outcomes at once with the new batch editing functionality</li>
+                                        <li><strong>Weighted Course Outcome to Program Outcome Relationships:</strong> Define custom weights for how COs contribute to POs</li>
+                                        <li><strong>Performance Improvements:</strong> Optimized calculations for faster results even with large datasets</li>
+                                        <li><strong>Bug Fixes and UI Enhancements:</strong> Various improvements to the interface and fixing reported issues</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            
                             <div class="card mb-4">
                                 <div class="card-header bg-primary text-white">
                                     <h5 class="mb-0">Version 27 <small class="ms-2">- 12 April 2025</small></h5>

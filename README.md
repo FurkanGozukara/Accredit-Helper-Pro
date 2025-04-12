@@ -181,6 +181,10 @@ Welcome to **Accredit Helper Pro**, your comprehensive tool for managing course 
 *   **✅ Data Visualization:** View interactive charts and graphs for outcome achievements.
 *   **✅ Course Duplication:** Quickly set up new courses based on existing templates, copying structure (COs, Exams, Questions, Weights, Settings).
 *   **✅ Multi-course Analysis:** Analyze program outcomes across all courses with optimized performance and consistent logic.
+*   **✅ Cross-Course Outcomes Analysis:** Advanced program-wide outcome assessment across all courses with detailed contribution tracking.
+*   **✅ Import Course Outcomes:** Import outcomes from existing courses to ensure consistency and save time.
+*   **✅ Mass Edit Outcomes:** Edit multiple course outcomes simultaneously for efficiency.
+*   **✅ Weighted CO-PO Relationships:** Define custom weights for how course outcomes contribute to program outcomes.
 *   **✅ Student Score Export:** Export detailed student performance data (grades, outcome achievement).
 *   **✅ Detailed Exam Data Exports:** Export comprehensive exam structure, questions, outcome links, and scores for analysis or backup.
 *   **✅ API Functionality:** Access data programmatically via REST endpoints (JSON format).
@@ -196,6 +200,8 @@ The calculation system has been significantly optimized for:
 *   **⚖️ Standardized Student Exclusion:** Improved logic consistently handles mandatory exam attendance across calculation methods.
 *   **🖱️ Enhanced Attendance Management:** Fast, AJAX-based attendance tracking with bulk import/export capabilities.
 *   **☁️ Robust Remote Access:** Improved Cloudflare Tunnel integration for seamless remote usage.
+*   **📊 Advanced Cross-Course Analysis:** Optimized calculations for program-wide assessment with weight-based contributions.
+*   **🔗 Weighted Outcome Relationships:** Enhanced CO-PO relationship calculations with customizable weight factors.
 
 ### Who Should Use This Application? 👥
 

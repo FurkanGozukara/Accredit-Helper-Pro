@@ -338,16 +338,71 @@ def generate_course_outcomes(courses, program_outcomes):
             if program_outcomes: # Ensure program_outcomes is not empty
                 num_to_link = min(len(program_outcomes), random.randint(2, 3))
                 selected_pos = random.sample(program_outcomes, num_to_link)
-                course_outcome.program_outcomes = selected_pos
+                
+                # Generate relative weights for CO-PO relationships (between 0.5 and 2.0)
+                for po in selected_pos:
+                    # Check if the association table has a 'relative_weight' column
+                    # We need to handle both old and new database schemas
+                    try:
+                        from sqlalchemy import inspect
+                        inspector = inspect(engine)
+                        columns = [c['name'] for c in inspector.get_columns('course_outcome_program_outcome')]
+                        
+                        if 'relative_weight' in columns:
+                            # Generate a random weight between 0.5 and 2.0 with 0.01 precision
+                            relative_weight = round(random.uniform(0.5, 2.0), 2)
+                            
+                            # Add the PO to the CO with the relative weight using SQL expression
+                            stmt = course_outcome_program_outcome.insert().values(
+                                course_outcome_id=course_outcome.id,
+                                program_outcome_id=po.id,
+                                relative_weight=relative_weight
+                            )
+                            # We need to defer this execution until after the course_outcome is committed
+                            # So we'll add the PO to the course_outcome normally and update the weight after commit
+                            course_outcome.program_outcomes.append(po)
+                        else:
+                            # For older installations without the relative_weight column
+                            course_outcome.program_outcomes.append(po)
+                    except Exception as e:
+                        print(f"Warning: Could not inspect database schema or add relative weights: {e}")
+                        # Fallback to simple association
+                        course_outcome.program_outcomes.append(po)
             else:
                 print(f"Warning: No program outcomes available to associate with {course_outcome.code}")
-
 
             session.add(course_outcome)
             all_course_outcomes.append(course_outcome)
 
     try:
         session.commit()
+        
+        # Now update the relative weights for the associations
+        # This is needed because we need the course_outcome.id which is only available after commit
+        try:
+            from sqlalchemy import inspect, text
+            inspector = inspect(engine)
+            columns = [c['name'] for c in inspector.get_columns('course_outcome_program_outcome')]
+            
+            if 'relative_weight' in columns:
+                for course_outcome in all_course_outcomes:
+                    for po in course_outcome.program_outcomes:
+                        # Generate a random weight between 0.5 and 2.0 with 0.01 precision
+                        relative_weight = round(random.uniform(0.5, 2.0), 2)
+                        
+                        # Update the relative_weight directly using SQL
+                        stmt = text("""
+                            UPDATE course_outcome_program_outcome 
+                            SET relative_weight = :weight 
+                            WHERE course_outcome_id = :co_id AND program_outcome_id = :po_id
+                        """)
+                        session.execute(stmt, {"weight": relative_weight, "co_id": course_outcome.id, "po_id": po.id})
+                
+                session.commit()
+        except Exception as e:
+            print(f"Warning: Could not update relative weights: {e}")
+            session.rollback()
+            
         print(f"Created {len(all_course_outcomes)} course outcomes")
     except Exception as e:
         session.rollback()

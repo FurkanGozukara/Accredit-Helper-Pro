@@ -8,6 +8,48 @@ import re
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
+@api_bp.route('/course_outcome_program_outcome/get_weight', methods=['POST'])
+def get_co_po_weight():
+    """Get the relative weight for a Course Outcome - Program Outcome relationship"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'No data provided'}), 400
+            
+        course_outcome_id = data.get('course_outcome_id')
+        program_outcome_id = data.get('program_outcome_id')
+        
+        if not course_outcome_id or not program_outcome_id:
+            return jsonify({'success': False, 'message': 'Missing required parameters'}), 400
+            
+        # Check if the column exists in the table
+        from sqlalchemy import inspect, text
+        inspector = inspect(db.engine)
+        columns = [c['name'] for c in inspector.get_columns('course_outcome_program_outcome')]
+        
+        if 'relative_weight' in columns:
+            # Query the weight using SQLAlchemy text
+            result = db.session.execute(text(
+                "SELECT relative_weight FROM course_outcome_program_outcome "
+                "WHERE course_outcome_id = :co_id AND program_outcome_id = :po_id"
+            ), {
+                "co_id": course_outcome_id,
+                "po_id": program_outcome_id
+            }).fetchone()
+            
+            if result:
+                weight = float(result[0]) if result[0] is not None else 1.0
+                return jsonify({'success': True, 'weight': weight})
+            else:
+                return jsonify({'success': True, 'weight': 1.0})  # Default weight
+        else:
+            # If the column doesn't exist, return default weight
+            return jsonify({'success': True, 'weight': 1.0})
+            
+    except Exception as e:
+        logging.error(f"Error getting CO-PO weight: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
 @api_bp.route('/exam/<int:exam_id>/question-outcomes', methods=['GET'])
 def get_question_outcomes(exam_id):
     """Get all questions for an exam with their associated course outcomes"""
