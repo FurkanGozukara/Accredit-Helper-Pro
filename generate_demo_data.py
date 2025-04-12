@@ -239,6 +239,7 @@ def generate_program_outcomes():
 
 def generate_course_outcomes(courses, program_outcomes):
     """Generate course outcomes for each course and link to program outcomes"""
+    # Original course-specific outcomes data
     course_outcomes_data = {
         "CSE101": [
             {"code": "CSE101-1", "description": "Understand fundamental concepts in computer science"},
@@ -302,6 +303,40 @@ def generate_course_outcomes(courses, program_outcomes):
         ]
     }
 
+    # Pool of shared/common outcomes that can appear across different courses
+    shared_outcomes = [
+        {"description": "Apply critical thinking to solve complex problems", "variants": [
+            "Apply critical thinking to solve complex problems in the field",
+            "Use critical thinking techniques to solve complex problems",
+            "Apply critical thinking and analysis to solve domain problems"
+        ]},
+        {"description": "Implement effective software solutions", "variants": [
+            "Design and implement effective software solutions",
+            "Implement effective and efficient software solutions",
+            "Create effective software solutions for practical problems"
+        ]},
+        {"description": "Analyze and evaluate different algorithms and approaches", "variants": [
+            "Evaluate and analyze different approaches to problem solving",
+            "Analyze and compare different algorithms for effectiveness",
+            "Analyze the efficiency of different algorithmic approaches"
+        ]},
+        {"description": "Communicate technical concepts effectively", "variants": [
+            "Effectively communicate technical concepts to diverse audiences",
+            "Communicate technical ideas and designs effectively",
+            "Effectively present and document technical information"
+        ]},
+        {"description": "Work collaboratively in team environments", "variants": [
+            "Collaborate effectively in team-based development projects",
+            "Work effectively in collaborative team environments",
+            "Participate constructively in collaborative technical teams"
+        ]},
+        {"description": "Apply ethical principles to technological solutions", "variants": [
+            "Consider ethical implications when developing technical solutions",
+            "Apply professional ethics to technology development",
+            "Integrate ethical considerations into solution development"
+        ]}
+    ]
+
     # Default course outcomes for any course that doesn't have predefined ones
     default_outcomes = [
         {"code": "CO-1", "description": "Understand and apply fundamental principles in this field"},
@@ -325,7 +360,82 @@ def generate_course_outcomes(courses, program_outcomes):
                     "description": outcome["description"]
                 })
 
-        for co_data in course_data:
+        # Randomly determine the number of outcomes (between 2 and 6)
+        num_outcomes = random.randint(2, 6)
+        
+        # Create a list to hold the selected outcomes for this course
+        selected_outcomes = []
+        
+        # Keep track of descriptions to avoid exact duplicates within the same course
+        course_descriptions = set()
+
+        # For each outcome slot
+        for i in range(1, num_outcomes + 1):
+            # Decide whether to use a shared outcome (30% chance) or course-specific one
+            use_shared = random.random() < 0.3
+            
+            if use_shared and shared_outcomes:
+                # Select a random shared outcome
+                shared = random.choice(shared_outcomes)
+                # Decide whether to use the main description or a variant
+                if random.random() < 0.6:  # 60% chance to use a variant
+                    if shared["variants"]:
+                        description = random.choice(shared["variants"])
+                    else:
+                        description = shared["description"]
+                else:
+                    description = shared["description"]
+                
+                # Create a code for this outcome
+                code = f"{course.code}-{i}"
+                
+            else:
+                # Use course-specific outcome if available, otherwise use default
+                if i <= len(course_data):
+                    code = course_data[i-1]["code"]
+                    description = course_data[i-1]["description"]
+                else:
+                    # If we need more outcomes than are defined, create generic ones
+                    code = f"{course.code}-{i}"
+                    # Try to use a shared outcome as a fallback
+                    if shared_outcomes:
+                        random_shared = random.choice(shared_outcomes)
+                        description = random_shared["description"]
+                    else:
+                        # Use a default if no shared outcomes available
+                        description = f"Outcome {i} for {course.code}"
+            
+            # Check if this exact description is already used for this course
+            if description not in course_descriptions:
+                selected_outcomes.append({
+                    "code": code,
+                    "description": description
+                })
+                course_descriptions.add(description)
+            else:
+                # If duplicate, try to find a non-duplicate
+                attempts = 0
+                while attempts < 5 and description in course_descriptions:
+                    # Try to find a unique description
+                    if shared_outcomes:
+                        random_shared = random.choice(shared_outcomes)
+                        if random.random() < 0.6 and random_shared["variants"]:
+                            description = random.choice(random_shared["variants"])
+                        else:
+                            description = random_shared["description"]
+                    else:
+                        description = f"Unique outcome {i} for {course.code} (attempt {attempts})"
+                    attempts += 1
+                
+                # Add the outcome (even if still duplicate after attempts, at least we tried)
+                selected_outcomes.append({
+                    "code": code,
+                    "description": description
+                })
+                course_descriptions.add(description)
+
+        # Now create the course outcomes from our selected list
+        for co_data in selected_outcomes:
             course_outcome = CourseOutcome(
                 code=co_data["code"],
                 description=co_data["description"],
