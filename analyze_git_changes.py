@@ -89,7 +89,7 @@ def suggest_version_history_update():
     
     # Format version history entry
     version_history = [
-        "Version 28.0 (July 2023):",
+        "Version 28.0 (April 2025):",
     ]
     
     # Add new features
