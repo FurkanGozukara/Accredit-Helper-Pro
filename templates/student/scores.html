@@ -104,6 +104,9 @@
         <div class="card-header bg-light d-flex justify-content-between align-items-center">
             <h4 class="mb-0">Enter Scores: {{ exam.name }} ({{ exam.course.code }})</h4>
             <span>
+                <button type="button" class="btn btn-outline-danger" id="markZeroNotAttendedButton">
+                    <i class="fas fa-user-times"></i> Mark 0-Score Students Not Attended
+                </button>
                 <button type="button" class="btn btn-outline-success" id="saveAllButton">
                     <i class="fas fa-save"></i> Save All Changes
                 </button>
@@ -176,9 +179,8 @@
                                                     <small>({{ question.max_score|float|round(1) }})</small>
                                                 </div>
                                                 <div class="score-input-container">
-                                                    {% set score = scores|selectattr('student_id', 'equalto', student.id)
-                                                                          |selectattr('question_id', 'equalto', question.id)
-                                                                          |first %}
+                                                    {% set score_key = (student.id, question.id) %}
+                                                    {% set score = scores_dict.get(score_key) %}
                                                     <input type="number" 
                                                         class="form-control score-input student-{{ student.id }}" 
                                                         name="score_{{ student.id }}_{{ question.id }}" 
@@ -295,6 +297,7 @@
         const scoreInputs = document.querySelectorAll('.score-input');
         const saveStatus = document.getElementById('saveStatus');
         const saveAllButton = document.getElementById('saveAllButton');
+        const markZeroNotAttendedButton = document.getElementById('markZeroNotAttendedButton');
         const form = document.getElementById('scoresForm');
         
         // Initialize popovers
@@ -348,6 +351,90 @@
         // Save all button
         saveAllButton.addEventListener('click', function() {
             form.submit();
+        });
+        
+        // Mark 0-score students as not attended button
+        markZeroNotAttendedButton.addEventListener('click', function() {
+            if (!confirm('Are you sure you want to mark all students with total score 0 as not attended?')) {
+                return;
+            }
+            
+            // Get all student IDs and their total scores
+            const studentIds = new Set();
+            scoreInputs.forEach(input => {
+                studentIds.add(input.dataset.studentId);
+            });
+            
+            let updatedCount = 0;
+            let promises = [];
+            
+            // Check each student
+            studentIds.forEach(studentId => {
+                const totalElement = document.getElementById(`total_value_${studentId}`);
+                if (!totalElement) return;
+                
+                const totalValue = parseFloat(totalElement.textContent);
+                if (isNaN(totalValue) || totalValue > 0) return; // Skip non-zero and N/A students
+                
+                // Find toggle checkbox
+                const toggle = document.getElementById(`attended_${studentId}`);
+                if (!toggle || !toggle.checked) return; // Skip already not attended
+                
+                // Update UI
+                toggle.checked = false;
+                toggle.nextElementSibling.textContent = 'Did Not Join';
+                
+                // Add not-attended-badge
+                let badge = toggle.closest('.student-cell').querySelector('.not-attended-badge');
+                if (!badge) {
+                    badge = document.createElement('div');
+                    badge.className = 'not-attended-badge';
+                    badge.innerHTML = '<i class="fas fa-times-circle"></i> Not Attended';
+                    toggle.closest('.student-cell').appendChild(badge);
+                }
+                
+                // Disable all inputs for this student
+                const studentInputs = document.querySelectorAll('.score-input.student-' + studentId);
+                studentInputs.forEach(input => {
+                    input.disabled = true;
+                });
+                
+                // Add student-not-attended class to table
+                toggle.closest('table').classList.add('student-not-attended');
+                
+                // Update summary values
+                totalElement.textContent = 'N/A';
+                document.getElementById(`percentage_value_${studentId}`).textContent = 'N/A';
+                
+                // Send AJAX request to update attendance
+                const examId = toggle.dataset.examId;
+                const promise = fetch('/student/exam/' + examId + '/update-attendance', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        student_id: studentId,
+                        attended: false
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updatedCount++;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+                
+                promises.push(promise);
+            });
+            
+            // After all requests are done
+            Promise.all(promises).then(() => {
+                showSaveStatus(`Updated ${updatedCount} students to not attended`, 'success');
+            });
         });
         
         // Handle attendance toggle
@@ -617,6 +704,15 @@
             
             html += '</tbody></table></div>';
             container.innerHTML = html;
+        }
+        
+        function showSaveStatus(message, type) {
+            saveStatus.textContent = message;
+            saveStatus.className = 'text-' + (type === 'success' ? 'success' : 'danger');
+            
+            setTimeout(() => {
+                saveStatus.textContent = '';
+            }, 3000);
         }
     });
 </script>

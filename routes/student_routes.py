@@ -17,6 +17,7 @@ from werkzeug.utils import secure_filename
 import os
 from chardet import detect
 import traceback
+from sqlalchemy.sql import text
 
 student_bp = Blueprint('student', __name__, url_prefix='/student')
 
@@ -423,10 +424,11 @@ def manage_scores(exam_id):
         flash('No students found for this course. Please import students first.', 'warning')
         return redirect(url_for('student.import_students', course_id=course.id))
     
-    # Get attendance records
+    # Get attendance records - more efficient with a dictionary
     attendances = StudentExamAttendance.query.filter_by(exam_id=exam_id).all()
     attendance_dict = {a.student_id: a.attended for a in attendances}
     
+    # Handle form submission
     if request.method == 'POST':
         try:
             # Optional: update existing scores instead of removing them all
@@ -490,8 +492,11 @@ def manage_scores(exam_id):
             db.session.rollback()
             flash(f'Error saving scores: {str(e)}', 'error')
     
-    # Get existing scores
+    # Get existing scores and create an optimized lookup dictionary
     scores = Score.query.filter_by(exam_id=exam_id).all()
+    scores_dict = {}
+    for score in scores:
+        scores_dict[(score.student_id, score.question_id)] = score
     
     return render_template('student/scores.html',
                          exam=exam,
@@ -499,14 +504,13 @@ def manage_scores(exam_id):
                          questions=questions,
                          students=students,
                          scores=scores,
+                         scores_dict=scores_dict,
                          attendance_dict=attendance_dict,
                          active_page='courses')
 
 @student_bp.route('/exam/<int:exam_id>/scores/auto-save', methods=['POST'])
 def auto_save_score(exam_id):
     """Auto-save a single score via AJAX"""
-    exam = Exam.query.get_or_404(exam_id)
-    
     try:
         data = request.get_json()
         
@@ -517,63 +521,93 @@ def auto_save_score(exam_id):
         question_id = int(data['question_id'])
         score_value = data.get('score', '')
         
-        # Check if the student attended the exam
-        attendance = StudentExamAttendance.query.filter_by(
-            student_id=student_id,
-            exam_id=exam_id
+        # Check attendance and get question in a single query 
+        # to reduce database round-trips
+        attendance_status = db.session.query(
+            StudentExamAttendance.attended, 
+            Question.max_score
+        ).outerjoin(
+            StudentExamAttendance, 
+            db.and_(
+                StudentExamAttendance.student_id == student_id,
+                StudentExamAttendance.exam_id == exam_id
+            )
+        ).filter(
+            Question.id == question_id
         ).first()
         
-        # If there's an attendance record and the student didn't attend, don't save the score
-        if attendance and not attendance.attended:
-            return jsonify({'success': False, 'error': 'Student did not attend the exam'})
+        if not attendance_status:
+            return jsonify({'success': False, 'error': 'Question not found'})
+            
+        # Extract values from the query result
+        attended = True if attendance_status[0] is None else attendance_status[0]
+        max_score = attendance_status[1]
         
-        # Get the question to check max score
-        question = Question.query.get_or_404(question_id)
+        # If student didn't attend, don't save
+        if not attended:
+            return jsonify({'success': False, 'error': 'Student did not attend the exam'})
         
         # Handle empty score (delete if exists)
         if score_value == '':
-            existing_score = Score.query.filter_by(
-                student_id=student_id,
-                question_id=question_id,
-                exam_id=exam_id
-            ).first()
-            
-            if existing_score:
-                db.session.delete(existing_score)
-                db.session.commit()
-            
+            # Use direct SQL for faster deletion
+            db.session.execute(
+                text("DELETE FROM score WHERE student_id = :student_id AND question_id = :question_id AND exam_id = :exam_id"),
+                {"student_id": student_id, "question_id": question_id, "exam_id": exam_id}
+            )
+            db.session.commit()
             return jsonify({'success': True})
         
         # Convert and validate score
         try:
-            score_value = Decimal(score_value)
+            score_value = Decimal(str(score_value))
             
             if score_value < 0:
                 score_value = Decimal('0')
-            elif score_value > question.max_score:
-                score_value = question.max_score
+            elif score_value > max_score:
+                score_value = max_score
                 
-        except ValueError:
+        except (ValueError, InvalidOperation):
             return jsonify({'success': False, 'error': 'Invalid score value'})
         
-        # Get or create score record
-        score = Score.query.filter_by(
-            student_id=student_id,
-            question_id=question_id,
-            exam_id=exam_id
-        ).first()
+        # Convert Decimal to float for SQLite compatibility
+        score_float = float(score_value)
+        current_time = datetime.now()
         
-        if score:
-            score.score = score_value
-            score.updated_at = datetime.now()
-        else:
-            score = Score(
-                score=score_value,
-                student_id=student_id,
-                question_id=question_id,
-                exam_id=exam_id
+        # Use upsert (insert or update) pattern for more efficiency
+        # First try to update existing score
+        result = db.session.execute(
+            text("""
+                UPDATE score 
+                SET score = :score, updated_at = :updated_at
+                WHERE student_id = :student_id 
+                  AND question_id = :question_id 
+                  AND exam_id = :exam_id
+            """),
+            {
+                "score": score_float,  # Use float instead of Decimal
+                "updated_at": current_time,
+                "student_id": student_id,
+                "question_id": question_id,
+                "exam_id": exam_id
+            }
+        )
+        
+        # If no rows were updated, insert new score
+        if result.rowcount == 0:
+            db.session.execute(
+                text("""
+                    INSERT INTO score (score, student_id, question_id, exam_id, created_at, updated_at)
+                    VALUES (:score, :student_id, :question_id, :exam_id, :created_at, :updated_at)
+                """),
+                {
+                    "score": score_float,  # Use float instead of Decimal
+                    "student_id": student_id,
+                    "question_id": question_id,
+                    "exam_id": exam_id,
+                    "created_at": current_time,
+                    "updated_at": current_time
+                }
             )
-            db.session.add(score)
         
         db.session.commit()
         return jsonify({'success': True})
