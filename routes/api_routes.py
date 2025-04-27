@@ -1,12 +1,84 @@
 from flask import Blueprint, jsonify, request
-from models import Question, CourseOutcome, Log, Student, Exam, Score, Course, AchievementLevel, ExamWeight, StudentExamAttendance
+from models import Question, CourseOutcome, Log, Student, Exam, Score, Course, AchievementLevel, ExamWeight, StudentExamAttendance, ProgramOutcome
 from app import db
 import logging
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from routes.calculation_routes import get_achievement_level, calculate_student_exam_score_optimized, calculate_course_outcome_score_optimized
 import re
+import traceback
+from datetime import datetime
+from sqlalchemy import inspect, text
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
+
+@api_bp.route('/update-question-co-weight', methods=['POST'])
+def update_question_co_weight():
+    """API endpoint for updating a single question-course outcome weight"""
+    data = request.json
+    logging.debug(f"Received request to update Q-CO weight: {data}") # Log request data
+
+    if not data or 'question_id' not in data or 'outcome_id' not in data or 'weight' not in data:
+        logging.warning("Missing required data for weight update")
+        return jsonify({'success': False, 'message': 'Missing required data'}), 400
+
+    question_id = data['question_id']
+    outcome_id = data['outcome_id']
+    weight_str = str(data['weight']) # Ensure it's a string for Decimal conversion
+
+    try:
+        # Validate and convert weight
+        weight_value = Decimal(weight_str)
+        if weight_value < Decimal('0.01'):
+            weight_value = Decimal('0.01')
+        elif weight_value > Decimal('9.99'):
+            weight_value = Decimal('9.99')
+        else:
+            # Round to 2 decimal places
+            weight_value = weight_value.quantize(Decimal('0.01'))
+
+        # Ensure the association exists before updating weight
+        exists = db.session.execute(text(
+            "SELECT 1 FROM question_course_outcome WHERE question_id = :qid AND course_outcome_id = :coid"
+        ), {"qid": question_id, "coid": outcome_id}).fetchone()
+
+        if not exists:
+             logging.warning(f"Attempted to update weight for non-existent association: Q:{question_id}, CO:{outcome_id}")
+             # Optionally, create the association here if needed, or return error
+             # For now, assume association should exist if weight is being set
+             return jsonify({'success': False, 'message': 'Association does not exist'}), 404
+
+        # Convert Decimal to float before binding to avoid SQLite type errors
+        weight_float = float(weight_value)
+
+        # Update the weight in the association table using parameterized query
+        result = db.session.execute(text(
+            """
+            UPDATE question_course_outcome
+            SET relative_weight = :weight
+            WHERE question_id = :qid AND course_outcome_id = :coid
+            """
+        ), {
+            "weight": weight_float, # Use float instead of Decimal for SQLite compatibility
+            "qid": question_id,
+            "coid": outcome_id
+        })
+
+        db.session.commit()
+        logging.info(f"Updated weight for Q:{question_id}-CO:{outcome_id} to {weight_value}. Rows affected: {result.rowcount}")
+
+        return jsonify({
+            'success': True,
+            'message': 'Weight updated successfully',
+            'new_weight': float(weight_value) # Return updated weight for UI
+        })
+
+    except InvalidOperation:
+         logging.warning(f"Invalid weight format received: {weight_str}")
+         return jsonify({'success': False, 'message': 'Invalid weight format'}), 400
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error updating question-outcome weight: Q:{question_id}, CO:{outcome_id}, Weight:{weight_str}, Error: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
 
 @api_bp.route('/course_outcome_program_outcome/get_weight', methods=['POST'])
 def get_co_po_weight():
@@ -23,7 +95,6 @@ def get_co_po_weight():
             return jsonify({'success': False, 'message': 'Missing required parameters'}), 400
             
         # Check if the column exists in the table
-        from sqlalchemy import inspect, text
         inspector = inspect(db.engine)
         columns = [c['name'] for c in inspector.get_columns('course_outcome_program_outcome')]
         
@@ -197,6 +268,15 @@ def mass_associate_outcomes():
             if code_match:
                 outcome_map[int(code_match.group(1))] = outcome.id
         
+        # Check if relative_weight column exists
+        has_relative_weight = False
+        try:
+            inspector = inspect(db.engine)
+            columns = [c['name'] for c in inspector.get_columns('question_course_outcome')]
+            has_relative_weight = 'relative_weight' in columns
+        except Exception as e:
+            logging.warning(f"Could not check for relative_weight column: {e}")
+            
         # Parse the associations text
         associations = associations_text.split(';')
         updates = 0
@@ -225,16 +305,46 @@ def mass_associate_outcomes():
                 errors.append(f"Question {question_num} not found in this exam")
                 continue
             
-            # Extract outcomes (oc1 -> 1)
+            # Extract outcomes and weights 
             outcome_ids = []
-            for i in range(1, len(parts)):
-                co_match = re.match(r'co(\d+)', parts[i].lower())
+            outcome_weights = {}
+            
+            # Process all parts after the question identifier
+            i = 1
+            while i < len(parts):
+                part = parts[i]
+                co_match = re.match(r'co(\d+)', part.lower())
+                
                 if co_match:
+                    # This is a course outcome
                     outcome_num = int(co_match.group(1))
+                    i += 1  # Move to next part
+                    
                     if outcome_num in outcome_map:
-                        outcome_ids.append(outcome_map[outcome_num])
+                        outcome_id = outcome_map[outcome_num]
+                        outcome_ids.append(outcome_id)
+                        
+                        # Check if the next part is a weight (if exists and can be parsed as a decimal)
+                        if i < len(parts):
+                            try:
+                                weight = float(parts[i])
+                                if weight < 0.01:
+                                    weight = 0.01
+                                if weight > 9.99:
+                                    weight = 9.99
+                                outcome_weights[outcome_id] = weight
+                                i += 1  # Skip the weight in the next iteration
+                            except (ValueError, TypeError):
+                                # Not a valid number, use default weight 1.0
+                                outcome_weights[outcome_id] = 1.0
+                        else:
+                            # No more parts, use default weight
+                            outcome_weights[outcome_id] = 1.0
                     else:
                         errors.append(f"Outcome {outcome_num} not found in this course")
+                else:
+                    # This is not a course outcome identifier, skip it
+                    i += 1
             
             # Update the question's outcomes
             if outcome_ids:
@@ -246,6 +356,20 @@ def mass_associate_outcomes():
                     outcome = CourseOutcome.query.get(outcome_id)
                     if outcome:
                         question.course_outcomes.append(outcome)
+                
+                # First flush to ensure we have the associations in the DB before setting weights
+                db.session.flush()
+                
+                # Set weights if supported - doing this immediately after creating each association
+                if has_relative_weight:
+                    for outcome_id in outcome_ids:
+                        if outcome_id in outcome_weights:
+                            weight = outcome_weights[outcome_id]
+                            # Convert to float to avoid SQLite binding issues
+                            db.session.execute(text(
+                                "UPDATE question_course_outcome SET relative_weight = :weight "
+                                "WHERE question_id = :qid AND course_outcome_id = :coid"
+                            ), {"weight": float(weight), "qid": question.id, "coid": outcome_id})
                 
                 updates += 1
         
@@ -348,7 +472,9 @@ def get_course_achievement_levels(course_id):
                 name=level_data["name"],
                 min_score=level_data["min_score"],
                 max_score=level_data["max_score"],
-                color=level_data["color"]
+                color=level_data["color"],
+                created_at=datetime.now(),
+                updated_at=datetime.now()
             )
             db.session.add(level)
         

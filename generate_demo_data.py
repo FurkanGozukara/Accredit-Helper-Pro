@@ -975,9 +975,52 @@ def generate_questions(exams, course_outcomes):
     try:
         session.commit()
         print(f"Created {len(all_questions)} questions")
+
+        # --- START: Assign Question-CO Weights ---
+        try:
+            from sqlalchemy import text # Ensure text is imported
+
+            # Check if relative_weight column exists in the DB first
+            has_relative_weight = False
+            try:
+                inspector = inspect(engine)
+                qco_columns = [c['name'] for c in inspector.get_columns('question_course_outcome')]
+                has_relative_weight = 'relative_weight' in qco_columns
+            except Exception as inspect_e:
+                 print(f"Warning: Could not inspect question_course_outcome table for relative_weight: {inspect_e}")
+
+            if has_relative_weight:
+                print("Assigning random relative weights to Question-CO associations...")
+                stmt = text("""
+                    UPDATE question_course_outcome
+                    SET relative_weight = :weight
+                    WHERE question_id = :q_id AND course_outcome_id = :co_id
+                """)
+
+                weights_assigned = 0
+                for question in all_questions: # Assuming all_questions holds the newly created questions
+                    if hasattr(question, 'course_outcomes'): # Check if relationship was loaded/set
+                        for co in question.course_outcomes:
+                            # Generate a random weight between 0.5 and 2.0 with 0.01 precision
+                            relative_weight = round(random.uniform(0.5, 2.0), 2)
+                            try:
+                                session.execute(stmt, {"weight": relative_weight, "q_id": question.id, "co_id": co.id})
+                                weights_assigned += 1
+                            except Exception as update_e:
+                                 print(f"Warning: Failed to set weight for Q:{question.id}-CO:{co.id} - {update_e}")
+
+                session.commit()
+                print(f"Assigned weights to {weights_assigned} Question-CO associations.")
+            else:
+                 print("Skipping Question-CO weight assignment: relative_weight column not found.")
+        except Exception as e:
+            print(f"Error assigning weights to Question-CO associations: {e}")
+            session.rollback()
+        # --- END: Assign Question-CO Weights ---
+
     except Exception as e:
         session.rollback()
-        print(f"Error creating questions: {e}")
+        print(f"Error creating questions: {str(e)}")
         return []
     return all_questions
 

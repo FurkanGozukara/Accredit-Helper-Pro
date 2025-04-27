@@ -30,8 +30,9 @@ course_outcome_program_outcome = db.Table(
 
 question_course_outcome = db.Table(
     'question_course_outcome',
-    db.Column('question_id', db.Integer, db.ForeignKey('question.id'), primary_key=True),
-    db.Column('course_outcome_id', db.Integer, db.ForeignKey('course_outcome.id'), primary_key=True),
+    db.Column('question_id', db.Integer, db.ForeignKey('question.id', ondelete='CASCADE'), primary_key=True), # Added ondelete cascade
+    db.Column('course_outcome_id', db.Integer, db.ForeignKey('course_outcome.id', ondelete='CASCADE'), primary_key=True), # Added ondelete cascade
+    db.Column('relative_weight', db.Numeric(10, 2), nullable=False, default=1.0), # New column for Q-CO weight
     Index('idx_qco_q_id', 'question_id'),
     Index('idx_qco_co_id', 'course_outcome_id'),
     Index('idx_qco_combined', 'question_id', 'course_outcome_id')

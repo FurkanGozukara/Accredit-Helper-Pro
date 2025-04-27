@@ -6,7 +6,7 @@ import logging
 import io
 import csv
 from decimal import Decimal, InvalidOperation
-from sqlalchemy import text
+from sqlalchemy import text, inspect
 from sqlalchemy.orm import joinedload, contains_eager # Added imports
 
 from routes.utility_routes import export_to_excel_csv
@@ -307,6 +307,33 @@ def exam_detail(exam_id):
     # Calculate the sum of all question scores
     total_question_score = sum(float(q.max_score) for q in questions) if questions else 0
 
+    # --- START: Fetch Q-CO Weights ---
+    question_co_weights = {}
+    try:
+        inspector = inspect(db.engine)
+        qco_columns = [c['name'] for c in inspector.get_columns('question_course_outcome')]
+        has_relative_weight = 'relative_weight' in qco_columns
+
+        if has_relative_weight:
+            question_ids = [q.id for q in questions]
+            if question_ids:
+                 # Correctly construct IN clause for SQLite with named parameters
+                 placeholders = ', '.join(f':q{i}' for i in range(len(question_ids)))
+                 query = f"SELECT question_id, course_outcome_id, relative_weight FROM question_course_outcome WHERE question_id IN ({placeholders})"
+                 
+                 # Create params dictionary
+                 params = {f'q{i}': q_id for i, q_id in enumerate(question_ids)}
+                 
+                 weights_result = db.session.execute(text(query), params).fetchall()
+
+                 for q_id, co_id, weight in weights_result:
+                     if q_id not in question_co_weights:
+                         question_co_weights[q_id] = {}
+                     question_co_weights[q_id][co_id] = float(weight) if weight is not None else 1.0
+    except Exception as e:
+        logging.warning(f"Could not fetch Q-CO weights for exam {exam_id}: {e}")
+    # --- END: Fetch Q-CO Weights ---
+
     return render_template('exam/detail.html',
                          exam=exam,
                          course=course,
@@ -314,6 +341,7 @@ def exam_detail(exam_id):
                          course_outcomes=course_outcomes,
                          exam_weight=exam_weight,
                          total_question_score=total_question_score,
+                         question_co_weights=question_co_weights,
                          active_page='courses')
 
 @exam_bp.route('/course/<int:course_id>/weights', methods=['GET', 'POST'])

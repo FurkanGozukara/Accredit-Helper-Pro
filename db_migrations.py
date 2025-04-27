@@ -66,6 +66,32 @@ def check_and_update_database(app):
             else:
                 logging.warning("course_outcome_program_outcome table not found. It will be created when the app runs.")
         
+            # --- START: Add Check for Question-CO Relative Weight ---
+            if 'question_course_outcome' in inspector.get_table_names():
+                logging.info("Found question_course_outcome table, checking for relative_weight column")
+                
+                # Check if relative_weight column exists
+                qco_columns = [c['name'] for c in inspector.get_columns('question_course_outcome')]
+                
+                if 'relative_weight' not in qco_columns:
+                    logging.info("Adding relative_weight column to question_course_outcome table")
+                    
+                    # Add the column using raw SQL
+                    # Use specific ALTER TABLE syntax compatible with SQLite and default value
+                    with engine.connect() as connection:
+                        connection.execute(text(
+                            "ALTER TABLE question_course_outcome ADD COLUMN relative_weight NUMERIC(10,2) DEFAULT 1.0 NOT NULL"
+                        ))
+                        # No need for separate UPDATE as default is set during ADD COLUMN in SQLite
+                        connection.commit()
+                    
+                    logging.info("Successfully added relative_weight column to question_course_outcome table")
+                else:
+                    logging.info("relative_weight column already exists in question_course_outcome table")
+            else:
+                logging.warning("question_course_outcome table not found. It will be created when the app runs.")
+            # --- END: Add Check for Question-CO Relative Weight ---
+        
         return True
     
     except Exception as e:

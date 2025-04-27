@@ -9,118 +9,190 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
+<div class="container-fluid mt-3">
     <div class="card">
-        <div class="card-header bg-light d-flex justify-content-between align-items-center">
-            <h4 class="mb-0">Mass Associate Questions with Outcomes: {{ course.code }}</h4>
+        <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
+            <h5 class="mb-0">Mass Associate Questions with Outcomes: {{ course.code }}</h5>
             <div>
-                <a href="{{ url_for('question.export_mass_associate_outcomes', course_id=course.id) }}" class="btn btn-success me-2">
-                    <i class="fas fa-file-export"></i> Export All
+                <a href="{{ url_for('question.export_mass_associate_outcomes', course_id=course.id) }}" class="btn btn-success btn-sm me-2">
+                    <i class="fas fa-file-export"></i> Export
                 </a>
-                <a href="{{ url_for('course.course_detail', course_id=course.id) }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left"></i> Back to Course
+                <a href="{{ url_for('course.course_detail', course_id=course.id) }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-arrow-left"></i> Back
                 </a>
             </div>
         </div>
-        <div class="card-body">
-            <div class="alert alert-info mb-4">
+        <div class="card-body p-3">
+            <div class="alert alert-info mb-3 py-2">
                 <i class="fas fa-info-circle"></i> 
-                Efficiently manage associations between questions and course outcomes. Select multiple outcomes for each question.
-                <strong>Changes are saved automatically.</strong>
+                Select multiple outcomes for each question and adjust weights. <strong>Changes are saved automatically.</strong>
+            </div>
+            
+            <!-- Course Outcomes Reference Panel -->
+            <div class="card mb-3 border-info">
+                <div class="card-header bg-info bg-opacity-10 py-2 d-flex justify-content-between align-items-center" id="outcomesReference">
+                    <h6 class="mb-0">
+                        <i class="fas fa-graduation-cap me-1"></i> Course Outcomes Reference
+                    </h6>
+                    <button class="btn btn-sm btn-outline-info" type="button" data-bs-toggle="collapse" data-bs-target="#outcomesReferenceBody" aria-expanded="false" aria-controls="outcomesReferenceBody">
+                        <i class="fas fa-chevron-down"></i> Show/Hide Descriptions
+                    </button>
+                </div>
+                <div class="collapse" id="outcomesReferenceBody">
+                    <div class="card-body p-3">
+                        <div class="row">
+                            {% for outcome in course_outcomes %}
+                            <div class="col-md-6 mb-2">
+                                <div class="d-flex">
+                                    <span class="badge bg-info text-white me-2">{{ outcome.code }}</span>
+                                    <span class="small">{{ outcome.description }}</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <!-- Status indicator for auto-save -->
-            <div id="autoSaveStatus" class="alert alert-success d-none" role="alert">
+            <div id="autoSaveStatus" class="alert alert-success d-none py-2" role="alert">
                 <i class="fas fa-check-circle"></i> <span id="autoSaveMessage">Changes saved successfully!</span>
             </div>
             
             <!-- Mass Import Section -->
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">Mass Import/Update Associations</h5>
+            <div class="card mb-3">
+                <div class="card-header bg-light py-2">
+                    <h6 class="mb-0">Mass Import/Update Associations</h6>
                 </div>
-                <div class="card-body">
-                    <div class="alert alert-info">
+                <div class="card-body p-3">
+                    <div class="alert alert-info py-2 small">
                         <i class="fas fa-info-circle"></i> 
-                        Import relationships in format: <code>q1:co1:co3:co5;q2:co2;q3:co3:co4</code><br>
-                        Where <code>q1</code> is question 1, <code>co1</code> is outcome 1, etc.
+                        Format: <code>q1:co1:co3:co5;q2:co2;q3:co3:co4</code> where <code>q1</code> is question 1, <code>co1</code> is outcome 1, etc.
                     </div>
-                    <div class="mb-3">
-                        <label for="examSelect" class="form-label">Select Exam:</label>
-                        <select id="examSelect" class="form-select">
-                            <option value="">Select an exam...</option>
-                            {% for exam in exams %}
-                                <option value="{{ exam.id }}">{{ exam.name }}</option>
-                            {% endfor %}
-                        </select>
+                    <div class="alert alert-info py-2 small">
+                        <i class="fas fa-info-circle"></i> 
+                        Alternative format with weights: <code>q1:co1:0.3:co3:co5;q2:co2:0.7;q3:co3:co4</code> where <code>0.3</code> is the weight for outcome co1, etc.
                     </div>
-                    <div class="mb-3">
-                        <label for="massImport" class="form-label">Import/Update Relationships:</label>
-                        <textarea id="massImport" class="form-control" rows="3" placeholder="e.g., q1:co1:co3:co5;q2:co2;q3:co3:co4"></textarea>
+                    <div class="row">
+                        <div class="col-md-4 mb-2">
+                            <select id="examSelect" class="form-select form-select-sm">
+                                <option value="">Select an exam...</option>
+                                {% for exam in exams %}
+                                    <option value="{{ exam.id }}">{{ exam.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <textarea id="massImport" class="form-control form-control-sm" rows="1" placeholder="e.g., q1:co1:co3:co5;q2:co2;q3:co3:co4"></textarea>
+                        </div>
+                        <div class="col-md-2 mb-2">
+                            <button type="button" id="applyMassImport" class="btn btn-success btn-sm w-100" disabled>
+                                <i class="fas fa-file-import"></i> Apply
+                            </button>
+                        </div>
                     </div>
-                    <button type="button" id="applyMassImport" class="btn btn-success" disabled>
-                        <i class="fas fa-file-import"></i> Apply Import
-                    </button>
                 </div>
             </div>
             
             <!-- Exam Filter Dropdown -->
-            <div class="mb-4">
-                <label for="examFilter" class="form-label fw-bold">Filter by Exam:</label>
-                <select id="examFilter" class="form-select">
-                    <option value="all">All Exams</option>
-                    {% for exam in exams %}
-                        <option value="{{ exam.id }}">{{ exam.name }}</option>
-                    {% endfor %}
-                </select>
+            <div class="mb-3">
+                <div class="row align-items-center">
+                    <div class="col-md-4">
+                        <div class="input-group input-group-sm">
+                            <label class="input-group-text" for="examFilter">Filter by Exam:</label>
+                            <select id="examFilter" class="form-select form-select-sm">
+                                <option value="all">All Exams</option>
+                                {% for exam in exams %}
+                                    <option value="{{ exam.id }}" {% if selected_exam_id and selected_exam_id|string == exam.id|string %}selected{% endif %}>{{ exam.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-8 text-end">
+                        <button type="button" class="btn btn-outline-primary btn-sm me-1" id="expandAllBtn">
+                            <i class="fas fa-expand-alt"></i> Expand All
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="collapseAllBtn">
+                            <i class="fas fa-compress-alt"></i> Collapse All
+                        </button>
+                    </div>
+                </div>
             </div>
             
             <form method="POST" id="massAssociateForm">
-                <div class="d-flex justify-content-end mb-3">
-                    <button type="button" class="btn btn-outline-primary me-2" id="expandAllBtn">
-                        <i class="fas fa-expand-alt"></i> Expand All
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" id="collapseAllBtn">
-                        <i class="fas fa-compress-alt"></i> Collapse All
-                    </button>
-                </div>
-                
                 <div class="accordion" id="questionsAccordion">
                     {% for question in questions %}
                         <div class="accordion-item exam-item" data-exam-id="{{ question.exam_id }}">
                             <h2 class="accordion-header" id="heading{{ question.id }}">
-                                <button class="accordion-button" type="button" data-bs-toggle="collapse" 
-                                        data-bs-target="#collapse{{ question.id }}" aria-expanded="true" 
+                                <button class="accordion-button p-2 collapsed" type="button" data-bs-toggle="collapse" 
+                                        data-bs-target="#collapse{{ question.id }}" aria-expanded="false" 
                                         aria-controls="collapse{{ question.id }}">
-                                    {{ question.exam_name }} - Q{{ question.number }} ({{ question.max_score }} pts)
+                                    <span class="fw-medium">{{ question.exam_name }} - Q{{ question.number }}</span> <span class="ms-2 text-muted">({{ question.max_score }} pts)</span>
                                 </button>
                             </h2>
-                            <div id="collapse{{ question.id }}" class="accordion-collapse collapse show" 
+                            <div id="collapse{{ question.id }}" class="accordion-collapse collapse" 
                                  aria-labelledby="heading{{ question.id }}" data-bs-parent="#questionsAccordion">
-                                <div class="accordion-body">
+                                <div class="accordion-body p-3">
+                                    {% if question.text %}
+                                    <div class="mb-2 border-bottom pb-2">
+                                        <strong class="text-muted small">Question Text:</strong>
+                                        <p class="text-muted small mb-1">{{ question.text }}</p>
+                                    </div>
+                                    {% endif %}
+                                    
                                     <div class="row">
-                                        <div class="col-md-6">
-                                            <p class="text-muted">{{ question.text }}</p>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="form-group">
-                                                <label class="form-label">Course Outcomes:</label>
-                                                <div class="outcome-checkboxes">
-                                                    {% for outcome in course_outcomes %}
-                                                        <div class="form-check">
-                                                            <input class="form-check-input auto-save-checkbox" type="checkbox" 
-                                                                name="outcomes_{{ question.id }}" 
-                                                                value="{{ outcome.id }}" 
-                                                                id="outcome_{{ question.id }}_{{ outcome.id }}"
-                                                                data-question-id="{{ question.id }}"
-                                                                data-outcome-id="{{ outcome.id }}"
-                                                                {% if outcome.id in question.outcomes %}checked{% endif %}>
-                                                            <label class="form-check-label" for="outcome_{{ question.id }}_{{ outcome.id }}">
-                                                                {{ outcome.code }}: {{ outcome.description }}
-                                                            </label>
-                                                        </div>
-                                                    {% endfor %}
+                                        <div class="col-12">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <strong class="text-muted small">Course Outcomes:</strong>
+                                            </div>
+                                            
+                                            <div class="outcome-table">
+                                                <div class="outcome-header row mx-0 mb-2 border-bottom pb-1">
+                                                    <div class="col-9"><strong class="small">Outcome</strong></div>
+                                                    <div class="col-3 text-end"><strong class="small">Weight</strong></div>
                                                 </div>
+                                                {% for outcome in course_outcomes %}
+                                                <div class="outcome-row row mx-0 align-items-center {% if outcome.id in question.outcomes %}bg-light border rounded{% endif %} py-2 mb-1">
+                                                    <div class="col-9">
+                                                        <div class="d-flex flex-column">
+                                                            <div class="form-check mb-0">
+                                                                <input class="form-check-input auto-save-checkbox" type="checkbox" 
+                                                                    name="outcomes_{{ question.id }}" 
+                                                                    value="{{ outcome.id }}" 
+                                                                    id="outcome_{{ question.id }}_{{ outcome.id }}"
+                                                                    data-question-id="{{ question.id }}"
+                                                                    data-outcome-id="{{ outcome.id }}"
+                                                                    {% if outcome.id in question.outcomes %}checked{% endif %}>
+                                                                <label class="form-check-label text-nowrap" for="outcome_{{ question.id }}_{{ outcome.id }}">
+                                                                    <strong>{{ outcome.code }}</strong>
+                                                                    <i class="fas fa-info-circle text-info ms-1 small outcome-tooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="right" title="{{ outcome.description }}"></i>
+                                                                </label>
+                                                            </div>
+                                                            <div class="outcome-description small text-muted ms-4 mt-1">
+                                                                {{ outcome.description[:600] }}{% if outcome.description|length > 600 %}...{% endif %}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-3">
+                                                        <div class="weight-container text-end" {% if outcome.id not in question.outcomes %}style="opacity:0.5"{% endif %}>
+                                                            <div class="input-group input-group-sm weight-input-group ms-auto" style="max-width:140px;">
+                                                                <span class="input-group-text py-0 px-2">Weight:</span>
+                                                                <input type="number" 
+                                                                    class="form-control form-control-sm weight-input py-0" 
+                                                                    name="weight_{{ question.id }}_{{ outcome.id }}" 
+                                                                    value="{{ question.weights.get(outcome.id, 1.0) }}"
+                                                                    data-question-id="{{ question.id }}"
+                                                                    data-outcome-id="{{ outcome.id }}"
+                                                                    min="0.01" 
+                                                                    max="9.99" 
+                                                                    step="0.01"
+                                                                    {% if outcome.id not in question.outcomes %}disabled{% endif %}
+                                                                    title="Relative weight for this question-outcome association">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
                                             </div>
                                         </div>
                                     </div>
@@ -130,11 +202,11 @@
                     {% endfor %}
                 </div>
                 
-                <div class="d-flex justify-content-between mt-4">
-                    <a href="{{ url_for('course.course_detail', course_id=course.id) }}" class="btn btn-secondary">
+                <div class="d-flex justify-content-between mt-3">
+                    <a href="{{ url_for('course.course_detail', course_id=course.id) }}" class="btn btn-secondary btn-sm">
                         <i class="fas fa-times"></i> Cancel
                     </a>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary btn-sm">
                         <i class="fas fa-save"></i> Save All Associations
                     </button>
                 </div>
@@ -145,6 +217,13 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize tooltips
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+        const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl, {
+            html: true,
+            container: 'body'
+        }))
+        
         // Mass Import functionality
         const examSelect = document.getElementById('examSelect');
         const massImport = document.getElementById('massImport');
@@ -243,6 +322,31 @@
                 autoSaveStatus.classList.add('alert-warning');
                 autoSaveMessage.textContent = 'Saving changes...';
                 
+                // Get the weight container and toggle its visibility
+                const outcomeItem = this.closest('.outcome-row');
+                const weightContainer = outcomeItem.querySelector('.weight-container');
+                
+                if (weightContainer) {
+                    weightContainer.style.opacity = isChecked ? '1' : '0.5';
+                    
+                    // Toggle the highlighted class on the parent container
+                    if (isChecked) {
+                        outcomeItem.classList.add('bg-light', 'border', 'rounded');
+                    } else {
+                        outcomeItem.classList.remove('bg-light', 'border', 'rounded');
+                    }
+                    
+                    // Toggle the disabled attribute on the weight input
+                    const weightInput = weightContainer.querySelector('.weight-input');
+                    if (weightInput) {
+                        weightInput.disabled = !isChecked;
+                        // Reset to default weight when unchecked
+                        if (!isChecked) {
+                            weightInput.value = '1.00';
+                        }
+                    }
+                }
+                
                 // Send AJAX request to update the association
                 fetch('/api/update-question-outcome', {
                     method: 'POST',
@@ -288,19 +392,151 @@
             });
         });
         
+        // Add event listeners to all weight inputs
+        document.querySelectorAll('.weight-input').forEach(weightInput => {
+            weightInput.addEventListener('change', function() {
+                const questionId = this.dataset.questionId;
+                const outcomeId = this.dataset.outcomeId;
+                const weight = parseFloat(this.value);
+                
+                // Validate weight value
+                if (isNaN(weight) || weight < 0.01 || weight > 9.99) {
+                    showStatusMessage('Weight must be between 0.01 and 9.99', 'danger');
+                    this.value = '1.00'; // Reset to default if invalid
+                    return;
+                }
+                
+                // Show saving indicator
+                autoSaveStatus.classList.remove('d-none', 'alert-success', 'alert-danger');
+                autoSaveStatus.classList.add('alert-warning');
+                autoSaveMessage.textContent = 'Saving weight change...';
+                
+                // Send AJAX request to update the weight
+                fetch('/api/update-question-co-weight', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question_id: questionId,
+                        outcome_id: outcomeId,
+                        weight: weight
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Update status message
+                    autoSaveStatus.classList.remove('alert-warning');
+                    
+                    if (data.success) {
+                        autoSaveStatus.classList.add('alert-success');
+                        autoSaveMessage.textContent = data.message;
+                    } else {
+                        autoSaveStatus.classList.add('alert-danger');
+                        autoSaveMessage.textContent = 'Error: ' + data.message;
+                    }
+                    
+                    // Hide the status message after 3 seconds
+                    clearTimeout(saveTimeout);
+                    saveTimeout = setTimeout(() => {
+                        autoSaveStatus.classList.add('d-none');
+                    }, 3000);
+                })
+                .catch(error => {
+                    autoSaveStatus.classList.remove('alert-warning');
+                    autoSaveStatus.classList.add('alert-danger');
+                    autoSaveMessage.textContent = 'Error saving weight: ' + error.message;
+                    
+                    // Hide the status message after 5 seconds
+                    clearTimeout(saveTimeout);
+                    saveTimeout = setTimeout(() => {
+                        autoSaveStatus.classList.add('d-none');
+                    }, 5000);
+                });
+            });
+        });
+        
         // Form submission - keep for bulk save
         document.getElementById('massAssociateForm').addEventListener('submit', function(e) {
-            // Show feedback when form is submitted manually
-            autoSaveStatus.classList.remove('d-none');
-            autoSaveStatus.classList.remove('alert-danger');
-            autoSaveStatus.classList.add('alert-success');
-            autoSaveMessage.textContent = 'All changes saved successfully!';
+            // Prevent default form submission
+            e.preventDefault();
             
-            // Hide the status message after 3 seconds
-            clearTimeout(saveTimeout);
-            saveTimeout = setTimeout(() => {
-                autoSaveStatus.classList.add('d-none');
-            }, 3000);
+            // Show processing message
+            autoSaveStatus.classList.remove('d-none', 'alert-success', 'alert-danger');
+            autoSaveStatus.classList.add('alert-warning');
+            autoSaveMessage.textContent = 'Saving all changes...';
+            
+            // Create an object to store all the weights
+            const formData = new FormData(this);
+            const weightData = {};
+            
+            // Loop through all weight inputs to collect current values
+            document.querySelectorAll('.weight-input').forEach(input => {
+                if (!input.disabled) {
+                    const questionId = input.dataset.questionId;
+                    const outcomeId = input.dataset.outcomeId;
+                    const weight = parseFloat(input.value);
+                    
+                    if (!isNaN(weight) && weight >= 0.01 && weight <= 9.99) {
+                        if (!weightData[questionId]) {
+                            weightData[questionId] = {};
+                        }
+                        weightData[questionId][outcomeId] = weight;
+                    }
+                }
+            });
+            
+            // Save all weights using Promise.all to run requests in parallel
+            const savePromises = [];
+            
+            for (const questionId in weightData) {
+                for (const outcomeId in weightData[questionId]) {
+                    const promise = fetch('/api/update-question-co-weight', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            question_id: questionId,
+                            outcome_id: outcomeId,
+                            weight: weightData[questionId][outcomeId]
+                        })
+                    }).then(response => response.json());
+                    
+                    savePromises.push(promise);
+                }
+            }
+            
+            Promise.all(savePromises)
+                .then(results => {
+                    // Check if all operations were successful
+                    const allSuccess = results.every(data => data.success);
+                    
+                    autoSaveStatus.classList.remove('alert-warning');
+                    
+                    if (allSuccess) {
+                        autoSaveStatus.classList.add('alert-success');
+                        autoSaveMessage.textContent = 'All changes saved successfully!';
+                    } else {
+                        // Some operations failed
+                        autoSaveStatus.classList.add('alert-danger');
+                        autoSaveMessage.textContent = 'Some changes could not be saved. Please try again.';
+                        console.error('Errors saving weights:', results.filter(r => !r.success));
+                    }
+                })
+                .catch(error => {
+                    autoSaveStatus.classList.remove('alert-warning');
+                    autoSaveStatus.classList.add('alert-danger');
+                    autoSaveMessage.textContent = 'Error saving changes: ' + error.message;
+                    console.error('Error:', error);
+                })
+                .finally(() => {
+                    // Hide the status message after 3 seconds
+                    clearTimeout(saveTimeout);
+                    saveTimeout = setTimeout(() => {
+                        autoSaveStatus.classList.add('d-none');
+                    }, 3000);
+                });
         });
 
         // Expand/collapse all accordions
@@ -331,16 +567,87 @@
             });
         });
         
-        // Initialize select2 - no longer needed, using checkboxes instead
-        // Keeping this code commented for reference
-        /*
-        if (typeof $.fn.select2 !== 'undefined') {
-            $('.outcome-select').select2({
-                width: '100%',
-                placeholder: "Select course outcomes"
-            });
+        // Auto-trigger the exam filter if a specific exam ID is selected on page load
+        if (examFilter.value !== 'all') {
+            examFilter.dispatchEvent(new Event('change'));
         }
-        */
     });
 </script>
+
+<style>
+    .outcome-row {
+        transition: all 0.2s ease;
+    }
+    
+    .outcome-row:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .weight-container {
+        transition: opacity 0.3s ease;
+    }
+    
+    .weight-input-group {
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .weight-input {
+        text-align: right;
+        font-weight: 500;
+    }
+    
+    .form-check-label {
+        font-size: 0.9rem;
+    }
+    
+    .accordion-button {
+        padding: 0.5rem 1rem;
+    }
+    
+    .accordion-button:not(.collapsed) {
+        background-color: #e7f5ff;
+        color: #0d6efd;
+    }
+    
+    .auto-save-checkbox:checked + .form-check-label {
+        font-weight: 500;
+        color: #0d6efd;
+    }
+    
+    .outcome-header {
+        color: #6c757d;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+        padding: 5px 0;
+    }
+    
+    /* Course outcome tooltip and reference styling */
+    .outcome-tooltip {
+        cursor: help;
+    }
+    
+    .badge {
+        font-size: 85%;
+        padding: 0.35em 0.65em;
+    }
+    
+    /* Make tooltip text more readable */
+    .tooltip-inner {
+        max-width: 300px;
+        text-align: left;
+        font-size: 0.85rem;
+        padding: 8px 12px;
+    }
+    
+    .outcome-description {
+        line-height: 1.2;
+        opacity: 0.9;
+        font-size: 0.8rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        white-space: normal;
+    }
+</style>
 {% endblock %} 

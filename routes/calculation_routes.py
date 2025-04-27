@@ -877,6 +877,38 @@ def all_courses_calculations():
     # Check if this is an AJAX request
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
+    # Check if we need to set up default global achievement levels
+    achievement_levels = GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()
+    if not achievement_levels:
+        # Add default achievement levels
+        default_levels = [
+            {"name": "Excellent", "min_score": 90.00, "max_score": 100.00, "color": "success"},
+            {"name": "Better", "min_score": 70.00, "max_score": 89.99, "color": "info"},
+            {"name": "Good", "min_score": 60.00, "max_score": 69.99, "color": "primary"},
+            {"name": "Need Improvements", "min_score": 50.00, "max_score": 59.99, "color": "warning"},
+            {"name": "Failure", "min_score": 0.01, "max_score": 49.99, "color": "danger"}
+        ]
+        
+        for level_data in default_levels:
+            level = GlobalAchievementLevel(
+                name=level_data["name"],
+                min_score=level_data["min_score"],
+                max_score=level_data["max_score"],
+                color=level_data["color"],
+                created_at=datetime.now(),
+                updated_at=datetime.now()
+            )
+            db.session.add(level)
+        
+        # Log action
+        log = Log(action="ADD_DEFAULT_GLOBAL_ACHIEVEMENT_LEVELS", 
+                 description="Added default global achievement levels from all_courses page")
+        db.session.add(log)
+        db.session.commit()
+        
+        # Refresh achievement levels
+        achievement_levels = GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()
+    
     # Get sort parameters from query string, default to course_code_asc
     sort_by = request.args.get('sort_by', 'course_code_asc')
     
@@ -1073,6 +1105,38 @@ def all_courses_loading():
 @calculation_bp.route('/all_courses/export', endpoint='export_all_courses')
 def export_all_courses():
     """Export program outcome scores for all courses to CSV"""
+    # Check if we need to set up default global achievement levels
+    achievement_levels = GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()
+    if not achievement_levels:
+        # Add default achievement levels
+        default_levels = [
+            {"name": "Excellent", "min_score": 90.00, "max_score": 100.00, "color": "success"},
+            {"name": "Better", "min_score": 70.00, "max_score": 89.99, "color": "info"},
+            {"name": "Good", "min_score": 60.00, "max_score": 69.99, "color": "primary"},
+            {"name": "Need Improvements", "min_score": 50.00, "max_score": 59.99, "color": "warning"},
+            {"name": "Failure", "min_score": 0.01, "max_score": 49.99, "color": "danger"}
+        ]
+        
+        for level_data in default_levels:
+            level = GlobalAchievementLevel(
+                name=level_data["name"],
+                min_score=level_data["min_score"],
+                max_score=level_data["max_score"],
+                color=level_data["color"],
+                created_at=datetime.now(),
+                updated_at=datetime.now()
+            )
+            db.session.add(level)
+        
+        # Log action
+        log = Log(action="ADD_DEFAULT_GLOBAL_ACHIEVEMENT_LEVELS", 
+                 description="Added default global achievement levels from all_courses/export page")
+        db.session.add(log)
+        db.session.commit()
+        
+        # Refresh achievement levels
+        achievement_levels = GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()
+    
     # Get sort parameters from query string, default to course_code_asc
     sort_by = request.args.get('sort_by', 'course_code_asc')
     
@@ -1522,6 +1586,38 @@ def calculate_course_outcome_score_optimized(student_id, outcome_id, scores_dict
         # Include the base exam if no makeup was attended
         filtered_exam_ids.append(exam_id)
     
+    # --- START: Fetch Q-CO Weights for this specific outcome ---
+    question_co_weights = {}
+    outcome_question_ids = [q.id for q in questions] # Get IDs of questions linked to *this* outcome
+    if outcome_question_ids:
+        from sqlalchemy import text, inspect # Ensure imports
+        try:
+            inspector = inspect(db.engine)
+            qco_columns = [c['name'] for c in inspector.get_columns('question_course_outcome')]
+            has_relative_weight = 'relative_weight' in qco_columns
+
+            if has_relative_weight:
+                 # Correctly construct IN clause for SQLite
+                 placeholders = ', '.join('?' * len(outcome_question_ids))
+                 query = f"SELECT question_id, relative_weight FROM question_course_outcome WHERE course_outcome_id = ? AND question_id IN ({placeholders})"
+                 # Pass outcome_id first, then the list of question_ids
+                 params = [outcome_id] + outcome_question_ids
+                 weights_result = db.session.execute(text(query), params).fetchall()
+
+                 for q_id, weight in weights_result:
+                     question_co_weights[q_id] = Decimal(str(weight)) if weight is not None else Decimal('1.0')
+            else:
+                # Default to 1.0 if column doesn't exist
+                 for q_id in outcome_question_ids:
+                    question_co_weights[q_id] = Decimal('1.0')
+
+        except Exception as e:
+            logging.warning(f"Could not fetch Q-CO weights for CO {outcome_id}: {e}")
+            # Default all weights to 1.0 on error
+            for q_id in outcome_question_ids:
+               question_co_weights[q_id] = Decimal('1.0')
+    # --- END: Fetch Q-CO Weights ---
+    
     # If normalized_weights is None, we need to calculate them only for the relevant exams
     # This is the old behavior and should only be used if no master weights are provided
     if normalized_weights is None:
@@ -1555,42 +1651,62 @@ def calculate_course_outcome_score_optimized(student_id, outcome_id, scores_dict
         # Use the provided master course weights
         exam_weights = normalized_weights
     
-    # Calculate weighted score for each exam containing questions for this outcome
-    weighted_outcome_score = Decimal('0')
-    total_applied_weight = Decimal('0')
-    
+    # --- START: Modified Weighted Score Calculation ---
+    total_weighted_score_contribution = Decimal('0')
+    total_applied_weight_contribution = Decimal('0') # Sum of (exam_weight * qco_weight)
+
     for exam_id in filtered_exam_ids:
         if exam_id not in questions_by_exam:
             continue
-            
-        exam_questions = questions_by_exam[exam_id]
-        
-        # Skip if this exam isn't in the weights (shouldn't happen with proper master weights)
-        if exam_id not in exam_weights:
-            continue
-            
-        # Calculate percentage score for this exam's questions related to the outcome
-        exam_total_possible = Decimal('0')
-        exam_total_score = Decimal('0')
-        
-        for question in exam_questions:
+
+        exam_questions_for_outcome = questions_by_exam[exam_id]
+
+        if exam_id not in exam_weights: # Use the correct weight dict (normalized_weights or exam_weights)
+             logging.warning(f"Missing normalized weight for exam {exam_id} when calculating CO {outcome_id}")
+             continue
+
+        exam_weight = exam_weights[exam_id] # This is the Exam's weight in the course (0-1)
+
+        # Calculate score for this exam's relevant questions
+        exam_outcome_total_possible = Decimal('0')
+        exam_outcome_total_score = Decimal('0')
+        exam_total_qco_weight = Decimal('0') # Sum of Q-CO weights for this exam's questions
+
+        for question in exam_questions_for_outcome:
             score_value = scores_dict.get((student_id, question.id, exam_id))
+            qco_weight = question_co_weights.get(question.id, Decimal('1.0')) # Get Q-CO weight
+
             if score_value is not None:
-                exam_total_score += Decimal(str(score_value))
-            exam_total_possible += question.max_score
-        
-        if exam_total_possible > Decimal('0'):
-            exam_percentage = (exam_total_score / exam_total_possible) * Decimal('100')
-            # Apply exam weight to this percentage
-            weighted_outcome_score += exam_percentage * exam_weights[exam_id]
-            total_applied_weight += exam_weights[exam_id]
-    
-    # If no weights were applied, return 0
-    if total_applied_weight == Decimal('0'):
-        return Decimal('0')
-        
-    # Return the weighted outcome score normalized by the total applied weight
-    return weighted_outcome_score / total_applied_weight
+                # Accumulate weighted score and weighted max score for this exam
+                exam_outcome_total_score += Decimal(str(score_value)) * qco_weight
+                exam_outcome_total_possible += question.max_score * qco_weight
+                exam_total_qco_weight += qco_weight # Track the sum of weights used
+
+        # Calculate the achievement percentage *for this exam's contribution* to the CO
+        if exam_outcome_total_possible > Decimal('0'):
+            exam_outcome_percentage = (exam_outcome_total_score / exam_outcome_total_possible) * Decimal('100')
+
+            # Weight this exam's contribution by the exam's weight in the course
+            # AND by the sum of Q-CO weights for this exam (to normalize contribution)
+            # This weight represents the "importance" of this exam's contribution to the CO
+            effective_weight = exam_weight * exam_total_qco_weight
+
+            total_weighted_score_contribution += exam_outcome_percentage * effective_weight
+            total_applied_weight_contribution += effective_weight
+        elif exam_total_qco_weight > Decimal('0'):
+             # If max score is 0 but weights exist, treat contribution as 0 achievement with weight applied
+             effective_weight = exam_weight * exam_total_qco_weight
+             total_weighted_score_contribution += Decimal('0') * effective_weight
+             total_applied_weight_contribution += effective_weight
+
+
+    # Final CO score is the weighted average across contributing exams
+    if total_applied_weight_contribution == Decimal('0'):
+        return Decimal('0') # Avoid division by zero
+
+    final_co_score = total_weighted_score_contribution / total_applied_weight_contribution
+    return final_co_score.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) # Ensure consistent rounding
+    # --- END: Modified Weighted Score Calculation ---
 
 # Optimized helper function to calculate a student's score for a program outcome
 def calculate_program_outcome_score_optimized(student_id, outcome_id, course_id, scores_dict, 
@@ -3452,6 +3568,35 @@ def cross_course_outcomes():
     Analyze and compare similar course outcomes across different courses
     using similarity matching and showing their success rates.
     """
+    # Check if we need to set up default global achievement levels
+    achievement_levels = GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()
+    if not achievement_levels:
+        # Add default achievement levels
+        default_levels = [
+            {"name": "Excellent", "min_score": 90.00, "max_score": 100.00, "color": "success"},
+            {"name": "Better", "min_score": 70.00, "max_score": 89.99, "color": "info"},
+            {"name": "Good", "min_score": 60.00, "max_score": 69.99, "color": "primary"},
+            {"name": "Need Improvements", "min_score": 50.00, "max_score": 59.99, "color": "warning"},
+            {"name": "Failure", "min_score": 0.01, "max_score": 49.99, "color": "danger"}
+        ]
+        
+        for level_data in default_levels:
+            level = GlobalAchievementLevel(
+                name=level_data["name"],
+                min_score=level_data["min_score"],
+                max_score=level_data["max_score"],
+                color=level_data["color"],
+                created_at=datetime.now(),
+                updated_at=datetime.now()
+            )
+            db.session.add(level)
+        
+        # Log action
+        log = Log(action="ADD_DEFAULT_GLOBAL_ACHIEVEMENT_LEVELS", 
+                 description="Added default global achievement levels from cross_course_outcomes page")
+        db.session.add(log)
+        db.session.commit()
+    
     # Get similarity threshold from request parameter (default to 0.9 / 90%)
     raw_similarity = request.args.get('similarity', 90, type=float)
     # Convert from percentage to decimal (divide by 100)

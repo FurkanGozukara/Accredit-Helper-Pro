@@ -2221,12 +2221,26 @@ def import_database():
                     # STEP 14: IMPORT COURSE-OUTCOME QUESTION ASSOCIATIONS
                     if import_outcomes and import_exams:
                         try:
-                            associations = import_db.execute(
-                                "SELECT question_id, course_outcome_id FROM question_course_outcome"
-                            ).fetchall()
+                            # Check if the source database has relative_weight column
+                            source_has_relative_weight = False
+                            try:
+                                columns = [column[1] for column in import_db.execute("PRAGMA table_info(question_course_outcome)").fetchall()]
+                                source_has_relative_weight = 'relative_weight' in columns
+                            except Exception as ce:
+                                import_summary['errors'].append(f"Could not check question_course_outcome columns: {str(ce)}")
+                            
+                            # Modify query based on whether source has the relative_weight column
+                            if source_has_relative_weight:
+                                query = "SELECT question_id, course_outcome_id, relative_weight FROM question_course_outcome"
+                            else:
+                                query = "SELECT question_id, course_outcome_id FROM question_course_outcome"
+                                
+                            associations = import_db.execute(query).fetchall()
                             for row in associations:
                                 backup_q_id = safe_get(row, 'question_id')
                                 backup_co_id = safe_get(row, 'course_outcome_id')
+                                # Get relative weight if available, otherwise use default 1.0
+                                relative_weight = safe_get(row, 'relative_weight', 1.0)
 
                                 if backup_q_id not in question_id_map or backup_co_id not in outcome_id_map:
                                     import_summary['errors'].append(
@@ -2246,8 +2260,8 @@ def import_database():
                                 if not exists:
                                     try:
                                         current_db.execute(
-                                            "INSERT INTO question_course_outcome (question_id, course_outcome_id) VALUES (?, ?)",
-                                            (curr_q_id, curr_co_id)
+                                            "INSERT INTO question_course_outcome (question_id, course_outcome_id, relative_weight) VALUES (?, ?, ?)",
+                                            (curr_q_id, curr_co_id, relative_weight)
                                         )
                                         if 'question_co_imported' not in import_summary:
                                             import_summary['question_co_imported'] = 0

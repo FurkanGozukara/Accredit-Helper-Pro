@@ -100,6 +100,15 @@
                                             <label class="form-check-label" for="outcome_{{ i }}_{{ outcome.id }}">
                                                 <strong>{{ outcome.code }}</strong>: {{ outcome.description|truncate(50) }}
                                             </label>
+                                            <div class="input-group input-group-sm mt-1 weight-input-group" style="width: 120px; display: {% if form_data and i < form_data.questions|length and outcome.id|string in form_data.questions[i].selected_outcomes %}flex{% else %}none{% endif %};">
+                                                <span class="input-group-text">Wt:</span>
+                                                <input type="number" min="0.01" max="9.99" step="0.01"
+                                                    class="form-control form-control-sm weight-input"
+                                                    name="weight_{{ i }}_{{ outcome.id }}"
+                                                    value="1.00"
+                                                    title="Relative weight for Q{{ i + 1 }} → {{ outcome.code }}"
+                                                    {% if not (form_data and i < form_data.questions|length and outcome.id|string in form_data.questions[i].selected_outcomes) %}disabled{% endif %}>
+                                            </div>
                                         </div>
                                         {% endfor %}
                                     </div>
@@ -594,6 +603,45 @@
                 sessionStorage.setItem(`outcomes_${index}`, JSON.stringify([]));
                 showSaveStatus();
             });
+        });
+
+        // Add this inside the DOMContentLoaded listener after existing code
+        function setupWeightInputs() {
+            document.querySelectorAll('.outcome-checkbox').forEach(checkbox => {
+                const index = checkbox.dataset.index;
+                const outcomeId = checkbox.value;
+                const weightInput = document.querySelector(`input[name="weight_${index}_${outcomeId}"]`);
+                const weightGroup = weightInput ? weightInput.closest('.weight-input-group') : null;
+
+                function toggleWeightInput() {
+                    if (weightInput) {
+                        weightInput.disabled = !checkbox.checked;
+                        if (weightGroup) {
+                             weightGroup.style.display = checkbox.checked ? 'flex' : 'none';
+                        }
+                        // Reset to default when unchecked
+                        if (!checkbox.checked) {
+                            weightInput.value = '1.00';
+                        }
+                    }
+                }
+                // Initial state
+                toggleWeightInput();
+                // Update on change
+                checkbox.addEventListener('change', toggleWeightInput);
+            });
+        }
+        setupWeightInputs(); // Call initially
+
+        // Re-run setup after potential dynamic updates (like changing num_questions)
+        document.getElementById('update_num').addEventListener('click', function() {
+            // The page will reload, so setup will be called on the new page
+        });
+
+        // Also handle weight inputs in mass import
+        document.getElementById('apply_mass_import').addEventListener('click', function() {
+            // After mass import completes, make sure weight inputs are properly shown/hidden
+            setTimeout(setupWeightInputs, 200);
         });
     });
 </script>

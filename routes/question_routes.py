@@ -6,7 +6,8 @@ import logging
 import io
 import csv
 from routes.utility_routes import export_to_excel_csv
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
+from sqlalchemy import text, inspect
 
 question_bp = Blueprint('question', __name__, url_prefix='/question')
 
@@ -23,7 +24,7 @@ def add_question(exam_id):
         return redirect(url_for('outcome.add_course_outcome', course_id=course.id))
     
     if request.method == 'POST':
-        text = request.form.get('text')
+        text_content = request.form.get('text')
         max_score = request.form.get('max_score')
         
         # Get selected course outcomes
@@ -37,7 +38,7 @@ def add_question(exam_id):
         
         # Store form data for possible re-rendering
         form_data = {
-            'text': text,
+            'text': text_content,
             'max_score': max_score,
             'selected_outcomes': selected_outcomes
         }
@@ -70,7 +71,7 @@ def add_question(exam_id):
             
             # Create new question
             new_question = Question(
-                text=text,
+                text=text_content,
                 max_score=max_score,
                 number=next_question_number,
                 exam_id=exam_id
@@ -91,6 +92,42 @@ def add_question(exam_id):
             db.session.add(log)
             
             db.session.commit()
+            
+            # --- START: Process Weights ---
+            has_relative_weight = False
+            try:
+                inspector = inspect(db.engine)
+                qco_columns = [c['name'] for c in inspector.get_columns('question_course_outcome')]
+                has_relative_weight = 'relative_weight' in qco_columns
+            except Exception as e:
+                logging.warning(f"Could not check for relative_weight column: {e}")
+
+            if has_relative_weight:
+                for outcome_id_str in selected_outcomes:
+                    try:
+                        outcome_id = int(outcome_id_str)
+                        weight_str = request.form.get(f'weight_{outcome_id}', '1.0')
+                        
+                        # Fix: Ensure weight_str is a string before converting to Decimal
+                        if weight_str is not None:
+                            weight_value = Decimal(str(weight_str))
+                            weight_value = max(Decimal('0.01'), min(Decimal('9.99'), weight_value)).quantize(Decimal('0.01'))
+                            
+                            # Fix: Convert Decimal to float for SQLite compatibility
+                            weight_float = float(weight_value)
+                            
+                            # Fix: Use proper SQL syntax with parameters
+                            sql_query = "UPDATE question_course_outcome SET relative_weight = :weight WHERE question_id = :qid AND course_outcome_id = :coid"
+                            params = {"weight": weight_float, "qid": new_question.id, "coid": outcome_id}
+                            db.session.execute(text(sql_query), params)
+                    except (ValueError, InvalidOperation) as ve:
+                        flash(f'Invalid weight provided for outcome ID {outcome_id}, using default 1.0: {ve}', 'warning')
+                    except Exception as e:
+                        flash(f'Error setting weight for outcome ID {outcome_id}: {str(e)}', 'error')
+                
+                db.session.commit()
+            # --- END: Process Weights ---
+                
             flash(f'Question {next_question_number} added successfully', 'success')
             return redirect(url_for('exam.exam_detail', exam_id=exam_id))
         except ValueError as e:
@@ -135,8 +172,26 @@ def edit_question(question_id):
     course = Course.query.get_or_404(exam.course_id)
     course_outcomes = CourseOutcome.query.filter_by(course_id=course.id).all()
     
+    # GET request - Fetch existing weights
+    question_weights = {}
+    try:
+        inspector = inspect(db.engine)
+        qco_columns = [c['name'] for c in inspector.get_columns('question_course_outcome')]
+        has_relative_weight = 'relative_weight' in qco_columns
+        
+        if has_relative_weight:
+            # Using explicit SQL query with proper parameters
+            sql_query = "SELECT course_outcome_id, relative_weight FROM question_course_outcome WHERE question_id = :qid"
+            params = {"qid": question.id}
+            result = db.session.execute(text(sql_query), params)
+            
+            for row in result:
+                question_weights[row[0]] = float(row[1]) if row[1] is not None else 1.0
+    except Exception as e:
+        logging.warning(f"Could not retrieve question weights for Q:{question.id}: {str(e)}")
+    
     if request.method == 'POST':
-        text = request.form.get('text')
+        text_content = request.form.get('text')
         max_score = request.form.get('max_score')
         
         # Get selected course outcomes
@@ -144,7 +199,7 @@ def edit_question(question_id):
         
         # Store form data for possible re-rendering
         form_data = {
-            'text': text,
+            'text': text_content,
             'max_score': max_score,
             'selected_outcomes': selected_outcomes
         }
@@ -154,6 +209,7 @@ def edit_question(question_id):
             flash('Maximum score is required', 'error')
             return render_template('question/form.html', 
                                  question=question,
+                                 question_id=question_id,
                                  exam=exam, 
                                  course=course,
                                  course_outcomes=course_outcomes,
@@ -164,6 +220,7 @@ def edit_question(question_id):
             flash('At least one course outcome must be selected', 'error')
             return render_template('question/form.html', 
                                  question=question,
+                                 question_id=question_id,
                                  exam=exam, 
                                  course=course,
                                  course_outcomes=course_outcomes,
@@ -176,7 +233,7 @@ def edit_question(question_id):
                 raise ValueError("Score must be positive")
             
             # Update question
-            question.text = text
+            question.text = text_content
             question.max_score = max_score
             question.updated_at = datetime.now()
             
@@ -193,12 +250,74 @@ def edit_question(question_id):
             db.session.add(log)
             
             db.session.commit()
+            
+            # --- START: Process Weights ---
+            has_relative_weight = False
+            try:
+                inspector = inspect(db.engine)
+                qco_columns = [c['name'] for c in inspector.get_columns('question_course_outcome')]
+                has_relative_weight = 'relative_weight' in qco_columns
+            except Exception as e:
+                logging.warning(f"Could not check for relative_weight column: {e}")
+
+            if has_relative_weight:
+                # Update weights for the currently associated outcomes
+                for outcome_id_str in selected_outcomes:
+                    try:
+                        outcome_id = int(outcome_id_str)
+                        weight_str = request.form.get(f'weight_{outcome_id}', '1.0')
+                        
+                        # Fix: Ensure weight_str is a string before converting to Decimal
+                        if weight_str is not None:
+                            weight_value = Decimal(str(weight_str))
+                            weight_value = max(Decimal('0.01'), min(Decimal('9.99'), weight_value)).quantize(Decimal('0.01'))
+
+                            # Fix: Convert Decimal to float for SQLite compatibility
+                            weight_float = float(weight_value)
+                            
+                            # Fix: Use proper SQL syntax with parameters
+                            sql_query = "UPDATE question_course_outcome SET relative_weight = :weight WHERE question_id = :qid AND course_outcome_id = :coid"
+                            params = {"weight": weight_float, "qid": question.id, "coid": outcome_id}
+                            db.session.execute(text(sql_query), params)
+                    except (ValueError, InvalidOperation) as ve:
+                        flash(f'Invalid weight provided for outcome ID {outcome_id}, using default 1.0: {ve}', 'warning')
+                    except Exception as e:
+                        flash(f'Error setting weight for outcome ID {outcome_id}: {str(e)}', 'error')
+                
+                db.session.commit()
+            # --- END: Process Weights ---
+            
             flash(f'Question {question.number} updated successfully', 'success')
-            return redirect(url_for('exam.exam_detail', exam_id=exam.id))
+            
+            # Stay on the same page after update
+            # Fetch updated weights for the next render
+            updated_question_weights = {}
+            try:
+                if has_relative_weight:
+                    # Fix: Use proper SQL syntax with parameters
+                    sql_query = "SELECT course_outcome_id, relative_weight FROM question_course_outcome WHERE question_id = :qid"
+                    params = {"qid": question.id}
+                    result = db.session.execute(text(sql_query), params)
+                    
+                    for row in result:
+                        updated_question_weights[row[0]] = float(row[1]) if row[1] is not None else 1.0
+            except Exception as e:
+                logging.warning(f"Could not retrieve updated question weights for Q:{question.id}: {str(e)}")
+                
+            return render_template('question/form.html', 
+                                 question=question,
+                                 question_id=question_id,
+                                 exam=exam, 
+                                 course=course,
+                                 course_outcomes=course_outcomes,
+                                 question_weights=updated_question_weights,
+                                 active_page='courses')
+                                 
         except ValueError as e:
             flash(f'Invalid input: {str(e)}', 'error')
             return render_template('question/form.html', 
                                  question=question,
+                                 question_id=question_id,
                                  exam=exam, 
                                  course=course,
                                  course_outcomes=course_outcomes,
@@ -210,18 +329,20 @@ def edit_question(question_id):
             flash('An error occurred while updating the question', 'error')
             return render_template('question/form.html', 
                                  question=question,
+                                 question_id=question_id,
                                  exam=exam, 
                                  course=course,
                                  course_outcomes=course_outcomes,
                                  form_data=form_data,
                                  active_page='courses')
     
-    # GET request
     return render_template('question/form.html', 
                          question=question,
+                         question_id=question_id,
                          exam=exam, 
                          course=course,
                          course_outcomes=course_outcomes,
+                         question_weights=question_weights,
                          active_page='courses')
 
 @question_bp.route('/delete/<int:question_id>', methods=['POST'])
@@ -387,11 +508,51 @@ def batch_add_questions(exam_id):
                     db.session.add(new_question)
                     db.session.flush()  # Assign ID without committing
                     
-                    # Associate with course outcomes
-                    for outcome_id in selected_outcomes:
-                        outcome = CourseOutcome.query.get(outcome_id)
-                        if outcome:
-                            new_question.course_outcomes.append(outcome)
+                    # --- START: Process Weights ---
+                    from sqlalchemy import text # Ensure text is imported
+
+                    # Check if relative_weight column exists
+                    has_relative_weight = False
+                    try:
+                        inspector = inspect(db.engine)
+                        qco_columns = [c['name'] for c in inspector.get_columns('question_course_outcome')]
+                        has_relative_weight = 'relative_weight' in qco_columns
+                    except Exception: pass
+
+                    if has_relative_weight:
+                        # Associate with course outcomes and set weights
+                        for outcome_id_str in selected_outcomes:
+                            outcome_id = int(outcome_id_str)
+                            outcome = CourseOutcome.query.get(outcome_id)
+                            if outcome:
+                                new_question.course_outcomes.append(outcome)
+                                db.session.flush() # Flush to ensure association is made
+
+                                # Get weight from form
+                                weight_str = request.form.get(f'weight_{i}_{outcome_id}', '1.0')
+                                try:
+                                    weight_value = Decimal(weight_str)
+                                    weight_value = max(Decimal('0.01'), min(Decimal('9.99'), weight_value)).quantize(Decimal('0.01'))
+
+                                    # Fix: Convert Decimal to float for SQLite compatibility
+                                    weight_float = float(weight_value)
+                                    
+                                    # Fix: Use proper SQL syntax with parameters
+                                    sql_query = "UPDATE question_course_outcome SET relative_weight = :weight WHERE question_id = :qid AND course_outcome_id = :coid"
+                                    params = {"weight": weight_float, "qid": new_question.id, "coid": outcome_id}
+                                    db.session.execute(text(sql_query), params)
+                                except (ValueError, InvalidOperation):
+                                     flash(f'Invalid weight for Q{i+1}-CO{outcome_id}, using 1.0', 'warning')
+                                except Exception as e:
+                                     flash(f'Error setting weight for Q{i+1}-CO{outcome_id}: {e}', 'error')
+                    else:
+                         # Fallback for older DBs: Just associate without weight
+                         for outcome_id_str in selected_outcomes:
+                             outcome_id = int(outcome_id_str)
+                             outcome = CourseOutcome.query.get(outcome_id)
+                             if outcome:
+                                 new_question.course_outcomes.append(outcome)
+                    # --- END: Process Weights ---
                     
                     questions_added += 1
                     
@@ -452,6 +613,9 @@ def mass_associate_outcomes(course_id):
     exams = Exam.query.filter_by(course_id=course_id).all()
     course_outcomes = CourseOutcome.query.filter_by(course_id=course_id).all()
     
+    # Check for exam_id in the URL query parameters for auto-filtering
+    selected_exam_id = request.args.get('exam_id')
+    
     if not course_outcomes:
         flash('You need to define course outcomes first', 'warning')
         return redirect(url_for('outcome.add_course_outcome', course_id=course_id))
@@ -460,19 +624,57 @@ def mass_associate_outcomes(course_id):
         flash('You need to create exams first', 'warning')
         return redirect(url_for('course.course_detail', course_id=course_id))
     
+    # Check if relative_weight column exists
+    has_relative_weight = False
+    try:
+        inspector = inspect(db.engine)
+        qco_columns = [c['name'] for c in inspector.get_columns('question_course_outcome')]
+        has_relative_weight = 'relative_weight' in qco_columns
+    except Exception as e:
+        logging.warning(f"Could not check for relative_weight column: {e}")
+    
+    # Get all question-outcome weights from database
+    question_outcome_weights = {}
+    if has_relative_weight:
+        try:
+            # Get all questions for this course to fetch their weights
+            question_ids_query = db.session.query(Question.id).join(Exam).filter(Exam.course_id == course_id).all()
+            question_ids = [q[0] for q in question_ids_query]
+            
+            if question_ids:
+                # Fetch weights for all questions in one query
+                placeholders = ', '.join(f':q{i}' for i in range(len(question_ids)))
+                query = f"SELECT question_id, course_outcome_id, relative_weight FROM question_course_outcome WHERE question_id IN ({placeholders})"
+                
+                # Create params dictionary
+                params = {f'q{i}': q_id for i, q_id in enumerate(question_ids)}
+                
+                weights_result = db.session.execute(text(query), params).fetchall()
+                
+                # Organize weights by question_id and outcome_id
+                for q_id, co_id, weight in weights_result:
+                    if q_id not in question_outcome_weights:
+                        question_outcome_weights[q_id] = {}
+                    question_outcome_weights[q_id][co_id] = float(weight) if weight is not None else 1.0
+        except Exception as e:
+            logging.warning(f"Could not fetch question-outcome weights: {e}")
+    
     questions = []
     for exam in exams:
         exam_questions = Question.query.filter_by(exam_id=exam.id).order_by(Question.number).all()
         for question in exam_questions:
-            questions.append({
+            # Create a question dictionary with all required data
+            question_dict = {
                 'id': question.id,
                 'exam_id': exam.id,
                 'exam_name': exam.name,
                 'number': question.number,
                 'text': question.text,
                 'max_score': question.max_score,
-                'outcomes': [outcome.id for outcome in question.course_outcomes]
-            })
+                'outcomes': [outcome.id for outcome in question.course_outcomes],
+                'weights': question_outcome_weights.get(question.id, {})  # Add weights to each question
+            }
+            questions.append(question_dict)
     
     if request.method == 'POST':
         try:
@@ -511,6 +713,7 @@ def mass_associate_outcomes(course_id):
                          questions=questions,
                          course_outcomes=course_outcomes,
                          exams=exams,
+                         selected_exam_id=selected_exam_id,
                          active_page='courses')
 
 @question_bp.route('/mass-associate/<int:course_id>/export')
@@ -542,6 +745,12 @@ def export_mass_associate_outcomes(course_id):
     
     # Export data using utility function
     return export_to_excel_csv(data, f"questions_outcomes_{course.code}", headers)
+
+@question_bp.route('/mass-associate/exam/<int:exam_id>', methods=['GET'])
+def mass_associate_by_exam(exam_id):
+    """Redirect to mass association page with auto-filtering for a specific exam"""
+    exam = Exam.query.get_or_404(exam_id)
+    return redirect(url_for('question.mass_associate_outcomes', course_id=exam.course_id, exam_id=exam_id))
 
 @question_bp.route('/exam/<int:exam_id>/export')
 def export_exam_questions(exam_id):
