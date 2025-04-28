@@ -88,6 +88,18 @@
         border-radius: 0.25rem;
         margin-top: 0.25rem;
     }
+    
+    /* Student filter controls */
+    .filter-controls {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .filter-controls .form-check {
+        margin-right: 1.5rem;
+    }
 </style>
 {% endblock %}
 
@@ -130,6 +142,35 @@
                 To manage attendance, use the <a href="{{ url_for('student.manage_attendance', exam_id=exam.id) }}">Manage Attendance</a> page.
             </div>
             
+            <!-- Student Filter Controls -->
+            <div class="filter-controls">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="d-flex">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="studentFilter" id="filterAll" value="all" checked>
+                                <label class="form-check-label" for="filterAll">Show All Students</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="studentFilter" id="filterMissing" value="missing">
+                                <label class="form-check-label" for="filterMissing">Show Missing Scores</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="studentFilter" id="filterNotAttended" value="notAttended">
+                                <label class="form-check-label" for="filterNotAttended">Show Not Attended</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control" id="studentSearch" placeholder="Filter by name or ID...">
+                            <button class="btn btn-outline-secondary" type="button" id="clearSearch">Clear</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="table-responsive">
                 <form id="scoresForm" method="POST" action="{{ url_for('student.manage_scores', exam_id=exam.id) }}">
                     {% set questions_sorted = questions|sort(attribute='number') %}
@@ -139,7 +180,11 @@
                     
                     {% for student in students %}
                         {% set attended = attendance_dict.get(student.id, True) %}
-                        <table class="table table-bordered scores-table {{ 'student-not-attended' if not attended }}">
+                        <table class="table table-bordered scores-table {{ 'student-not-attended' if not attended }}" 
+                               data-student-id="{{ student.id }}" 
+                               data-student-name="{{ student.first_name }} {{ student.last_name }}" 
+                               data-student-number="{{ student.student_id }}"
+                               data-attended="{{ attended|tojson }}">
                             <tbody>
                                 {% for row_index in range(num_rows) %}
                                     <tr>
@@ -190,6 +235,7 @@
                                                         data-question-id="{{ question.id }}"
                                                         data-exam-id="{{ exam.id }}"
                                                         data-max-score="{{ question.max_score|float|round(1) }}"
+                                                        data-has-score="{{ 'true' if score else 'false' }}"
                                                         {% if not attended %}disabled{% endif %}>
                                                 </div>
                                             </td>
@@ -300,6 +346,12 @@
         const markZeroNotAttendedButton = document.getElementById('markZeroNotAttendedButton');
         const form = document.getElementById('scoresForm');
         
+        // Filter elements
+        const filterRadios = document.querySelectorAll('input[name="studentFilter"]');
+        const studentSearch = document.getElementById('studentSearch');
+        const clearSearchBtn = document.getElementById('clearSearch');
+        const studentTables = document.querySelectorAll('.scores-table');
+        
         // Initialize popovers
         const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
         popoverTriggerList.map(function (popoverTriggerEl) {
@@ -337,6 +389,73 @@
                 }
             });
         });
+        
+        // Filter event listeners
+        filterRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                applyFilters();
+            });
+        });
+        
+        studentSearch.addEventListener('input', function() {
+            applyFilters();
+        });
+        
+        clearSearchBtn.addEventListener('click', function() {
+            studentSearch.value = '';
+            applyFilters();
+        });
+        
+        // Function to apply all filters
+        function applyFilters() {
+            const searchTerm = studentSearch.value.toLowerCase();
+            const filterValue = document.querySelector('input[name="studentFilter"]:checked').value;
+            
+            studentTables.forEach(table => {
+                // Extract student data
+                const studentId = table.dataset.studentId;
+                const studentName = table.dataset.studentName.toLowerCase();
+                const studentNumber = table.dataset.studentNumber.toLowerCase();
+                const attended = table.dataset.attended === 'true';
+                
+                // Check if student has missing scores
+                let hasMissingScores = false;
+                const inputs = table.querySelectorAll('.score-input');
+                inputs.forEach(input => {
+                    if (input.dataset.hasScore === 'false') {
+                        hasMissingScores = true;
+                    }
+                });
+                
+                // Apply filter by attendance/missing scores
+                let showByFilter = true;
+                if (filterValue === 'missing') {
+                    showByFilter = hasMissingScores && attended;
+                } else if (filterValue === 'notAttended') {
+                    showByFilter = !attended;
+                }
+                
+                // Apply search filter
+                let showBySearch = true;
+                if (searchTerm) {
+                    showBySearch = studentName.includes(searchTerm) || studentNumber.includes(searchTerm);
+                }
+                
+                // Show/hide based on combined filters
+                const nextSeparator = table.nextElementSibling;
+                if (showByFilter && showBySearch) {
+                    table.style.display = '';
+                    if (nextSeparator && nextSeparator.classList.contains('student-separator')) {
+                        nextSeparator.style.display = '';
+                    }
+                } else {
+                    table.style.display = 'none';
+                    if (nextSeparator && nextSeparator.classList.contains('student-separator')) {
+                        nextSeparator.style.display = 'none';
+                    }
+                }
+            });
+        }
         
         // Add event listeners to Accredit score buttons
         document.querySelectorAll('.abet-scores-btn').forEach(button => {
@@ -400,7 +519,9 @@
                 });
                 
                 // Add student-not-attended class to table
-                toggle.closest('table').classList.add('student-not-attended');
+                const table = toggle.closest('table');
+                table.classList.add('student-not-attended');
+                table.dataset.attended = 'false';
                 
                 // Update summary values
                 totalElement.textContent = 'N/A';
@@ -434,6 +555,8 @@
             // After all requests are done
             Promise.all(promises).then(() => {
                 showSaveStatus(`Updated ${updatedCount} students to not attended`, 'success');
+                // Apply filters to update the view
+                applyFilters();
             });
         });
         
@@ -452,6 +575,8 @@
                 const studentInputs = document.querySelectorAll('.score-input.student-' + studentId);
                 
                 // Update UI based on attendance
+                const table = this.closest('table');
+                
                 if (attended) {
                     // Remove not-attended-badge if it exists
                     const badge = this.closest('.student-cell').querySelector('.not-attended-badge');
@@ -463,7 +588,8 @@
                     });
                     
                     // Remove student-not-attended class from table
-                    this.closest('table').classList.remove('student-not-attended');
+                    table.classList.remove('student-not-attended');
+                    table.dataset.attended = 'true';
                     
                     // Update summary values
                     document.getElementById('total_value_' + studentId).textContent = '0.0';
@@ -484,7 +610,8 @@
                     });
                     
                     // Add student-not-attended class to table
-                    this.closest('table').classList.add('student-not-attended');
+                    table.classList.add('student-not-attended');
+                    table.dataset.attended = 'false';
                     
                     // Update summary values
                     document.getElementById('total_value_' + studentId).textContent = 'N/A';
@@ -506,6 +633,8 @@
                 .then(data => {
                     if (data.success) {
                         showSaveStatus('Attendance updated', 'success');
+                        // Apply filters to update the view
+                        applyFilters();
                     } else {
                         showSaveStatus('Error: ' + data.error, 'error');
                     }
@@ -523,6 +652,7 @@
             
             if (isNaN(value)) {
                 input.value = '';
+                input.dataset.hasScore = 'false';
                 return;
             }
             
@@ -535,6 +665,7 @@
             // Format to 1 decimal place to avoid precision issues
             if (!isNaN(value)) {
                 input.value = parseFloat(value.toFixed(1));
+                input.dataset.hasScore = 'true';
             }
         }
         
@@ -612,6 +743,16 @@
                 if (data.success) {
                     saveStatus.textContent = '✓ All changes saved';
                     saveStatus.className = 'text-success';
+                    
+                    // Update data-has-score attribute based on whether score was set or cleared
+                    if (score === "") {
+                        input.dataset.hasScore = 'false';
+                    } else {
+                        input.dataset.hasScore = 'true';
+                    }
+                    
+                    // Re-apply filters in case "Show Missing Scores" is active
+                    applyFilters();
                     
                     setTimeout(() => {
                         saveStatus.textContent = '';
