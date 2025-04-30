@@ -7,7 +7,7 @@ import csv
 import io
 import re
 from routes.utility_routes import export_to_excel_csv
-from decimal import Decimal
+from decimal import Decimal, DivisionByZero, InvalidOperation, ROUND_HALF_UP
 from sqlalchemy.exc import IntegrityError
 import pandas as pd
 import numpy as np
@@ -874,12 +874,14 @@ def import_scores(exam_id):
                  student_db_id = student_id_map[student_id_ext]
                  student = Student.query.get(student_db_id) # Get the actual student object
                  if not student: # Should not happen, but safety check
-                      if not continue_on_errors: errors.append(f"Line {i}: Could not retrieve newly created student {student_id_ext}")
+                      # Treat this as a warning, but skip this line's scores
+                      warnings.append(f"Line {i}: Could not retrieve newly created student {student_id_ext}. Scores for this line skipped.")
                       continue
             else:
                  # Student not found and not created (or creation failed/disabled)
-                 if not continue_on_errors: errors.append(f"Line {i}: Student ID {student_id_ext} not found and not created.")
-                 continue
+                 # Change this from an error to a warning and skip the line
+                 warnings.append(f"Line {i}: Student ID {student_id_ext} not found in course. Scores for this line skipped.")
+                 continue # Skip processing scores for this student
                  
             # Avoid processing the same student multiple times if they appear on the same line (unlikely but possible)
             if student_db_id in processed_students:
@@ -938,42 +940,63 @@ def import_scores(exam_id):
                                  if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Error processing score: {str(e)}")
                                  continue
                                  
-                # Method 2: Parse remaining columns as q:score format (if no header or as fallback)
-                elif score_data_parts: # Only proceed if there are score parts
-                    for score_pair in score_data_parts:
-                        if not score_pair.strip(): continue # Skip empty parts
+                # Method 2: Parse remaining columns (Original Logic Style Restoration)
+                elif score_data_parts: 
+                    temp_line_scores = [] # Use temp list for sequential numbering fallback
+                    for score_data in score_data_parts:
+                        if not score_data.strip(): continue # Skip empty parts
                         
+                        q_num = None
+                        score_str = ""
+                        question = None
+
                         try:
-                            # Expect format like "q1:8.5" or "q1:8,5"
-                            q_part, score_part = score_pair.split(':', 1)
-                            q_num_match = re.search(r'\\d+', q_part)
-                            if not q_num_match:
-                                 if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Invalid question format '{q_part}' in '{score_pair}'")
-                                 continue
-                                 
-                            q_num = int(q_num_match.group(0))
+                            # Try q#:score format first
+                            if ':' in score_data:
+                                q_part, score_part = score_data.split(':', 1)
+                                q_num_match = re.search(r'\d+', q_part)
+                                if q_num_match:
+                                    q_num = int(q_num_match.group(0))
+                                    score_str = score_part.strip().replace(',', '.')
+                                else:
+                                    # If format is like ":5", treat as invalid for q:score
+                                    if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Invalid question format '{q_part}' in '{score_data}'")
+                                    continue # Skip this part
+                            else:
+                                # Fallback: Treat as sequential score if no colon
+                                q_num = len(temp_line_scores) + 1 # Base sequential number on successful scores so far FOR THIS LINE
+                                score_str = score_data.strip().replace(',', '.')
+                            
+                            # Validate question number
+                            if q_num is None:
+                                # Should not happen with the logic above, but safety check
+                                if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Could not determine question number for '{score_data}'")
+                                continue
+                            
                             question = questions.get(q_num)
                             if not question:
-                                 if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Question number {q_num} not found for this exam")
-                                 continue
-                                 
-                            score_str = score_part.strip().replace(',', '.')
-                            if not score_str: continue # Skip if score part is empty after split
+                                if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Question number {q_num} not found for this exam (from '{score_data}')")
+                                continue # Skip score for non-existent question
+                                
+                            # Validate score string
+                            if not score_str: continue # Skip empty score parts (e.g., "q5:")
 
+                            # Convert score to Decimal
                             score_value = Decimal(score_str)
 
-                            # Validate against max score if needed
+                            # Validate/Cap score value
                             if validate_scores and score_value > question.max_score:
                                 if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Score {score_value} exceeds max {question.max_score}")
-                                continue
+                                continue # Skip score
                             elif score_value > question.max_score:
                                 warnings.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Score {score_value} capped at max {question.max_score}")
                                 score_value = question.max_score
                             elif score_value < 0:
                                 warnings.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Score {score_value} set to 0")
                                 score_value = Decimal('0')
-
-                            line_scores.append({
+                            
+                            # Add successfully parsed score to temp list for this line
+                            temp_line_scores.append({
                                 'student_id': student_db_id,
                                 'student_ext_id': student_id_ext,
                                 'question_id': question.id,
@@ -982,15 +1005,16 @@ def import_scores(exam_id):
                                 'score': score_value,
                                 'line_number': i
                             })
-                        except ValueError: # Handles split error or non-numeric score part
-                             if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Invalid score format '{score_pair}'")
-                             continue
-                        except InvalidOperation: # Handles Decimal conversion error
-                             if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Invalid score value in '{score_pair}'")
-                             continue
-                        except Exception as e: # Catch other potential errors
-                             if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Error processing score pair '{score_pair}': {str(e)}")
-                             continue
+
+                        except (ValueError, InvalidOperation): # Handles split error or Decimal conversion error
+                             if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Invalid score format or value in '{score_data}'")
+                             continue # Skip this specific score_data part
+                        except Exception as e: # Catch other unexpected errors
+                             if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Error processing score data '{score_data}': {str(e)}")
+                             continue # Skip this specific score_data part
+                    
+                    # After processing all parts for the line, add the valid scores
+                    line_scores.extend(temp_line_scores)
 
             elif import_format == 'total_only':
                 # --- TOTAL SCORE ONLY PARSING ---
@@ -1010,108 +1034,115 @@ def import_scores(exam_id):
                              warnings.append(f"Line {i}, Student {student_id_ext}: Negative total score {total_score_value} treated as 0.")
                              total_score_value = Decimal('0')
                     except InvalidOperation:
-                        if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Invalid total score format '{parts[1]}'")
-                        continue
+                        # Check if this is the first line, possibly a header
+                        is_first_line = (i == (1 if not header_row else 2))
+                        if is_first_line:
+                            warnings.append(f"Line {i}: Skipped line - assumed header row for 'Total Score Only' format (Invalid score: '{parts[1]}').")
+                            continue # Skip this line entirely
+                        else:
+                            # If not the first line, treat as a regular error
+                            if not continue_on_errors:
+                                errors.append(f"Line {i}, Student {student_id_ext}: Invalid total score format '{parts[1]}'")
+                            # If continue_on_errors is true, this student's scores won't be added for this line
+                            # but processing will continue for other lines.
+                            continue # Skip processing scores for this student on this line
                 
                 num_questions = len(questions)
                 if num_questions == 0:
                     # This case is checked at the beginning, but double-check here
                     errors.append(f"Line {i}, Student {student_id_ext}: Cannot distribute score - no questions found for this exam.")
-                    # Stop processing if no questions, even if continue_on_errors is true, as it's fundamental
                     flash("Import failed: Cannot import scores as there are no questions defined for this exam.", 'error')
                     return redirect(url_for('student.manage_scores', exam_id=exam_id))
 
-                # Distribute score equally
-                try:
-                     # Use ROUND_HALF_UP for potentially fairer distribution, match precision later
-                     score_per_question = (total_score_value / Decimal(num_questions)).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP) 
-                except DivisionByZero:
-                     # Should be caught by num_questions == 0 check, but as a safeguard
-                     errors.append(f"Line {i}, Student {student_id_ext}: Division by zero error (no questions?).")
-                     continue
-
-                total_distributed = Decimal('0')
-                temp_question_scores = []
-
-                # First pass distribution & validation
-                sorted_questions = sorted(questions.values(), key=lambda q: q.number) # Ensure consistent order
-
-                for question in sorted_questions:
-                    current_q_score = score_per_question
-                    
-                    # Validate against max score if needed
-                    if validate_scores and current_q_score > question.max_score:
-                        if not continue_on_errors:
-                             errors.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Distributed score {current_q_score:.2f} exceeds max {question.max_score}")
-                             # If we stop on error, clear temp scores for this student
-                             temp_question_scores = []
-                             break # Stop processing questions for this student
-                        # If continuing, cap the score but add error/warning
-                        errors.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Distributed score {current_q_score:.2f} exceeds max {question.max_score}")
-                        current_q_score = question.max_score # Cap if continuing
-                    elif current_q_score > question.max_score:
-                         warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Distributed score {current_q_score:.2f} capped at max {question.max_score}")
-                         current_q_score = question.max_score
-                    
-                    # Ensure score is not negative (already handled for total_score_value, but good practice)
-                    if current_q_score < 0:
-                         current_q_score = Decimal('0')
-                         
-                    # Round to 2 decimal places *before* adding to total_distributed
-                    final_q_score = current_q_score.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-                    temp_question_scores.append({
-                         'question': question,
-                         'score': final_q_score
-                    })
-                    total_distributed += final_q_score
-
-                # If errors occurred during distribution and we're not continuing, skip adding scores for this student
-                if not temp_question_scores and not continue_on_errors and any(f"Line {i}, Student {student_id_ext}" in e for e in errors):
-                     continue # Skip to next line
-
-                # Adjust for rounding differences if total doesn't match exactly
-                # This adjustment aims to match the *original* total score as closely as possible *after validation/capping*
-                # Calculate the intended total after capping
+                # Calculate the target total score, capped by the exam's max possible score
                 max_possible_total = sum(q.max_score for q in questions.values())
                 target_total = min(total_score_value, max_possible_total)
                 target_total = target_total.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-
-                difference = target_total - total_distributed
                 
-                # Distribute rounding difference (add/subtract 0.01 starting from first question)
-                # Only adjust if difference is >= 0.01 or <= -0.01
-                if abs(difference) >= Decimal('0.005'): # Use 0.005 threshold for rounding check
-                    adjustment = Decimal('0.01') if difference > 0 else Decimal('-0.01')
-                    num_adjustments = int(abs(difference / adjustment))
+                # Distribute score
+                distributed_sum_so_far = Decimal('0')
+                final_scores_per_question = {} # Store final score for each question_id
+                sorted_questions = sorted(questions.values(), key=lambda q: q.number) # Ensure consistent order
 
-                    for k in range(min(num_adjustments, len(temp_question_scores))):
-                         # Ensure adjustment doesn't violate max_score or go below zero
-                         adjusted_score = temp_question_scores[k]['score'] + adjustment
-                         question_max = temp_question_scores[k]['question'].max_score
-                         
-                         if adjusted_score >= 0 and adjusted_score <= question_max:
-                              temp_question_scores[k]['score'] = adjusted_score
-                         elif adjustment > 0 and temp_question_scores[k]['score'] < question_max : 
-                              # If adding adjustment exceeds max, set to max
-                              temp_question_scores[k]['score'] = question_max
-                         elif adjustment < 0 and temp_question_scores[k]['score'] > 0:
-                              # If subtracting adjustment goes below zero, set to zero
-                              temp_question_scores[k]['score'] = Decimal('0')
-                         # If adjustment cannot be made, it's skipped for this question
+                # Calculate score for the first N-1 questions
+                if num_questions > 1:
+                    # Calculate base score per question with high precision first
+                    base_score_per_question = (total_score_value / Decimal(num_questions))
+                    
+                    for k in range(num_questions - 1):
+                        question = sorted_questions[k]
+                        # Round to 2 decimals for this question
+                        q_score = base_score_per_question.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                        
+                        # Validate/Cap the score for this question
+                        original_q_score = q_score # Keep for potential warning/error message
+                        if validate_scores and q_score > question.max_score:
+                            if not continue_on_errors:
+                                errors.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Distributed score {original_q_score} exceeds max {question.max_score}. Cannot adjust last question accurately.")
+                                final_scores_per_question = {} # Clear scores for this student
+                                break # Stop processing questions for this student
+                            else:
+                                warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Distributed score {original_q_score} capped at max {question.max_score}")
+                                q_score = question.max_score
+                        elif q_score > question.max_score:
+                            warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Distributed score {original_q_score} capped at max {question.max_score}")
+                            q_score = question.max_score
+                        
+                        if q_score < 0: q_score = Decimal('0')
+                        
+                        final_scores_per_question[question.id] = q_score
+                        distributed_sum_so_far += q_score
+                    
+                    # If errors occurred and we're stopping, break out of the student loop
+                    if not final_scores_per_question and not continue_on_errors and any(f"Line {i}, Student {student_id_ext}" in e for e in errors):
+                        continue # Skip to next line/student
 
-                # Add the final calculated scores for this student
-                for item in temp_question_scores:
-                    question = item['question']
-                    final_score = item['score']
-                    line_scores.append({
-                        'student_id': student_db_id,
-                        'student_ext_id': student_id_ext,
-                        'question_id': question.id,
-                        'question_num': question.number, # Store question number for reference
-                        'exam_id': exam_id,
-                        'score': final_score, # Use the potentially adjusted score
-                        'line_number': i
-                    })
+                # Calculate the score for the last question
+                last_question = sorted_questions[-1]
+                last_q_score = target_total - distributed_sum_so_far
+                
+                # Validate/Cap the last question's score
+                original_last_q_score = last_q_score # Keep for potential warning/error message
+                if validate_scores and last_q_score > last_question.max_score:
+                     if not continue_on_errors:
+                          errors.append(f"Line {i}, Student {student_id_ext}, Last Q({last_question.number}): Calculated score {original_last_q_score} exceeds max {last_question.max_score} to match total.")
+                          final_scores_per_question = {} # Clear scores for this student
+                          continue # Skip to next line/student
+                     else:
+                         warnings.append(f"Line {i}, Student {student_id_ext}, Last Q({last_question.number}): Calculated score {original_last_q_score} capped at max {last_question.max_score} to match total. Final total might be lower than imported.")
+                         last_q_score = last_question.max_score
+                elif last_q_score > last_question.max_score:
+                     warnings.append(f"Line {i}, Student {student_id_ext}, Last Q({last_question.number}): Calculated score {original_last_q_score} capped at max {last_question.max_score}. Final total might be lower than imported.")
+                     last_q_score = last_question.max_score
+                
+                if last_q_score < 0:
+                    warnings.append(f"Line {i}, Student {student_id_ext}, Last Q({last_question.number}): Calculated score {original_last_q_score} was negative, set to 0. Final total might be higher than imported.")
+                    last_q_score = Decimal('0')
+                
+                # Ensure the final score is rounded correctly (though calculation should already be precise)
+                final_scores_per_question[last_question.id] = last_q_score.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+                # Add the final calculated scores for this student if no fatal errors occurred
+                if final_scores_per_question:
+                    # Double check the final sum (optional, for debugging/verification)
+                    final_total_check = sum(final_scores_per_question.values())
+                    if final_total_check != target_total:
+                         # This might happen if the last score was capped
+                         warnings.append(f"Line {i}, Student {student_id_ext}: Final calculated total {final_total_check} does not exactly match target {target_total} due to capping/rounding adjustments.")
+
+                    for question_id, final_score in final_scores_per_question.items():
+                        # Find the original question object again (could optimize by storing obj earlier)
+                        question = next((q for q in questions.values() if q.id == question_id), None)
+                        if question: # Should always find it
+                            line_scores.append({
+                                'student_id': student_db_id,
+                                'student_ext_id': student_id_ext,
+                                'question_id': question.id,
+                                'question_num': question.number,
+                                'exam_id': exam_id,
+                                'score': final_score,
+                                'line_number': i
+                            })
             
             # Add parsed scores for the line to the main list
             scores_to_add.extend(line_scores)

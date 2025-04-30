@@ -226,11 +226,11 @@
                                                 <div class="score-input-container">
                                                     {% set score_key = (student.id, question.id) %}
                                                     {% set score = scores_dict.get(score_key) %}
-                                                    <input type="number" 
+                                                    <input type="text"
                                                         class="form-control score-input student-{{ student.id }}" 
                                                         name="score_{{ student.id }}_{{ question.id }}" 
-                                                        value="{{ score.score|float|round(1) if score else '' }}"
-                                                        min="0" max="{{ question.max_score|float|round(1) }}" step="0.1"
+                                                        value="{{ score.score|float|round(2) if score else '' }}"
+                                                        min="0" max="{{ question.max_score|float|round(2) }}" step="0.01" 
                                                         data-student-id="{{ student.id }}"
                                                         data-question-id="{{ question.id }}"
                                                         data-exam-id="{{ exam.id }}"
@@ -245,13 +245,13 @@
                                             <td class="summary-cell" rowspan="{{ num_rows }}">
                                                 <div class="summary-label">Total Score</div>
                                                 <div class="summary-value" id="total_value_{{ student.id }}">
-                                                    {% if not attended %}N/A{% else %}0.0{% endif %}
+                                                    {% if not attended %}N/A{% else %}0.00{% endif %}
                                                 </div>
                                             </td>
                                             <td class="summary-cell" rowspan="{{ num_rows }}">
                                                 <div class="summary-label">Percentage</div>
                                                 <div class="summary-value" id="percentage_value_{{ student.id }}">
-                                                    {% if not attended %}N/A{% else %}0%{% endif %}
+                                                    {% if not attended %}N/A{% else %}0.00%{% endif %}
                                                 </div>
                                             </td>
                                             <td class="summary-cell" rowspan="{{ num_rows }}">
@@ -383,27 +383,34 @@
         // Add event listeners to all score inputs
         scoreInputs.forEach(input => {
             input.addEventListener('change', function() {
-                validateScore(this);
-                updateStudentTotal(this.dataset.studentId);
+                console.log(`>>> Change event on input for student ${this.dataset.studentId}, question ${this.dataset.questionId}`);
+                validateAndFormatScore(this);
+                updateStudentTotal(this.dataset.studentId); // Update immediately on change
                 autoSaveScore(this);
             });
-            
-            input.addEventListener('input', function() {
-                validateScore(this);
-                updateStudentTotal(this.dataset.studentId);
-            });
-            
+
             input.addEventListener('focus', function() {
+                console.log(`>>> Focus event on input for student ${this.dataset.studentId}, question ${this.dataset.questionId}`);
                 this.select();
             });
             
-            // Allow keyboard navigation between cells
-            input.addEventListener('keydown', function(e) {
-                if (e.key === 'Tab' || e.key === 'Enter') {
-                    validateScore(this);
-                    updateStudentTotal(this.dataset.studentId);
-                    if (e.key === 'Enter') {
-                        e.preventDefault(); // Prevent form submission on Enter
+            // Add keypress event to handle decimal points and commas
+            input.addEventListener('keypress', function(e) {
+                // If the key is a comma or period, handle it specially
+                if (e.key === ',' || e.key === '.') {
+                    e.preventDefault(); // Prevent default character insertion
+                    
+                    // Get cursor position
+                    const cursorPos = this.selectionStart;
+                    const currentValue = this.value;
+                    
+                    // Check if there's already a decimal point in the value
+                    if (currentValue.indexOf('.') === -1) {
+                        // Insert a decimal point at cursor position
+                        this.value = currentValue.slice(0, cursorPos) + '.' + currentValue.slice(cursorPos);
+                        
+                        // Set cursor position to just after the inserted decimal point
+                        this.selectionStart = this.selectionEnd = cursorPos + 1;
                     }
                 }
             });
@@ -611,8 +618,8 @@
                     table.dataset.attended = 'true';
                     
                     // Update summary values
-                    document.getElementById('total_value_' + studentId).textContent = '0.0';
-                    document.getElementById('percentage_value_' + studentId).textContent = '0%';
+                    document.getElementById('total_value_' + studentId).textContent = '0.00';
+                    document.getElementById('percentage_value_' + studentId).textContent = '0.00%';
                 } else {
                     // Add not-attended-badge if it doesn't exist
                     let badge = this.closest('.student-cell').querySelector('.not-attended-badge');
@@ -665,25 +672,46 @@
             });
         });
         
-        function validateScore(input) {
-            const value = parseFloat(input.value);
-            const maxScore = parseFloat(input.dataset.maxScore);
-            
-            if (isNaN(value)) {
-                input.value = '';
+        // Updated function: performs robust validation and formatting AFTER input is finished
+        function validateAndFormatScore(input) {
+            console.log(`>>> Validating score for student ${input.dataset.studentId}, question ${input.dataset.questionId}. Initial value: "${input.value}"`);
+            let valueStr = input.value.trim();
+            if (valueStr === '') {
                 input.dataset.hasScore = 'false';
-                return;
+                return; // Nothing to do if empty
             }
-            
-            if (value < 0) {
-                input.value = 0;
-            } else if (value > maxScore) {
-                input.value = maxScore;
+
+            // 1. Replace commas with dots
+            valueStr = valueStr.replace(/,/g, '.');
+
+            // 2. Keep only digits and the *first* dot
+            let cleanedStr = "";
+            let dotFound = false;
+            for (let char of valueStr) {
+                if (/\d/.test(char)) {
+                    cleanedStr += char;
+                } else if (char === '.' && !dotFound) {
+                    cleanedStr += char;
+                    dotFound = true;
+                }
             }
-            
-            // Format to 1 decimal place to avoid precision issues
-            if (!isNaN(value)) {
-                input.value = parseFloat(value.toFixed(1));
+
+            // 3. Parse the cleaned string
+            let value = parseFloat(cleanedStr);
+            const maxScore = parseFloat(input.dataset.maxScore);
+
+            // 4. Validate, cap, and format
+            if (isNaN(value)) {
+                input.value = ''; // Clear invalid input
+                input.dataset.hasScore = 'false';
+            } else {
+                if (value < 0) {
+                    value = 0;
+                } else if (value > maxScore) {
+                    value = maxScore;
+                }
+                // Format to 2 decimal places and update value
+                input.value = value.toFixed(2);
                 input.dataset.hasScore = 'true';
             }
         }
@@ -692,38 +720,44 @@
             const inputs = document.querySelectorAll(`.student-${studentId}`);
             
             // Check if student is marked as not attended
-            const isDisabled = inputs.length > 0 && inputs[0].disabled;
+            const attended = document.getElementById(`attended_${studentId}`)?.checked ?? true; // Default to true if toggle not found
             
+            const totalElement = document.getElementById(`total_value_${studentId}`);
+            const percentageElement = document.getElementById(`percentage_value_${studentId}`);
+
             // If student didn't attend, show N/A in the totals
-            if (isDisabled) {
-                const totalElement = document.getElementById(`total_value_${studentId}`);
-                const percentageElement = document.getElementById(`percentage_value_${studentId}`);
-                
+            if (!attended) {
                 if (totalElement) totalElement.textContent = 'N/A';
                 if (percentageElement) percentageElement.textContent = 'N/A';
                 return;
             }
             
             let total = 0;
-            let examTotal = 0;
+            let examTotalMaxScore = 0;
             
             inputs.forEach(input => {
-                const value = parseFloat(input.value) || 0;
+                // Ensure we handle commas in the value by replacing them with dots
+                const valueStr = input.value.replace(/,/g, '.');
+                
+                // Ensure we read the validated value, even if disabled (it might hold the last valid score)
+                const value = parseFloat(valueStr) || 0;
                 const maxScore = parseFloat(input.dataset.maxScore) || 0;
-                total += parseFloat(value.toFixed(1));
-                examTotal += maxScore;
+                
+                // Accumulate with 2 decimal places precision implicitly via parseFloat
+                total += value; 
+                examTotalMaxScore += maxScore;
             });
             
-            const totalElement = document.getElementById(`total_value_${studentId}`);
-            const percentageElement = document.getElementById(`percentage_value_${studentId}`);
+            // Use Decimal.js or string manipulation for precise summing if needed, 
+            // but standard float addition is usually sufficient for display totals.
             
             if (totalElement) {
-                totalElement.textContent = total.toFixed(1);
+                totalElement.textContent = total.toFixed(2); // Changed to 2 decimal places
             }
             
             if (percentageElement) {
-                const percentage = examTotal > 0 ? (total / examTotal) * 100 : 0;
-                percentageElement.textContent = percentage.toFixed(1) + '%';
+                const percentage = examTotalMaxScore > 0 ? (total / examTotalMaxScore) * 100 : 0;
+                percentageElement.textContent = percentage.toFixed(2) + '%'; // Changed to 2 decimal places
             }
         }
         
@@ -741,7 +775,12 @@
         function autoSaveScore(input) {
             const studentId = input.dataset.studentId;
             const questionId = input.dataset.questionId;
-            const score = input.value ? parseFloat(parseFloat(input.value).toFixed(1)) : "";
+            
+            // Ensure any commas are replaced with dots before parsing
+            let valueStr = input.value.replace(/,/g, '.');
+            
+            // Ensure score sent has 2 decimal places if not empty
+            const score = valueStr ? parseFloat(parseFloat(valueStr).toFixed(2)) : ""; 
             
             saveStatus.textContent = '⌛ Saving...';
             saveStatus.className = 'text-warning';
@@ -858,7 +897,7 @@
                 
                 html += `<tr>
                     <td title="${outcome.description}">${outcome.code}</td>
-                    <td class="${colorClass}">${isNaN(percentage) ? '0.0' : percentage.toFixed(1)}%</td>
+                    <td class="${colorClass}">${isNaN(percentage) ? '0.00' : percentage.toFixed(2)}%</td>
                 </tr>`;
             }
             
