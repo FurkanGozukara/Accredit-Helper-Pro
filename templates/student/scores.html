@@ -291,15 +291,34 @@
                 </div>
                 <div class="card-body">
                     <form id="importScoresForm" method="POST" action="{{ url_for('student.import_scores', exam_id=exam.id) }}" enctype="multipart/form-data">
+                        
+                        <!-- Import Format Selection -->
                         <div class="mb-3">
-                            <label for="scoresData" class="form-label">Paste scores data (Format: student_no;student_name;q1:score1;q2:score2;...)</label>
-                            <textarea class="form-control font-monospace" id="scoresData" name="scores_data" rows="5" placeholder="12345;John Doe;q1:8.5;q2:7;q3:4.5"></textarea>
+                            <label class="form-label">Select Import Format:</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="import_format" id="formatDetailed" value="detailed" checked>
+                                <label class="form-check-label" for="formatDetailed">
+                                    Detailed Scores (e.g., <code>student_no;student_name;q1:score1;q2:score2;... 213435423;student name;q1:3.2;q2:1.5;q5:5.5... etc</code>)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="import_format" id="formatTotal" value="total_only">
+                                <label class="form-check-label" for="formatTotal">
+                                    Total Score Only (e.g., <code>student_no&lt;delimiter&gt;total_score</code>) - Score will be distributed equally.
+                                </label>
+                                <div class="form-text">Use tab, semicolon, or comma as the delimiter between student number and score.</div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="scoresData" class="form-label">Paste scores data:</label>
+                            <textarea class="form-control font-monospace" id="scoresData" name="scores_data" rows="5" placeholder="Paste data according to selected format..."></textarea>
                         </div>
                         <div class="mb-3">
-                            <label for="scoresFile" class="form-label">Or upload a CSV/text file</label>
+                            <label for="scoresFile" class="form-label">Or upload a CSV/text file:</label>
                             <input class="form-control" type="file" id="scoresFile" name="scores_file">
-                            <div class="form-text">
-                                File should contain one student per line with format: student_no;student_name;q1:score1;q2:score2;...
+                            <div class="form-text" id="fileFormatHelpText">
+                                File should follow the selected format (one student per line).
                             </div>
                         </div>
                         

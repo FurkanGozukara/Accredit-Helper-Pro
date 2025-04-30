@@ -707,7 +707,16 @@ def import_scores(exam_id):
     # Flag to determine if we should create missing students automatically
     create_students = request.form.get('create_missing_students') == 'on'
     
-    # Process the header row if present to determine question numbers (optional)
+    # Get the selected import format
+    import_format = request.form.get('import_format', 'detailed') # Default to detailed
+    
+    # Flag to validate scores against max score
+    validate_scores = request.form.get('validate_max_scores') == 'on'
+    
+    # Flag to continue on errors
+    continue_on_errors = request.form.get('continue_on_errors') == 'on'
+    
+    # Process the header row if present (only relevant for detailed format)
     header_mapping = {}
     header_row = request.form.get('has_header') == 'on'
     
@@ -739,426 +748,526 @@ def import_scores(exam_id):
             # If header processing fails, assume no header
             header_row = False
     
-    # First pass: validate and prepare objects
-    for i, line in enumerate(lines, 1 if not header_row else 2):  # Adjust line number if we have a header
-        # Skip empty lines
+    # Prepare a dictionary to temporarily hold newly created student IDs if create_students is true
+    student_id_map = {}
+
+    # First pass: Process students if 'create_students' is enabled
+    if create_students:
+        temp_students_to_create = []
+        for i, line in enumerate(lines, 1 if not header_row else 2):
+            if not line.strip():
+                continue
+            try:
+                parts = [p.strip() for p in line.split(delimiter)]
+                
+                if import_format == 'detailed' and len(parts) < 2: # Need ID and Name for detailed
+                     if not continue_on_errors: errors.append(f"Line {i}: Not enough data (expected at least student ID and name for detailed format)")
+                     continue
+                elif import_format == 'total_only' and len(parts) < 1: # Need at least ID for total_only
+                     if not continue_on_errors: errors.append(f"Line {i}: Not enough data (expected at least student ID for total score format)")
+                     continue
+
+                student_id = parts[0].strip().replace('\\t', '')
+                if not student_id:
+                    if not continue_on_errors: errors.append(f"Line {i}: Empty student ID after trimming")
+                    continue
+                
+                if student_id not in students_dict:
+                    full_name = parts[1].strip() if import_format == 'detailed' and len(parts) > 1 else f"Imported {student_id}"
+                    
+                    # Deduplicate based on student_id before adding to temp list
+                    if not any(s['student_id'] == student_id for s in temp_students_to_create):
+                         name_parts = full_name.split(maxsplit=1)
+                         first_name = name_parts[0][:50].strip() if name_parts else ""
+                         last_name = name_parts[1][:50].strip() if len(name_parts) > 1 else ""
+                         
+                         temp_students_to_create.append({
+                             'student_id': student_id,
+                             'first_name': first_name,
+                             'last_name': last_name,
+                             'course_id': course.id,
+                             'line_number': i
+                         })
+            except Exception as e:
+                if not continue_on_errors: errors.append(f"Line {i}: Error processing student data: {str(e)}")
+                continue
+
+        # Batch create students if any are found
+        if temp_students_to_create:
+            try:
+                # Use bulk insert for potentially better performance
+                db.session.bulk_insert_mappings(Student, temp_students_to_create)
+                db.session.commit()
+                flash(f"Successfully created {len(temp_students_to_create)} new students.", 'info')
+                
+                # Re-fetch students to update the students_dict and get new IDs
+                students_dict = {s.student_id: s for s in Student.query.filter_by(course_id=course.id).all()}
+                
+                # Populate student_id_map for later score assignment
+                for created_data in temp_students_to_create:
+                    created_student = students_dict.get(created_data['student_id'])
+                    if created_student:
+                        student_id_map[created_data['student_id']] = created_student.id
+                    else:
+                         # This case should ideally not happen if commit was successful and re-fetch worked
+                         warnings.append(f"Could not find newly created student {created_data['student_id']} after commit.")
+                         
+            except IntegrityError as e:
+                 db.session.rollback()
+                 # Check if the error is due to duplicate student ID
+                 if 'UNIQUE constraint failed: student.student_id' in str(e):
+                     # Attempt to identify the problematic student ID(s)
+                     problematic_ids = []
+                     for student_data in temp_students_to_create:
+                         existing_student = Student.query.filter_by(student_id=student_data['student_id'], course_id=course.id).first()
+                         if existing_student:
+                             problematic_ids.append(student_data['student_id'])
+                             # Add to students_dict if somehow missed earlier
+                             students_dict[student_data['student_id']] = existing_student
+                             
+                     if problematic_ids:
+                         error_msg = f"Error creating students: The following student IDs already exist in this course: {', '.join(problematic_ids)}. Please uncheck 'Create missing students' or remove them from the import data."
+                         errors.append(error_msg)
+                         flash(error_msg, 'error')
+                         # Decide whether to continue processing scores for existing students
+                         if not continue_on_errors:
+                              return redirect(url_for('student.manage_scores', exam_id=exam_id))
+                     else:
+                          # Generic integrity error
+                          errors.append(f"Database error creating students: {str(e)}")
+                          flash(f"Database error creating students: {str(e)}", 'error')
+                          if not continue_on_errors: return redirect(url_for('student.manage_scores', exam_id=exam_id))
+                         
+            except Exception as e:
+                db.session.rollback()
+                errors.append(f"Error creating students: {str(e)}")
+                flash(f"Error creating students: {str(e)}", 'error')
+                if not continue_on_errors: return redirect(url_for('student.manage_scores', exam_id=exam_id))
+                
+    # Second pass: Process scores
+    scores_to_add = []
+    processed_students = set() # Track processed students per line to avoid duplicate processing
+    
+    for i, line in enumerate(lines, 1 if not header_row else 2):
+        processed_students.clear() # Reset for each new line
         if not line.strip():
             continue
         
-        # Try to parse the line
         try:
-            # Split by detected delimiter
             parts = [p.strip() for p in line.split(delimiter)]
             
-            if len(parts) < 3:  # Need at least student_id, name, and one score
-                errors.append(f"Line {i}: Not enough data (expected at least student ID, name, and one score)")
+            # --- Student ID and Identification ---
+            if not parts: continue # Skip empty lines after split
+
+            student_id_ext = parts[0].strip().replace('\\t', '')
+            if not student_id_ext:
+                if not continue_on_errors: errors.append(f"Line {i}: Empty student ID")
                 continue
-            
-            student_id = parts[0].strip()
-            full_name = parts[1].strip()
-            
-            # Sanitize student ID - only remove tabs and trim whitespace
-            student_id = student_id.replace('\t', '').strip()
-            
-            # Validate student ID format - check that it's not empty after trimming
-            if not student_id:
-                errors.append(f"Line {i}: Empty student ID after trimming whitespace")
-                continue
-            
-            # Find the student
-            student = students_dict.get(student_id)
-            
-            # Handle creation of new students if needed
-            if student is None and create_students:
-                # Parse the name
-                name_format = request.form.get('name_format', 'auto')
-                
-                if name_format == 'eastern':
-                    # Eastern format: Last name first
-                    name_parts = full_name.split()
-                    if len(name_parts) > 1:
-                        last_name = name_parts[0]
-                        first_name = " ".join(name_parts[1:])
-                    else:
-                        last_name = full_name
-                        first_name = ""
-                elif name_format == 'western':
-                    # Western format: First name first
-                    name_parts = full_name.split()
-                    if len(name_parts) > 1:
-                        first_name = " ".join(name_parts[:-1])
-                        last_name = name_parts[-1]
-                    else:
-                        first_name = full_name
-                        last_name = ""
-                elif name_format == 'comma':
-                    # Comma format: "Last, First"
-                    if ',' in full_name:
-                        name_components = full_name.split(',', 1)
-                        last_name = name_components[0].strip()
-                        first_name = name_components[1].strip() if len(name_components) > 1 else ""
-                    else:
-                        # Fallback if comma format specified but no comma found
-                        name_parts = full_name.split()
-                        if len(name_parts) > 1:
-                            first_name = " ".join(name_parts[:-1])
-                            last_name = name_parts[-1]
-                        else:
-                            first_name = full_name
-                            last_name = ""
-                else:  # Auto-detect
-                    # Check for comma-separated format: "LastName, FirstName"
-                    if ',' in full_name:
-                        name_components = full_name.split(',', 1)
-                        last_name = name_components[0].strip()
-                        first_name = name_components[1].strip() if len(name_components) > 1 else ""
-                    else:
-                        # Default to Western format (FirstName LastName)
-                        name_parts = full_name.split()
-                        if len(name_parts) > 1:
-                            first_name = " ".join(name_parts[:-1])
-                            last_name = name_parts[-1]
-                        else:
-                            first_name = full_name
-                            last_name = ""
-                
-                # Validate and limit name lengths
-                first_name = first_name[:50].strip()
-                last_name = last_name[:50].strip()
-                
-                # Check for duplicate student ID in pending creation list
-                if any(s['student_id'] == student_id for s in students_to_create):
-                    errors.append(f"Line {i}: Duplicate student ID {student_id} in import data")
-                    continue
-                
-                # Add student to creation list
-                new_student_data = {
-                    'student_id': student_id,
-                    'first_name': first_name,
-                    'last_name': last_name,
-                    'course_id': course.id,
-                    'line_number': i  # Keep track for error reporting
-                }
-                students_to_create.append(new_student_data)
-                
-                # For now, use the student ID as an identifier
-                student_identifier = f"NEW:{student_id}"
-            elif student is None:
-                errors.append(f"Line {i}: Student ID {student_id} not found in this course")
-                continue
+
+            student = students_dict.get(student_id_ext)
+            student_db_id = None
+
+            if student:
+                student_db_id = student.id
+            elif create_students and student_id_ext in student_id_map:
+                 # Student was created in the first pass
+                 student_db_id = student_id_map[student_id_ext]
+                 student = Student.query.get(student_db_id) # Get the actual student object
+                 if not student: # Should not happen, but safety check
+                      if not continue_on_errors: errors.append(f"Line {i}: Could not retrieve newly created student {student_id_ext}")
+                      continue
             else:
-                # Use the internal student ID
-                student_identifier = student.id
-            
-            # Process scores for this line
-            line_scores = []
-            
-            # Method 1: Use header mapping if available
-            if header_mapping:
-                for col_idx, q_num in header_mapping.items():
-                    if col_idx < len(parts):
-                        score_str = parts[col_idx].strip()
-                        
-                        # Skip empty scores
-                        if not score_str:
-                            continue
-                        
-                        # Validate and convert score
-                        try:
-                            score_value = Decimal(score_str.replace(',', '.'))  # Handle European decimal format
-                        except (ValueError, InvalidOperation):
-                            errors.append(f"Line {i}: Invalid score value '{score_str}' for question {q_num}")
-                            continue
-                        
-                        question = questions[q_num]
-                        
-                        # Always validate score is within range
-                        if score_value < 0:
-                            errors.append(f"Line {i}: Score {score_value} is negative for question {q_num}")
-                            continue
-                        elif score_value > question.max_score:
-                            errors.append(f"Line {i}: Score {score_value} exceeds max score {question.max_score} for question {q_num}")
-                            continue
-                        
-                        line_scores.append({
-                            'student_id': student_identifier,
-                            'student_ext_id': student_id,  # Keep original ID for reference
-                            'question_id': question.id,
-                            'question_num': q_num,
-                            'exam_id': exam_id,
-                            'score': score_value,
-                            'line_number': i
-                        })
-            else:
-                # Method 2: Parse the remaining columns as q:score format
-                for score_data in parts[2:]:
-                    # Skip empty scores
-                    if not score_data.strip():
-                        continue
-                    
-                    # Parse the question number and score
-                    try:
-                        if ':' in score_data:
-                            # Format: q1:10, 1:10, Q1:10, etc.
-                            q_part, score_part = score_data.split(':', 1)
-                            # Extract the question number (remove 'q' or 'Q' prefix)
-                            q_num = int(re.sub(r'^[qQ]', '', q_part.strip()))
-                            score_str = score_part.strip()
-                        else:
-                            # If no question number format is found, assign sequentially
-                            q_num = len(line_scores) + 1
-                            score_str = score_data.strip()
-                        
-                        # Check if question exists
-                        if q_num not in questions:
-                            errors.append(f"Line {i}: Question {q_num} does not exist for this exam")
-                            continue
-                        
-                        # Validate and convert score to Decimal
-                        try:
-                            score_value = Decimal(score_str.replace(',', '.'))  # Handle European decimal format
-                        except (ValueError, InvalidOperation):
-                            errors.append(f"Line {i}: Invalid score value '{score_str}' for question {q_num}")
-                            continue
-                        
-                        question = questions[q_num]
-                        
-                        # Always validate score is within range
-                        if score_value < 0:
-                            errors.append(f"Line {i}: Score {score_value} is negative for question {q_num}")
-                            continue
-                        elif score_value > question.max_score:
-                            errors.append(f"Line {i}: Score {score_value} exceeds max score {question.max_score} for question {q_num}")
-                            continue
-                        
-                        line_scores.append({
-                            'student_id': student_identifier,
-                            'student_ext_id': student_id,  # Keep original ID for reference
-                            'question_id': question.id,
-                            'question_num': q_num,
-                            'exam_id': exam_id,
-                            'score': score_value,
-                            'line_number': i
-                        })
-                    except ValueError as e:
-                        errors.append(f"Line {i}: Error processing score '{score_data}' - {str(e)}")
-                        continue
-                    except Exception as e:
-                        errors.append(f"Line {i}: Error processing score '{score_data}' - {str(e)}")
-                        continue
-            
-            if line_scores:
-                scores_to_add.extend(line_scores)
-            else:
-                errors.append(f"Line {i}: No valid scores found for student {student_id}")
+                 # Student not found and not created (or creation failed/disabled)
+                 if not continue_on_errors: errors.append(f"Line {i}: Student ID {student_id_ext} not found and not created.")
+                 continue
+                 
+            # Avoid processing the same student multiple times if they appear on the same line (unlikely but possible)
+            if student_db_id in processed_students:
+                 continue
+            processed_students.add(student_db_id)
+
+            # --- Score Parsing based on Format ---
+            line_scores = [] # Scores parsed from this line
+
+            if import_format == 'detailed':
+                # --- DETAILED FORMAT PARSING ---
+                if len(parts) < 2: # Need ID and Name minimum for this format, even if scores are missing
+                     if not continue_on_errors: errors.append(f"Line {i}: Not enough data for detailed format (expected student ID and name)")
+                     continue
                 
-        except Exception as e:
-            errors.append(f"Line {i}: Error processing line - {str(e)}")
-            logging.error(f"Error processing score import line {i}: {str(e)}\n{traceback.format_exc()}")
-    
-    # SECOND PASS: Start database operations
-    continue_on_errors = request.form.get('continue_on_errors') == 'on'
-    
-    if (not errors or continue_on_errors) and (scores_to_add or students_to_create):
-        try:
-            # Begin nested transaction
-            savepoint = db.session.begin_nested()
-            
-            # First, create any new students needed
-            student_id_map = {}  # Map from "NEW:student_id" to database ID
-            
-            if students_to_create:
-                logging.info(f"Creating {len(students_to_create)} new students")
-                
-                try:
-                    # Process students in batches for better performance
-                    batch_size = 50
-                    for i in range(0, len(students_to_create), batch_size):
-                        batch = students_to_create[i:i+batch_size]
-                        
-                        # Create savepoint for this batch
-                        if i > 0:
-                            db.session.begin_nested()
-                        
-                        for student_data in batch:
-                            line_number = student_data.pop('line_number')
-                            student_ext_id = student_data['student_id']
+                score_data_parts = parts[2:] # Scores start from the 3rd element
+
+                # Method 1: Use header mapping if available
+                if header_mapping:
+                    for col_idx, q_num in header_mapping.items():
+                        if col_idx < len(parts):
+                            score_str = parts[col_idx].strip().replace(',', '.') # Handle comma decimal sep
+                            if not score_str: continue # Skip empty scores
                             
                             try:
-                                new_student = Student(**student_data)
-                                db.session.add(new_student)
-                                db.session.flush()  # Get the ID assigned by the database
-                                
-                                # Add to mapping
-                                student_id_map[f"NEW:{student_ext_id}"] = new_student.id
-                                # Add to students_dict for lookup in case of multiple occurrences
-                                students_dict[student_ext_id] = new_student
-                                
-                            except IntegrityError as e:
-                                if "UNIQUE constraint failed" in str(e):
-                                    # Another student with this ID might exist now (race condition)
-                                    db.session.rollback()
+                                score_value = Decimal(score_str)
+                                question = questions.get(q_num)
+                                if not question:
+                                     if not continue_on_errors: errors.append(f"Line {i}: Header refers to non-existent question {q_num} for student {student_id_ext}")
+                                     continue # Skip this score if question not found
+
+                                # Validate against max score if needed
+                                if validate_scores and score_value > question.max_score:
+                                     if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Score {score_value} exceeds max {question.max_score}")
+                                     continue # Skip this score if invalid and not continuing
+                                elif score_value > question.max_score:
+                                     warnings.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Score {score_value} capped at max {question.max_score}")
+                                     score_value = question.max_score # Cap if continuing
+                                elif score_value < 0:
+                                    warnings.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Score {score_value} set to 0")
+                                    score_value = Decimal('0')
                                     
-                                    # Try to find the student again (might have been added by another process)
-                                    existing_student = Student.query.filter_by(student_id=student_ext_id, course_id=course.id).first()
-                                    if existing_student:
-                                        student_id_map[f"NEW:{student_ext_id}"] = existing_student.id
-                                        students_dict[student_ext_id] = existing_student
-                                    else:
-                                        errors.append(f"Line {line_number}: Could not create student {student_ext_id} - unique constraint error")
-                                else:
-                                    errors.append(f"Line {line_number}: Database error creating student {student_ext_id} - {str(e)}")
-                            except Exception as e:
-                                errors.append(f"Line {line_number}: Database error creating student {student_ext_id} - {str(e)}")
-                    
-                    logging.info(f"Created {len(student_id_map)} new students")
-                except Exception as e:
-                    if not continue_on_errors:
-                        db.session.rollback()
-                        flash(f"Error creating students: {str(e)}", "error")
-                        return redirect(url_for('student.manage_scores', exam_id=exam_id))
-                    else:
-                        logging.error(f"Error creating students: {str(e)}")
-                        warnings.append(f"Error creating students: {str(e)}")
-            
-            # Now process scores
-            if scores_to_add:
-                scores_added = 0
-                score_errors = []
-                
-                # Get existing scores to avoid duplicates
-                existing_scores = set()
-                for score in Score.query.filter_by(exam_id=exam_id).all():
-                    existing_scores.add((score.student_id, score.question_id))
-                
-                # Process scores in batches
-                batch_size = 100
-                for i in range(0, len(scores_to_add), batch_size):
-                    batch = scores_to_add[i:i+batch_size]
-                    
-                    # Create savepoint for this batch
-                    if i > 0:
-                        db.session.begin_nested()
-                    
-                    batch_error = False
-                    for score_data in batch:
-                        try:
-                            line_number = score_data.pop('line_number')
-                            student_ext_id = score_data.pop('student_ext_id')
-                            
-                            # Resolve student ID
-                            student_id_key = score_data['student_id']
-                            if isinstance(student_id_key, str) and student_id_key.startswith('NEW:'):
-                                # This is a newly created student
-                                if student_id_key in student_id_map:
-                                    score_data['student_id'] = student_id_map[student_id_key]
-                                else:
-                                    score_errors.append(f"Line {line_number}: Could not find newly created student {student_ext_id}")
-                                    continue
-                            
-                            # Check for duplicates
-                            score_key = (score_data['student_id'], score_data['question_id'])
-                            if score_key in existing_scores:
-                                # Update existing score instead of creating new one
-                                existing_score = Score.query.filter_by(
-                                    student_id=score_data['student_id'],
-                                    question_id=score_data['question_id'],
-                                    exam_id=score_data['exam_id']
-                                ).first()
-                                
-                                if existing_score:
-                                    existing_score.score = score_data['score']
-                                    existing_score.updated_at = datetime.now()
-                                    scores_added += 1
-                                    continue
-                            
-                            # Create new score
-                            new_score = Score(
-                                student_id=score_data['student_id'],
-                                question_id=score_data['question_id'], 
-                                exam_id=score_data['exam_id'],
-                                score=score_data['score']
-                            )
-                            db.session.add(new_score)
-                            
-                            # Add to existing set to avoid duplicates in same import
-                            existing_scores.add(score_key)
-                            scores_added += 1
-                            
-                        except Exception as e:
-                            batch_error = True
-                            score_errors.append(f"Line {line_number}: Error adding score - {str(e)}")
-                    
-                    # Flush this batch if no errors
-                    if not batch_error:
-                        try:
-                            db.session.flush()
-                        except Exception as e:
-                            db.session.rollback()
-                            score_errors.append(f"Database error in batch {i//batch_size + 1}: {str(e)}")
-                
-                # Handle score errors
-                if score_errors:
-                    if continue_on_errors:
-                        # Log errors but continue
-                        for error in score_errors:
-                            logging.warning(f"Score import warning: {error}")
-                            warnings.append(error)
-                    else:
-                        # Rollback if there are errors and not continuing
-                        db.session.rollback()
-                        errors.extend(score_errors)
-                        flash(f"Failed to import scores: {len(score_errors)} errors", "error")
-                        return redirect(url_for('student.manage_scores', exam_id=exam_id))
-                
-                if scores_added > 0:
-                    # Log the action
-                    log = Log(action="IMPORT_SCORES", 
-                             description=f"Imported {scores_added} scores for {exam.name}")
-                    db.session.add(log)
-                    
-                    db.session.commit()
-                    
-                    flash(f'Successfully imported {scores_added} scores', 'success')
-                    if len(student_id_map) > 0:
-                        flash(f'Created {len(student_id_map)} new students', 'info')
-                    
-                    if warnings:
-                        flash(f'There were {len(warnings)} warnings during import.', 'warning')
-                        for warning in warnings[:5]:  # Show only first 5 warnings
-                            flash(warning, 'warning')
-                        if len(warnings) > 5:
-                            flash(f'... and {len(warnings) - 5} more warnings', 'warning')
+                                line_scores.append({
+                                    'student_id': student_db_id,
+                                    'student_ext_id': student_id_ext, # Keep original ID for reference/error reporting
+                                    'question_id': question.id,
+                                    'question_num': q_num,
+                                    'exam_id': exam_id,
+                                    'score': score_value,
+                                    'line_number': i
+                                })
+                            except InvalidOperation: # For Decimal conversion errors
+                                if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Invalid score format '{parts[col_idx]}'")
+                                continue
+                            except Exception as e: # Catch other potential errors
+                                 if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Error processing score: {str(e)}")
+                                 continue
+                                 
+                # Method 2: Parse remaining columns as q:score format (if no header or as fallback)
+                elif score_data_parts: # Only proceed if there are score parts
+                    for score_pair in score_data_parts:
+                        if not score_pair.strip(): continue # Skip empty parts
                         
-                    return redirect(url_for('student.manage_scores', exam_id=exam_id))
+                        try:
+                            # Expect format like "q1:8.5" or "q1:8,5"
+                            q_part, score_part = score_pair.split(':', 1)
+                            q_num_match = re.search(r'\\d+', q_part)
+                            if not q_num_match:
+                                 if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Invalid question format '{q_part}' in '{score_pair}'")
+                                 continue
+                                 
+                            q_num = int(q_num_match.group(0))
+                            question = questions.get(q_num)
+                            if not question:
+                                 if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Question number {q_num} not found for this exam")
+                                 continue
+                                 
+                            score_str = score_part.strip().replace(',', '.')
+                            if not score_str: continue # Skip if score part is empty after split
+
+                            score_value = Decimal(score_str)
+
+                            # Validate against max score if needed
+                            if validate_scores and score_value > question.max_score:
+                                if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Score {score_value} exceeds max {question.max_score}")
+                                continue
+                            elif score_value > question.max_score:
+                                warnings.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Score {score_value} capped at max {question.max_score}")
+                                score_value = question.max_score
+                            elif score_value < 0:
+                                warnings.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Score {score_value} set to 0")
+                                score_value = Decimal('0')
+
+                            line_scores.append({
+                                'student_id': student_db_id,
+                                'student_ext_id': student_id_ext,
+                                'question_id': question.id,
+                                'question_num': q_num,
+                                'exam_id': exam_id,
+                                'score': score_value,
+                                'line_number': i
+                            })
+                        except ValueError: # Handles split error or non-numeric score part
+                             if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Invalid score format '{score_pair}'")
+                             continue
+                        except InvalidOperation: # Handles Decimal conversion error
+                             if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Invalid score value in '{score_pair}'")
+                             continue
+                        except Exception as e: # Catch other potential errors
+                             if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Error processing score pair '{score_pair}': {str(e)}")
+                             continue
+
+            elif import_format == 'total_only':
+                # --- TOTAL SCORE ONLY PARSING ---
+                if len(parts) < 2:
+                    if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Missing total score")
+                    continue
+                
+                total_score_str = parts[1].strip().replace(',', '.')
+                if not total_score_str:
+                    # Treat empty score as 0
+                    warnings.append(f"Line {i}, Student {student_id_ext}: Empty total score treated as 0.")
+                    total_score_value = Decimal('0')
                 else:
-                    db.session.rollback()
-                    flash('No scores were imported. Please check the errors below.', 'error')
+                    try:
+                        total_score_value = Decimal(total_score_str)
+                        if total_score_value < 0:
+                             warnings.append(f"Line {i}, Student {student_id_ext}: Negative total score {total_score_value} treated as 0.")
+                             total_score_value = Decimal('0')
+                    except InvalidOperation:
+                        if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Invalid total score format '{parts[1]}'")
+                        continue
+                
+                num_questions = len(questions)
+                if num_questions == 0:
+                    # This case is checked at the beginning, but double-check here
+                    errors.append(f"Line {i}, Student {student_id_ext}: Cannot distribute score - no questions found for this exam.")
+                    # Stop processing if no questions, even if continue_on_errors is true, as it's fundamental
+                    flash("Import failed: Cannot import scores as there are no questions defined for this exam.", 'error')
                     return redirect(url_for('student.manage_scores', exam_id=exam_id))
+
+                # Distribute score equally
+                try:
+                     # Use ROUND_HALF_UP for potentially fairer distribution, match precision later
+                     score_per_question = (total_score_value / Decimal(num_questions)).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP) 
+                except DivisionByZero:
+                     # Should be caught by num_questions == 0 check, but as a safeguard
+                     errors.append(f"Line {i}, Student {student_id_ext}: Division by zero error (no questions?).")
+                     continue
+
+                total_distributed = Decimal('0')
+                temp_question_scores = []
+
+                # First pass distribution & validation
+                sorted_questions = sorted(questions.values(), key=lambda q: q.number) # Ensure consistent order
+
+                for question in sorted_questions:
+                    current_q_score = score_per_question
+                    
+                    # Validate against max score if needed
+                    if validate_scores and current_q_score > question.max_score:
+                        if not continue_on_errors:
+                             errors.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Distributed score {current_q_score:.2f} exceeds max {question.max_score}")
+                             # If we stop on error, clear temp scores for this student
+                             temp_question_scores = []
+                             break # Stop processing questions for this student
+                        # If continuing, cap the score but add error/warning
+                        errors.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Distributed score {current_q_score:.2f} exceeds max {question.max_score}")
+                        current_q_score = question.max_score # Cap if continuing
+                    elif current_q_score > question.max_score:
+                         warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Distributed score {current_q_score:.2f} capped at max {question.max_score}")
+                         current_q_score = question.max_score
+                    
+                    # Ensure score is not negative (already handled for total_score_value, but good practice)
+                    if current_q_score < 0:
+                         current_q_score = Decimal('0')
+                         
+                    # Round to 2 decimal places *before* adding to total_distributed
+                    final_q_score = current_q_score.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    temp_question_scores.append({
+                         'question': question,
+                         'score': final_q_score
+                    })
+                    total_distributed += final_q_score
+
+                # If errors occurred during distribution and we're not continuing, skip adding scores for this student
+                if not temp_question_scores and not continue_on_errors and any(f"Line {i}, Student {student_id_ext}" in e for e in errors):
+                     continue # Skip to next line
+
+                # Adjust for rounding differences if total doesn't match exactly
+                # This adjustment aims to match the *original* total score as closely as possible *after validation/capping*
+                # Calculate the intended total after capping
+                max_possible_total = sum(q.max_score for q in questions.values())
+                target_total = min(total_score_value, max_possible_total)
+                target_total = target_total.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+                difference = target_total - total_distributed
+                
+                # Distribute rounding difference (add/subtract 0.01 starting from first question)
+                # Only adjust if difference is >= 0.01 or <= -0.01
+                if abs(difference) >= Decimal('0.005'): # Use 0.005 threshold for rounding check
+                    adjustment = Decimal('0.01') if difference > 0 else Decimal('-0.01')
+                    num_adjustments = int(abs(difference / adjustment))
+
+                    for k in range(min(num_adjustments, len(temp_question_scores))):
+                         # Ensure adjustment doesn't violate max_score or go below zero
+                         adjusted_score = temp_question_scores[k]['score'] + adjustment
+                         question_max = temp_question_scores[k]['question'].max_score
+                         
+                         if adjusted_score >= 0 and adjusted_score <= question_max:
+                              temp_question_scores[k]['score'] = adjusted_score
+                         elif adjustment > 0 and temp_question_scores[k]['score'] < question_max : 
+                              # If adding adjustment exceeds max, set to max
+                              temp_question_scores[k]['score'] = question_max
+                         elif adjustment < 0 and temp_question_scores[k]['score'] > 0:
+                              # If subtracting adjustment goes below zero, set to zero
+                              temp_question_scores[k]['score'] = Decimal('0')
+                         # If adjustment cannot be made, it's skipped for this question
+
+                # Add the final calculated scores for this student
+                for item in temp_question_scores:
+                    question = item['question']
+                    final_score = item['score']
+                    line_scores.append({
+                        'student_id': student_db_id,
+                        'student_ext_id': student_id_ext,
+                        'question_id': question.id,
+                        'question_num': question.number, # Store question number for reference
+                        'exam_id': exam_id,
+                        'score': final_score, # Use the potentially adjusted score
+                        'line_number': i
+                    })
+            
+            # Add parsed scores for the line to the main list
+            scores_to_add.extend(line_scores)
+
+        except Exception as e:
+            error_msg = f"Line {i}: Unexpected error processing line: {str(e)}"
+            logging.error(f"Import Error on Line {i}: {traceback.format_exc()}") # Log detailed traceback
+            if continue_on_errors:
+                errors.append(error_msg)
             else:
-                db.session.commit()  # Commit any student creations but no scores
-                flash('No valid scores were found to import.', 'warning')
-                if len(student_id_map) > 0:
-                    flash(f'Created {len(student_id_map)} new students', 'info')
+                # If not continuing, flash the error and stop
+                flash(f"{error_msg}. Import aborted.", 'error')
+                # Include previous errors/warnings if any
+                if errors: flash("Previous errors: " + "; ".join(errors), 'warning')
+                if warnings: flash("Previous warnings: " + "; ".join(warnings), 'warning')
                 return redirect(url_for('student.manage_scores', exam_id=exam_id))
                 
+    # --- End of Line Processing Loop ---
+
+    # Check if any errors occurred and we are not continuing
+    if errors and not continue_on_errors:
+        flash("Errors occurred during processing. No scores were imported.", 'error')
+        # Display specific errors
+        for error in errors:
+            flash(error, 'danger') # Use danger for errors that stopped the import
+        if warnings: # Show warnings too
+             for warning in warnings: flash(warning, 'warning')
+        return redirect(url_for('student.manage_scores', exam_id=exam_id))
+    
+    # If continue_on_errors is true, show errors/warnings but proceed with valid data
+    if errors:
+        flash("Some errors occurred during processing. Only valid entries were imported.", 'warning')
+        for error in errors:
+            flash(error, 'danger') # Use danger for errors that were skipped
+    if warnings:
+        flash("Some warnings occurred during processing:", 'warning')
+        for warning in warnings:
+            flash(warning, 'warning')
+
+    # Final step: Add scores to the database
+    if scores_to_add:
+        try:
+            # Optional: Delete existing scores for the imported students first
+            # delete_existing = request.form.get('delete_existing') == 'on'
+            # if delete_existing:
+            #     student_ids_in_import = {s['student_id'] for s in scores_to_add}
+            #     if student_ids_in_import:
+            #         Score.query.filter(Score.exam_id == exam_id, Score.student_id.in_(student_ids_in_import)).delete(synchronize_session=False)
+            #         db.session.commit() # Commit deletion before adding new scores
+            
+            scores_updated = 0
+            scores_added = 0
+            db_errors = []
+            
+            # Get existing scores more efficiently using a dictionary lookup
+            existing_scores_query = Score.query.filter(Score.exam_id == exam_id)
+            existing_scores = {(s.student_id, s.question_id): s for s in existing_scores_query}
+            
+            scores_to_insert = []
+            scores_to_update = []
+
+            processed_keys = set() # Ensure we don't try to insert/update the same student/question twice from the import list
+
+            for score_data in scores_to_add:
+                score_key = (score_data['student_id'], score_data['question_id'])
+                
+                # Avoid duplicate processing from the import list itself
+                if score_key in processed_keys:
+                     warnings.append(f"Duplicate score for Student {score_data['student_ext_id']} Q{score_data['question_num']} in import data (line {score_data['line_number']}). Using first occurrence.")
+                     continue
+                processed_keys.add(score_key)
+
+                if score_key in existing_scores:
+                    # Update existing score
+                    existing_score = existing_scores[score_key]
+                    # Only update if the score is different to minimize db writes
+                    if existing_score.score != score_data['score']:
+                         existing_score.score = score_data['score']
+                         existing_score.updated_at = datetime.now()
+                         scores_to_update.append(existing_score) # Can bulk update later if needed, or just rely on session tracking
+                         scores_updated += 1
+                    # If score is the same, do nothing for this entry
+                else:
+                    # Prepare new score for insertion
+                    # Ensure we don't add a score for a student that failed creation or wasn't found
+                    if score_data['student_id'] is not None:
+                         new_score = Score(
+                             score=score_data['score'],
+                             student_id=score_data['student_id'],
+                             question_id=score_data['question_id'],
+                             exam_id=exam_id
+                         )
+                         scores_to_insert.append(new_score)
+                         scores_added += 1
+                         # Add key to existing_scores conceptually to prevent duplicates within the same import batch if not using processed_keys
+                         # existing_scores[score_key] = new_score # Add placeholder or the object itself
+                    else:
+                         # This should be caught earlier, but safeguard
+                         db_errors.append(f"Attempted to add score for unknown student (Ext ID: {score_data['student_ext_id']}, Line: {score_data['line_number']})")
+
+            # Perform bulk insertion if possible
+            if scores_to_insert:
+                 try:
+                      db.session.bulk_save_objects(scores_to_insert)
+                 except Exception as e:
+                      db_errors.append(f"Error during bulk insertion: {str(e)}")
+                      # Rollback might be needed here depending on overall transaction strategy
+                      db.session.rollback() # Rollback bulk insert attempt
+                      # Optionally, attempt individual inserts if bulk fails and continue_on_errors
+                      if continue_on_errors:
+                           flash("Bulk insertion failed, attempting individual inserts...", 'warning')
+                           scores_added = 0 # Reset count
+                           for score_obj in scores_to_insert:
+                                try:
+                                     db.session.add(score_obj)
+                                     db.session.flush() # Flush to catch errors per object
+                                     scores_added += 1
+                                except Exception as e_ind:
+                                     db_errors.append(f"Error inserting score for Student Ext ID {score_data['student_ext_id']} Q{score_data['question_num']}: {str(e_ind)}")
+                                     db.session.rollback() # Rollback only the failed insert
+                                     db.session.begin() # Start a new transaction context if needed
+                           if scores_added > 0: db.session.commit() # Commit successful individual inserts
+                      else:
+                          # If not continuing, report error and stop
+                          flash(f"Database error during score insertion: {str(e)}. Import failed.", 'error')
+                          return redirect(url_for('student.manage_scores', exam_id=exam_id))
+
+
+            # Commit all updates (tracked by the session) and successful inserts
+            db.session.commit()
+
+            # Log action
+            log = Log(
+                action="IMPORT_SCORES",
+                description=f"Imported {scores_added} scores, updated {scores_updated} scores for exam: {exam.name} (Format: {import_format})."
+            )
+            db.session.add(log)
+            db.session.commit()
+            
+            success_msg = f"Scores imported successfully: {scores_added} added, {scores_updated} updated."
+            if db_errors:
+                 flash(success_msg + " Some database errors occurred.", 'warning')
+                 for db_err in db_errors: flash(db_err, 'danger')
+            else:
+                 flash(success_msg, 'success')
+                 
         except Exception as e:
             db.session.rollback()
-            logging.error(f"Error during score import: {str(e)}\n{traceback.format_exc()}")
-            flash(f'An error occurred while importing scores: {str(e)}', 'error')
-            return redirect(url_for('student.manage_scores', exam_id=exam_id))
-    else:
-        if errors:
-            flash(f'{len(errors)} errors found in import data. Please correct them and try again.', 'error')
-            # Only show first 10 errors to avoid overwhelming the user
-            for error in errors[:10]:
-                flash(error, 'warning')
-            if len(errors) > 10:
-                flash(f'... and {len(errors) - 10} more errors', 'warning')
-        else:
-            flash('No valid score data found for import.', 'error')
+            flash(f"Database error saving scores: {str(e)}", 'error')
+            logging.error(f"Database error during score import commit: {traceback.format_exc()}")
+            
+    elif not errors: # No scores to add and no errors reported
+        flash("No valid score data found to import.", 'info')
         
-        return redirect(url_for('student.manage_scores', exam_id=exam_id))
+    # Redirect back to the scores page regardless of outcome (unless fatal error occurred earlier)
+    return redirect(url_for('student.manage_scores', exam_id=exam_id))
 
 @student_bp.route('/course/<int:course_id>/export')
 def export_students(course_id):
@@ -1440,7 +1549,7 @@ def import_attendance(exam_id):
                 ',': data.count(',')
             }
             # Return the most commonly used delimiter, with fallback to tab
-            return max(delimiters.items(), key=lambda x: x[1])[0] if any(delimiters.values()) else ';'
+            return max(delimiters.items(), key=lambda x: x[1])[0] if any(delimiters.values()) else '\t'
         
         delimiter = detect_delimiter(attendance_data)
         logging.info(f"Detected delimiter for attendance import: {repr(delimiter)}")
@@ -1585,48 +1694,26 @@ def import_attendance(exam_id):
                 errors.extend(add_errors)
                 for error in errors[:10]:  # Show first 10 errors
                     flash(error, 'warning')
-                if len(errors) > 10:
-                    flash(f'... and {len(errors) - 10} more errors', 'warning')
-                return redirect(url_for('student.manage_attendance', exam_id=exam_id))
-            
-            if imported_count > 0:
-                # Log the action
-                log = Log(
-                    action="IMPORT_EXAM_ATTENDANCE",
-                    description=f"Imported attendance for {imported_count} students in {exam.name}"
-                )
-                db.session.add(log)
-                
-                try:
-                    db.session.commit()
-                    flash(f'Successfully imported attendance for {imported_count} students.', 'success')
-                    
-                    if errors or add_errors:
-                        flash(f'There were {len(errors) + len(add_errors)} warnings during import.', 'warning')
-                        for error in (errors + add_errors)[:10]:
-                            flash(error, 'warning')
-                        if len(errors) + len(add_errors) > 10:
-                            flash(f'... and {len(errors) + len(add_errors) - 10} more warnings', 'warning')
-                except Exception as e:
-                    db.session.rollback()
-                    logging.error(f"Error committing attendance data: {str(e)}")
-                    flash(f'Database error when saving attendance data: {str(e)}', 'error')
             else:
-                db.session.rollback()
-                flash('No attendance records were imported.', 'warning')
-                
-                if not_found_ids:
-                    if len(not_found_ids) <= 10:
-                        flash(f"Student IDs not found: {', '.join(not_found_ids)}", 'warning')
-                    else:
-                        flash(f"{len(not_found_ids)} student IDs not found in this course", 'warning')
+                if imported_count > 0:
+                    # Log the action
+                    log = Log(
+                        action="IMPORT_EXAM_ATTENDANCE",
+                        description=f"Imported attendance for {imported_count} students in {exam.name}"
+                    )
+                    db.session.add(log)
+                    
+                    db.session.commit()
+                    
+                    flash(f'Successfully imported attendance for {imported_count} students.', 'success')
+                else:
+                    db.session.rollback()
+                    flash('No attendance records were imported.', 'warning')
         else:
             if errors:
                 flash(f'No attendance records were imported due to {len(errors)} validation errors.', 'error')
                 for error in errors[:10]:  # Show first 10 errors
                     flash(error, 'warning')
-                if len(errors) > 10:
-                    flash(f'... and {len(errors) - 10} more errors', 'warning')
             else:
                 flash('No valid attendance data found for import.', 'error')
         
