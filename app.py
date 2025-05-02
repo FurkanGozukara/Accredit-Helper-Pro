@@ -299,7 +299,7 @@ def initialize_program_outcomes():
     {"code": "PÇ2.2", "description": "Problemi anlamaya ve çözmeye yönelik uygun analiz, modelleme ve teknik yöntemleri seçer."},
     {"code": "PÇ2.3", "description": "Problemi anlamaya ve çözmeye yönelik teknik yöntemleri uygulamaya geçirebilir."},
     {"code": "PÇ3.1", "description": "Bilgisayar mühendisliği alanında modern tasarım yöntemleri hakkında bilgi sahibidir."},
-    {"code": "PÇ3.2", "description": "Gerçekçi koşullar altında karmaşık bir sistemi, süreci, cihazı yada ürünü tasarlayabilir."},
+    {"code": "PÇ3.2", "description": "Gerçekçi koşullar altında karmaşık bir sistemi, süreci, cihazı ya da ürünü tasarlayabilir."},
     {"code": "PÇ3.3", "description": "Modern tasarım yöntemlerini uygulamaya geçirebilir."},
     {"code": "PÇ4.1", "description": "Bilgisayar mühendisliği uygulamalarında karşılaşılan karmaşık problemlerin analizine ve çözümüne yönelik modern teknikleri ve araçları bilir."},
     {"code": "PÇ4.2", "description": "Karmaşık uygulama problemlerinin analizi ve çözümü için gerekli modern teknikleri ve araçları seçer veya geliştirir."},
