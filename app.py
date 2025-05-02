@@ -293,18 +293,41 @@ def initialize_program_outcomes():
     from models import ProgramOutcome
     
     default_outcomes = [
-        {"code": "PÇ1", "description": "Matematik, fen bilimleri ve bilgisayar mühendisliği alanlarına özgü konularda yeterli bilgi birikimi; bu alanlardaki kuramsal ve uygulamalı bilgileri, bilgisayar mühendisliği alanındaki karmaşık mühendislik problemlerinin çözümünde kullanabilme becerisi."},
-        {"code": "PÇ2", "description": "Bilgisayar mühendisliği alanındaki karmaşık mühendislik problemlerini saptama, tanımlama, formüle etme ve çözme becerisi; bu amaçla uygun analiz, teknik ve modelleme yöntemlerini seçme ve uygulama becerisi."},
-        {"code": "PÇ3", "description": "Bilgisayar mühendisliği kapsamındaki karmaşık bir sistemi, süreci, cihazı veya ürünü gerçekçi kısıtlar ve koşullar altında, belirli gereksinimleri karşılayacak şekilde bilgisayar mühendisliği alanındaki modern tasarım yöntemlerini uygulayarak tasarlama becerisi."},
-        {"code": "PÇ4", "description": "Bilgisayar mühendisliği uygulamalarında karşılaşılan karmaşık problemlerin analizi ve çözümü için gerekli olan modern teknik ve araçları geliştirme, seçme ve kullanma becerisi; bilişim teknolojilerini etkin bir şekilde kullanma becerisi."},
-        {"code": "PÇ5", "description": "Bilgisayar mühendisliği disiplinine özgü karmaşık problemlerin veya araştırma konularının incelenmesi için deney tasarlama, deney yapma, veri toplama, sonuçları analiz etme ve yorumlama becerisi."},
-        {"code": "PÇ6", "description": "Disiplin içi ve çok disiplinli takımlarda etkin biçimde çalışabilme becerisi; bireysel çalışma becerisi."},
-        {"code": "PÇ7", "description": "Türkçe sözlü ve yazılı etkin iletişim kurma becerisi; en az bir yabancı dil bilgisi; etkin rapor yazma ve yazılı raporları anlama, tasarım ve üretim raporları hazırlayabilme, etkin sunum yapabilme, açık ve anlaşılır talimat verme ve alma becerisi."},
-        {"code": "PÇ8", "description": "Yaşam boyu öğrenmenin gerekliliği bilinci; bilgiye erişebilme, bilim ve teknolojideki gelişmeleri izleme ve kendini sürekli yenileme becerisi."},
-        {"code": "PÇ9", "description": "Etik ilkelerine uygun davranma, mesleki ve etik sorumluluk bilinci; bilgisayar mühendisliği alanındaki mühendislik uygulamalarında kullanılan standartlar hakkında bilgi."},
-        {"code": "PÇ10", "description": "Bilgisayar mühendisliği alanında proje yönetimi, risk yönetimi ve değişiklik yönetimi gibi, iş hayatındaki uygulamalar hakkında bilgi; girişimcilik, yenilikçilik hakkında farkındalık; sürdürülebilir kalkınma hakkında bilgi."},
-        {"code": "PÇ11", "description": "Bilgisayar mühendisliği alanındaki mühendislik uygulamalarının evrensel ve toplumsal boyutlarda sağlık, çevre ve güvenlik üzerindeki etkileri ve çağın bilgisayar mühendisliği alanına yansıyan sorunları hakkında bilgi; bilgisayar mühendisliği çözümlerinin hukuksal sonuçları hakkında farkındalık."}
-    ]
+    {"code": "PÇ1.1", "description": "Matematik, fen ve mühendislik bilgisine sahiptir."},
+    {"code": "PÇ1.2", "description": "Bilgiyi karmaşık bilgisayar mühendisliği problemlerinin çözümünde kullanır."},
+    {"code": "PÇ2.1", "description": "Bilgisayar mühendisliği alanında karmaşık mühendislik problemlerini saptar, tanımlar, formüle eder ve çözer."},
+    {"code": "PÇ2.2", "description": "Problemi anlamaya ve çözmeye yönelik uygun analiz, modelleme ve teknik yöntemleri seçer."},
+    {"code": "PÇ2.3", "description": "Problemi anlamaya ve çözmeye yönelik teknik yöntemleri uygulamaya geçirebilir."},
+    {"code": "PÇ3.1", "description": "Bilgisayar mühendisliği alanında modern tasarım yöntemleri hakkında bilgi sahibidir."},
+    {"code": "PÇ3.2", "description": "Gerçekçi koşullar altında karmaşık bir sistemi, süreci, cihazı yada ürünü tasarlayabilir."},
+    {"code": "PÇ3.3", "description": "Modern tasarım yöntemlerini uygulamaya geçirebilir."},
+    {"code": "PÇ4.1", "description": "Bilgisayar mühendisliği uygulamalarında karşılaşılan karmaşık problemlerin analizine ve çözümüne yönelik modern teknikleri ve araçları bilir."},
+    {"code": "PÇ4.2", "description": "Karmaşık uygulama problemlerinin analizi ve çözümü için gerekli modern teknikleri ve araçları seçer veya geliştirir."},
+    {"code": "PÇ4.3", "description": "Karmaşık uygulama problemlerinin analizine ve çözümüne yönelik modern teknikleri ve araçları uygular veya kullanır."},
+    {"code": "PÇ4.4", "description": "Bilişim teknolojilerini etkin bir şekilde kullanır."},
+    {"code": "PÇ5.1", "description": "İnceleme ve araştırma amaçlı deney tasarlar."},
+    {"code": "PÇ5.2", "description": "İnceleme ve araştırma amaçlı deney yapar."},
+    {"code": "PÇ5.3", "description": "İnceleme ve araştırma amaçlı veri toplar."},
+    {"code": "PÇ5.4", "description": "İnceleme ve araştırma kapsamında sonuçları analiz eder veya yorumlar."},
+    {"code": "PÇ6.1", "description": "Disiplin içi ve çok disiplinli takımlarda etkin biçimde çalışabilir."},
+    {"code": "PÇ6.2", "description": "Bireysel olarak sorumluluk alabilir."},
+    {"code": "PÇ7.1", "description": "Türkçe sözlü ve yazılı etkin iletişim kurabilir."},
+    {"code": "PÇ7.2", "description": "En az bir yabancı dil bilgisine sahiptir."},
+    {"code": "PÇ7.3", "description": "Etkin rapor yazar, yazılı raporları anlar, tasarım ve üretim raporları hazırlar."},
+    {"code": "PÇ7.4", "description": "Etkin sunum yapar, açık ve anlaşılır talimat verir ve alır."},
+    {"code": "PÇ8.1", "description": "Yaşam boyu öğrenmenin gerekliliğinin farkındadır."},
+    {"code": "PÇ8.2", "description": "Bilgiye erişme, bilim ve teknolojideki gelişmeleri izleme becerisine sahiptir."},
+    {"code": "PÇ8.3", "description": "Kendini sürekli yenileme becerisine sahiptir."},
+    {"code": "PÇ9.1", "description": "Etik ilkelere uygun davranır."},
+    {"code": "PÇ9.2", "description": "Meslekî ve etik sorumluluk sahibidir."},
+    {"code": "PÇ9.3", "description": "Alana özgü uygulama standartları hakkında bilgi sahibidir."},
+    {"code": "PÇ10.1", "description": "Proje yönetimi, risk yönetimi ve değişiklik yönetimi gibi, iş hayatındaki uygulamalar hakkında bilgi sahibidir."},
+    {"code": "PÇ10.2", "description": "Girişimcilik ve yenilikçilik hakkında farkındalığa sahiptir."},
+    {"code": "PÇ10.3", "description": "Sürdürülebilir kalkınma hakkında bilgi sahibidir."},
+    {"code": "PÇ11.1", "description": "Bilgisayar mühendisliği uygulamalarının sağlık, çevre ve güvenlik üzerindeki etkileri hakkında bilgi sahibidir."},
+    {"code": "PÇ11.2", "description": "Çağın Bilgisayar Mühendisliği alanına yansıyan sorunları hakkında bilgi sahibidir."},
+    {"code": "PÇ11.3", "description": "Bilgisayar Mühendisliği çözümlerinin hukuksal sonuçları hakkında farkındalığa sahibidir."}
+]
     
     # Check if program outcomes already exist
     from models import ProgramOutcome
