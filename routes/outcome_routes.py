@@ -10,16 +10,149 @@ import re
 import pandas as pd
 from io import BytesIO
 import json
+from sqlalchemy import inspect, text
 
 outcome_bp = Blueprint('outcome', __name__, url_prefix='/outcome')
 
+def _handle_batch_course_outcome_import(course_id, batch_data_content, course):
+    """Helper function to process batch import of course outcomes."""
+    lines = batch_data_content.strip().split('\n')
+    parsed_cos = {}
+    feedback = {
+        "success_messages": [],
+        "warning_messages": [],
+        "failed_lines": []
+    }
+
+    for i, line_raw in enumerate(lines):
+        line = line_raw.strip()
+        if not line:
+            continue
+
+        parts = [p.strip() for p in line.split('||')]
+        if len(parts) != 4:
+            feedback["failed_lines"].append({"line": line_raw, "error": f"Invalid format: Expected 4 parts separated by ||, found {len(parts)}."})
+            continue
+
+        co_code, co_desc, po_code, rel_weight_str = parts
+
+        if not co_code or not po_code or not rel_weight_str:
+            feedback["failed_lines"].append({"line": line_raw, "error": "Missing CO Code, PO Code, or Relative Weight."})
+            continue
+        
+        try:
+            relative_weight = float(rel_weight_str)
+            if not (0.00 <= relative_weight <= 9.99):
+                raise ValueError("Relative weight out of range (0.00-9.99).")
+        except ValueError as e:
+            feedback["failed_lines"].append({"line": line_raw, "error": f"Invalid Relative Weight: {rel_weight_str}. Error: {str(e)}"})
+            continue
+
+        if co_code not in parsed_cos:
+            parsed_cos[co_code] = {'description': co_desc, 'associations': {}, 'first_line_num': i + 1}
+        elif parsed_cos[co_code]['description'] != co_desc:
+             # Use description from first occurrence if subsequent ones differ
+            pass # Silently use the first description
+
+        # Allow overwriting if PO_Code is repeated for the same CO_Code, last one wins for that PO
+        parsed_cos[co_code]['associations'][po_code] = relative_weight
+
+    # Database operations
+    for co_code, data in parsed_cos.items():
+        co_description = data['description']
+        associations = data['associations']
+        line_num_for_co_desc = data['first_line_num']
+
+        try:
+            # Find or create Course Outcome
+            course_outcome = CourseOutcome.query.filter_by(code=co_code, course_id=course_id).first()
+            if not course_outcome:
+                course_outcome = CourseOutcome(code=co_code, description=co_description, course_id=course_id)
+                db.session.add(course_outcome)
+                db.session.flush() # Get ID for association
+                feedback["success_messages"].append(f"Created new Course Outcome: {co_code} - '{co_description}'")
+                log_action = "BATCH_ADD_CO"
+            else:
+                feedback["warning_messages"].append(f"Using existing Course Outcome: {co_code}. Description '{co_description}' from line {line_num_for_co_desc} was used if CO was new, or existing description retained.")
+                # If CO exists, we don't update its description based on batch, as per problem statement.
+                log_action = "BATCH_UPDATE_CO_ASSOC"
+
+            # Process associations
+            associated_pos_count = 0
+            for po_code, weight in associations.items():
+                program_outcome = ProgramOutcome.query.filter_by(code=po_code).first() # Assuming PO codes are unique globally
+                if not program_outcome:
+                    feedback["failed_lines"].append({"line": f"{co_code}||...||{po_code}||{weight}", "error": f"Program Outcome code '{po_code}' not found."})
+                    continue
+                
+                # Check if association exists
+                # SQLAlchemy's association proxy or direct add/update is preferred
+                # Forcing a direct update/insert into association table to ensure weight is set.
+                
+                # Ensure the PO is in the CO's program_outcomes list (SQLAlchemy might add it if not present)
+                if program_outcome not in course_outcome.program_outcomes:
+                    course_outcome.program_outcomes.append(program_outcome)
+                    db.session.flush() # Ensure association is flushed before trying to update weight if it's a new link
+                
+                # Update weight using the same direct SQL method as in single add
+                # This assumes 'course_outcome_program_outcome' table and 'relative_weight' column exist
+                db.session.execute(text(
+                    "UPDATE course_outcome_program_outcome SET relative_weight = :weight "
+                    "WHERE course_outcome_id = :co_id AND program_outcome_id = :po_id"
+                ), {
+                    "weight": weight,
+                    "co_id": course_outcome.id,
+                    "po_id": program_outcome.id
+                })
+                associated_pos_count += 1
+            
+            if associated_pos_count > 0:
+                feedback["success_messages"].append(f"Processed {associated_pos_count} PO associations for CO '{co_code}'.")
+
+            # Log after each CO is processed successfully (or partially)
+            log = Log(action=log_action, description=f"Batch processed CO: {co_code} for course: {course.code}")
+            db.session.add(log)
+
+            db.session.commit() # Commit after each CO to save partial progress
+
+        except Exception as e:
+            db.session.rollback()
+            error_msg = f"Error processing CO '{co_code}' (first defined at line ~{line_num_for_co_desc}): {str(e)}"
+            logging.error(error_msg)
+            # Add all associations for this CO as failed if the CO processing fails at DB level
+            for po_code_err, weight_err in associations.items():
+                 feedback["failed_lines"].append({"line": f"{co_code}||{co_description}||{po_code_err}||{weight_err}", "error": f"DB Error for CO '{co_code}': {str(e)}"})
+            # Also add a general message for the CO itself
+            feedback["failed_lines"].append({"line": f"CO: {co_code}", "error": f"DB Error for CO '{co_code}': {str(e)}"})
+
+    return feedback
+
 @outcome_bp.route('/course/<int:course_id>/add', methods=['GET', 'POST'])
 def add_course_outcome(course_id):
-    """Add a new course outcome to a course"""
     course = Course.query.get_or_404(course_id)
     program_outcomes = ProgramOutcome.query.all()
-    
+    batch_import_feedback = None # Initialize
+
     if request.method == 'POST':
+        if request.form.get('is_batch_import_submission'): # Check for our hidden field
+            batch_data_content = request.form.get('batch_data_content')
+            if batch_data_content:
+                batch_import_feedback = _handle_batch_course_outcome_import(course_id, batch_data_content, course)
+                # After batch processing, we stay on the page and show feedback
+                # Flash a summary message
+                s_count = len(batch_import_feedback.get("success_messages", []))
+                w_count = len(batch_import_feedback.get("warning_messages", []))
+                f_count = len(batch_import_feedback.get("failed_lines", []))
+                flash(f'Batch import processed. Successes: {s_count}, Warnings: {w_count}, Failures: {f_count}. See details below.', 'info')
+            else:
+                flash('Batch data was empty.', 'warning')
+            return render_template('outcome/course_outcome_form.html', 
+                                 course=course,
+                                 program_outcomes=program_outcomes,
+                                 active_page='courses',
+                                 batch_import_feedback=batch_import_feedback)
+        
+        # Existing single outcome addition logic
         code = request.form.get('code')
         description = request.form.get('description')
         
@@ -73,6 +206,7 @@ def add_course_outcome(course_id):
                 program_outcome = ProgramOutcome.query.get(program_outcome_id)
                 if program_outcome:
                     # Check if we can add the weight directly to the association
+                    # Check if we can add weights
                     from sqlalchemy import inspect, text
                     inspector = inspect(db.engine)
                     columns = [c['name'] for c in inspector.get_columns('course_outcome_program_outcome')]
@@ -114,11 +248,14 @@ def add_course_outcome(course_id):
                                  active_page='courses',
                                  outcome={'code': code, 'description': description})
     
-    # GET request
+    # GET request - pass batch_import_feedback if it was set by a previous POST or redirect with args
+    # Typically, after a POST-Redirect-Get, feedback might be passed via flash or query args.
+    # Here, we render directly after POST if it was a batch, so batch_import_feedback is already set.
     return render_template('outcome/course_outcome_form.html', 
                          course=course,
                          program_outcomes=program_outcomes,
-                         active_page='courses')
+                         active_page='courses',
+                         batch_import_feedback=batch_import_feedback)
 
 @outcome_bp.route('/course/edit/<int:outcome_id>', methods=['GET', 'POST'])
 def edit_course_outcome(outcome_id):
@@ -130,7 +267,6 @@ def edit_course_outcome(outcome_id):
     # Get current weights if they exist
     current_weights = {}
     try:
-        from sqlalchemy import text
         result = db.session.execute(text(
             "SELECT program_outcome_id, relative_weight FROM course_outcome_program_outcome "
             "WHERE course_outcome_id = :co_id"
@@ -195,7 +331,6 @@ def edit_course_outcome(outcome_id):
             course_outcome.updated_at = datetime.now()
             
             # Check if we can add weights
-            from sqlalchemy import inspect, text
             inspector = inspect(db.engine)
             columns = [c['name'] for c in inspector.get_columns('course_outcome_program_outcome')]
             has_relative_weight = 'relative_weight' in columns
@@ -782,7 +917,6 @@ def export_course_outcomes(course_id):
     # Check if relative_weight column exists
     has_relative_weight = False
     try:
-        from sqlalchemy import inspect
         inspector = inspect(db.engine)
         columns = [c['name'] for c in inspector.get_columns('course_outcome_program_outcome')]
         has_relative_weight = 'relative_weight' in columns
@@ -819,7 +953,6 @@ def export_course_outcomes(course_id):
     co_po_weights = {}
     if has_relative_weight:
         try:
-            from sqlalchemy import text
             for co in course_outcomes:
                 co_po_weights[co.id] = {}
                 result = db.session.execute(text(
@@ -911,7 +1044,6 @@ def import_outcomes_from_course(course_id):
             outcomes_skipped = 0
             
             # Check if we can handle weights
-            from sqlalchemy import inspect, text
             inspector = inspect(db.engine)
             columns = [c['name'] for c in inspector.get_columns('course_outcome_program_outcome')]
             has_relative_weight = 'relative_weight' in columns
@@ -1031,7 +1163,6 @@ def update_outcome_weights():
             return jsonify({'success': False, 'message': 'Invalid weight value'}), 400
         
         # Check if we can update the weight (column exists)
-        from sqlalchemy import inspect, text
         inspector = inspect(db.engine)
         columns = [c['name'] for c in inspector.get_columns('course_outcome_program_outcome')]
         

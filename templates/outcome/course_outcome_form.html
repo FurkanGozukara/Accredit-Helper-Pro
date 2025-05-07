@@ -17,34 +17,35 @@
         Add Course Outcome
         {% endif %}
     </h1>
-    
+
+
+
     <div class="alert alert-info">
         <p><strong>Course:</strong> {{ course.code }} - {{ course.name }} ({{ course.semester }})</p>
         <p><strong>About CO-PO Relative Weights:</strong> These weights determine how much each Course Outcome contributes to a Program Outcome when calculating program outcome scores. Default is 1.0. Values range from 0.00 to 9.99.</p>
     </div>
-    
+
     <div class="card">
         <div class="card-header">
             <h5>Outcome Details</h5>
         </div>
         <div class="card-body">
-            <form method="POST" 
-                {% if outcome %}
-                action="{{ url_for('outcome.edit_course_outcome', outcome_id=outcome.id) }}"
-                {% else %}
-                action="{{ url_for('outcome.add_course_outcome', course_id=course.id) }}"
-                {% endif %}
-            >
+            <form method="POST"
+                  {% if outcome %}
+                  action="{{ url_for('outcome.edit_course_outcome', outcome_id=outcome.id) }}"
+                  {% else %}
+                  action="{{ url_for('outcome.add_course_outcome', course_id=course.id) }}"
+                  {% endif %}>
                 <div class="mb-3">
                     <label for="code" class="form-label">Code:</label>
                     <input type="text" class="form-control" id="code" name="code" required
-                        value="{{ outcome.code if outcome else form_data.code if form_data else '' }}">
+                           value="{{ outcome.code if outcome else form_data.code if form_data else '' }}">
                 </div>
                 <div class="mb-3">
                     <label for="description" class="form-label">Description:</label>
                     <textarea class="form-control" id="description" name="description" rows="3" required>{{ outcome.description if outcome else form_data.description if form_data else '' }}</textarea>
                 </div>
-                
+
                 <div class="mb-3">
                     <label class="form-label">Program Outcomes:</label>
                     <div class="table-responsive">
@@ -61,15 +62,15 @@
                                 {% for po in program_outcomes %}
                                 <tr>
                                     <td class="text-center">
-                                        <input type="checkbox" class="form-check-input" name="program_outcomes" 
-                                            value="{{ po.id }}" id="po_{{ po.id }}"
-                                            {% if outcome and po in outcome.program_outcomes %}checked{% endif %}
-                                            {% if form_data and form_data.selected_outcomes and po.id|string in form_data.selected_outcomes %}checked{% endif %}>
+                                        <input type="checkbox" class="form-check-input" name="program_outcomes"
+                                               value="{{ po.id }}" id="po_{{ po.id }}"
+                                               {% if outcome and po in outcome.program_outcomes %}checked{% endif %}
+                                               {% if form_data and form_data.selected_outcomes and po.id|string in form_data.selected_outcomes %}checked{% endif %}>
                                     </td>
                                     <td>{{ po.code }}</td>
                                     <td>{{ po.description }}</td>
                                     <td>
-                                        <input type="number" class="form-control weight-input" 
+                                        <input type="number" class="form-control weight-input"
                                                name="po_weight_{{ po.id }}" id="po_weight_{{ po.id }}"
                                                min="0.00" max="9.99" step="0.01"
                                                value="{{ current_weights[po.id] if current_weights and po.id in current_weights else 1.0 }}"
@@ -82,7 +83,7 @@
                         </table>
                     </div>
                 </div>
-                
+
                 <div class="d-flex justify-content-between">
                     <a href="{{ url_for('course.course_detail', course_id=course.id) }}" class="btn btn-secondary">Cancel</a>
                     <button type="submit" class="btn btn-primary">Save</button>
@@ -90,6 +91,57 @@
             </form>
         </div>
     </div>
+
+    {# Batch Import Section - Only on Add Page #}
+    {% if not outcome %}
+    <div class="card mb-4" id="batchImportCard">
+        <div class="card-header">
+            <h5>Batch Import Course Outcomes</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('outcome.add_course_outcome', course_id=course.id) }}">
+                <input type="hidden" name="is_batch_import_submission" value="true">
+                <div class="mb-3">
+                    <label for="batch_data_input" class="form-label">Batch Data (CO_Code||CO_Desc||PO_Code||Weight):</label>
+                    <textarea class="form-control" id="batch_data_input" name="batch_data_content" rows="10"
+                              placeholder="CO1||Desc1||PO1||1.5\nCO1||Desc1||PO2||2.0"></textarea>
+                    <small class="form-text text-muted">
+                        Each entry on a new line. Format: CO_Code||CO_Description||PO_Code||Relative_Weight.
+                    </small>
+                </div>
+                <button type="submit" class="btn btn-info">Process Batch Import</button>
+            </form>
+
+            {% if batch_import_feedback %}
+            <hr>
+            <h5 id="batchImportResultsHeader">Batch Import Feedback:</h5>
+            {% if batch_import_feedback.success_messages %}
+            <div class="alert alert-success mt-3">
+                <strong>Successful Operations:</strong>
+                <ul>{% for msg in batch_import_feedback.success_messages %}<li>{{ msg }}</li>{% endfor %}</ul>
+            </div>
+            {% endif %}
+            {% if batch_import_feedback.warning_messages %}
+            <div class="alert alert-warning mt-3">
+                <strong>Warnings/Notices:</strong>
+                <ul>{% for msg in batch_import_feedback.warning_messages %}<li>{{ msg }}</li>{% endfor %}</ul>
+            </div>
+            {% endif %}
+            {% if batch_import_feedback.failed_lines %}
+            <div class="alert alert-danger mt-3">
+                <strong>Failed Lines/Errors:</strong>
+                <ul>
+                    {% for item in batch_import_feedback.failed_lines %}
+                    <li><strong>Line:</strong> <pre style="display: inline; white-space: pre-wrap;">{{ item.line }}</pre><br><strong>Error:</strong> {{ item.error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    {# End Batch Import Section #}
 </div>
 
 <script>
