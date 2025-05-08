@@ -117,7 +117,10 @@
             <h4 class="mb-0">Enter Scores: {{ exam.name }} ({{ exam.course.code }})</h4>
             <span>
                 <button type="button" class="btn btn-outline-danger" id="markZeroNotAttendedButton">
-                    <i class="fas fa-user-times"></i> Mark 0-Score Students Not Attended
+                    <i class="fas fa-user-times"></i> Mark 0-Score Students Not Joined
+                </button>
+                <button type="button" class="btn btn-danger" id="markEmptyNotAttendedButton">
+                    <i class="fas fa-user-times"></i> Mark No-Score Students Not Joined
                 </button>
                 <button type="button" class="btn btn-outline-success" id="saveAllButton">
                     <i class="fas fa-save"></i> Save All Changes
@@ -363,6 +366,7 @@
         const saveStatus = document.getElementById('saveStatus');
         const saveAllButton = document.getElementById('saveAllButton');
         const markZeroNotAttendedButton = document.getElementById('markZeroNotAttendedButton');
+        const markEmptyNotAttendedButton = document.getElementById('markEmptyNotAttendedButton');
         const form = document.getElementById('scoresForm');
         
         // Filter elements
@@ -581,6 +585,104 @@
             // After all requests are done
             Promise.all(promises).then(() => {
                 showSaveStatus(`Updated ${updatedCount} students to not attended`, 'success');
+                // Apply filters to update the view
+                applyFilters();
+            });
+        });
+        
+        // Mark students with no scores as not attended button
+        markEmptyNotAttendedButton.addEventListener('click', function() {
+            if (!confirm('Are you sure you want to mark all students with no scores entered as not attended?')) {
+                return;
+            }
+            
+            // Get all student IDs
+            const studentIds = new Set();
+            scoreInputs.forEach(input => {
+                studentIds.add(input.dataset.studentId);
+            });
+            
+            let updatedCount = 0;
+            let promises = [];
+            
+            // Check each student
+            studentIds.forEach(studentId => {
+                // Skip if already marked as not attended
+                const toggle = document.getElementById(`attended_${studentId}`);
+                if (!toggle || !toggle.checked) return;
+                
+                // Get all inputs for this student
+                const studentInputs = document.querySelectorAll('.score-input.student-' + studentId);
+                
+                // Check if all inputs are empty
+                let hasAnyScore = false;
+                studentInputs.forEach(input => {
+                    if (input.value.trim() !== '') {
+                        hasAnyScore = true;
+                    }
+                });
+                
+                // Skip if student has any scores
+                if (hasAnyScore) return;
+                
+                // Update UI
+                toggle.checked = false;
+                toggle.nextElementSibling.textContent = 'Did Not Join';
+                
+                // Add not-attended-badge
+                let badge = toggle.closest('.student-cell').querySelector('.not-attended-badge');
+                if (!badge) {
+                    badge = document.createElement('div');
+                    badge.className = 'not-attended-badge';
+                    badge.innerHTML = '<i class="fas fa-times-circle"></i> Not Attended';
+                    toggle.closest('.student-cell').appendChild(badge);
+                }
+                
+                // Disable all inputs for this student
+                studentInputs.forEach(input => {
+                    input.disabled = true;
+                });
+                
+                // Add student-not-attended class to table
+                const table = toggle.closest('table');
+                table.classList.add('student-not-attended');
+                table.dataset.attended = 'false';
+                
+                // Update summary values
+                const totalElement = document.getElementById(`total_value_${studentId}`);
+                if (totalElement) totalElement.textContent = 'N/A';
+                
+                const percentageElement = document.getElementById(`percentage_value_${studentId}`);
+                if (percentageElement) percentageElement.textContent = 'N/A';
+                
+                // Send AJAX request to update attendance
+                const examId = toggle.dataset.examId;
+                const promise = fetch('/student/exam/' + examId + '/update-attendance', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        student_id: studentId,
+                        attended: false
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updatedCount++;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+                
+                promises.push(promise);
+            });
+            
+            // After all requests are done
+            Promise.all(promises).then(() => {
+                showSaveStatus(`Updated ${updatedCount} students with no scores to not attended`, 'success');
                 // Apply filters to update the view
                 applyFilters();
             });
