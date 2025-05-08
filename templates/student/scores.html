@@ -4,103 +4,7 @@
 
 {% block styles %}
 {{ super() }}
-<style>
-    /* Style for better input sizing */
-    .score-input {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.875rem;
-        flex-grow: 1;
-        width: auto; /* Override Bootstrap and allow flex-grow */
-    }
-    
-    /* Question title style (displayed at the top of each cell) */
-    .question-title {
-        text-align: center;
-        font-size: 0.9rem;
-        padding: 0.3rem 0;
-    }
-    
-    /* Score input container style */
-    .score-input-container {
-        text-align: center;
-        display: flex;
-    }
-    
-    /* Table layout */
-    .scores-table {
-        table-layout: fixed;
-        margin-bottom: 1.5rem;
-    }
-    
-    .scores-table td, .scores-table th {
-        text-align: center;
-        vertical-align: middle;
-    }
-    
-    .student-cell {
-        width: 150px;
-        background-color: #f8f9fa;
-        font-weight: 500;
-    }
-    
-    .question-cell {
-        width: 85px;
-    }
-    
-    .summary-cell {
-        background-color: #f8f9fa;
-        width: 100px;
-        text-align: center;
-        vertical-align: middle;
-    }
-    
-    /* Styles for summary labels and values */
-    .summary-label {
-        font-weight: bold;
-        margin-bottom: 0.25rem;
-    }
-    .summary-value {
-        font-size: 1.1rem;
-    }
-    
-    /* Space between student sections */
-    .student-separator {
-        height: 1.5rem;
-    }
-    
-    /* Style for students who didn't attend */
-    .student-not-attended .student-cell {
-        background-color: #f8d7da;
-        border-left: 4px solid #dc3545;
-    }
-    
-    .student-not-attended .score-input {
-        background-color: #f8d7da;
-        cursor: not-allowed;
-    }
-    
-    .not-attended-badge {
-        display: inline-block;
-        background-color: #dc3545;
-        color: white;
-        font-size: 0.7rem;
-        padding: 0.2rem 0.4rem;
-        border-radius: 0.25rem;
-        margin-top: 0.25rem;
-    }
-    
-    /* Student filter controls */
-    .filter-controls {
-        background-color: #f8f9fa;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        margin-bottom: 1.5rem;
-    }
-    
-    .filter-controls .form-check {
-        margin-right: 1.5rem;
-    }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/scores.css') }}">
 {% endblock %}
 
 {% block breadcrumb %}
@@ -111,6 +15,7 @@
 {% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/scores.css') }}">
 <div class="container-fluid mt-4">
     <div class="card">
         <div class="card-header bg-light d-flex justify-content-between align-items-center">

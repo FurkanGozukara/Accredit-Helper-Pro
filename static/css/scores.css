@@ -1,0 +1,22 @@
+
+
+/* Style for students who didn't attend */
+.student-not-attended .student-cell {
+    background-color: #f8d7da;
+    border-left: 4px solid #dc3545;
+}
+
+.student-not-attended .score-input {
+    background-color: #f8d7da;
+    cursor: not-allowed;
+}
+
+.not-attended-badge {
+    display: inline-block;
+    background-color: #dc3545;
+    color: white;
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    margin-top: 0.25rem;
+}
