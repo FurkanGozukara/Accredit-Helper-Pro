@@ -1024,9 +1024,9 @@ def import_scores(exam_id):
                 
                 total_score_str = parts[1].strip().replace(',', '.')
                 if not total_score_str:
-                    # Treat empty score as 0
-                    warnings.append(f"Line {i}, Student {student_id_ext}: Empty total score treated as 0.")
-                    total_score_value = Decimal('0')
+                    # If total score string is empty, skip score processing for this student on this line.
+                    warnings.append(f"Line {i}, Student {student_id_ext}: Empty total score provided. No scores will be imported for this student from this line.")
+                    continue # Skip to the next line in the input file
                 else:
                     try:
                         total_score_value = Decimal(total_score_str)
