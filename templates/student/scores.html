@@ -210,6 +210,13 @@
                                 </label>
                             </div>
                             <div class="form-check">
+                                <input class="form-check-input" type="radio" name="import_format" id="formatSimple" value="simple">
+                                <label class="form-check-label" for="formatSimple">
+                                    Simple Format (e.g., <code>student_no&lt;delimiter&gt;q1&lt;delimiter&gt;q2&lt;delimiter&gt;q3&lt;delimiter&gt;...</code>) - Sequential question scores only.
+                                </label>
+                                <div class="form-text">Use tab, semicolon, or comma as the delimiter. If no valid score, enter 0. If student has no scores at all, mark as "not entered the exam".</div>
+                            </div>
+                            <div class="form-check">
                                 <input class="form-check-input" type="radio" name="import_format" id="formatTotal" value="total_only">
                                 <label class="form-check-label" for="formatTotal">
                                     Total Score Only (e.g., <code>student_no&lt;delimiter&gt;total_score</code>) - Score will be distributed equally.
@@ -401,6 +408,39 @@
                 fetchAbetScores(studentId, "{{ exam.course_id }}", container);
             });
         });
+        
+        // Handle import format changes
+        const formatRadios = document.querySelectorAll('input[name="import_format"]');
+        const scoresDataTextarea = document.getElementById('scoresData');
+        const fileFormatHelpText = document.getElementById('fileFormatHelpText');
+        
+        formatRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                updatePlaceholderAndHelp();
+            });
+        });
+        
+        function updatePlaceholderAndHelp() {
+            const selectedFormat = document.querySelector('input[name="import_format"]:checked').value;
+            
+            switch(selectedFormat) {
+                case 'detailed':
+                    scoresDataTextarea.placeholder = 'Example:\n213435423;John Doe;q1:3.2;q2:1.5;q3:5.5\n213435424;Jane Smith;q1:2.8;q2:4.0;q3:3.2';
+                    fileFormatHelpText.textContent = 'File should contain: student_no;student_name;q1:score1;q2:score2;... (one student per line)';
+                    break;
+                case 'simple':
+                    scoresDataTextarea.placeholder = 'Example:\n213435423;3.2;1.5;5.5\n213435424;2.8;4.0;3.2\n213435425;0;0;0\n213435426;';
+                    fileFormatHelpText.textContent = 'File should contain: student_no;q1_score;q2_score;q3_score;... (one student per line). Use 0 for no score, leave empty after student_no if not entered exam.';
+                    break;
+                case 'total_only':
+                    scoresDataTextarea.placeholder = 'Example:\n213435423;85.5\n213435424;92.0\n213435425;78.3';
+                    fileFormatHelpText.textContent = 'File should contain: student_no;total_score (one student per line). Score will be distributed equally among questions.';
+                    break;
+            }
+        }
+        
+        // Initialize placeholder and help text
+        updatePlaceholderAndHelp();
         
         // Save all button
         saveAllButton.addEventListener('click', function() {

@@ -1016,6 +1016,141 @@ def import_scores(exam_id):
                     # After processing all parts for the line, add the valid scores
                     line_scores.extend(temp_line_scores)
 
+            elif import_format == 'simple':
+                # --- SIMPLE FORMAT PARSING ---
+                # Format: student_no<delimiter>q1<delimiter>q2<delimiter>q3<delimiter>...
+                # If no valid score, should be 0
+                # If student has no scores at all, mark as not entered the exam
+                
+                if len(parts) < 2:  # Need at least student_id and one score
+                    if not continue_on_errors: 
+                        errors.append(f"Line {i}, Student {student_id_ext}: Not enough data for simple format (expected student ID and at least one score)")
+                    continue
+                
+                score_data_parts = parts[1:]  # Scores start from the 2nd element
+                sorted_questions = sorted(questions.values(), key=lambda q: q.number)  # Ensure consistent order
+                
+                # Check if student has any valid scores (not just zeros)
+                has_valid_scores = False
+                temp_line_scores = []
+                
+                for idx, score_str in enumerate(score_data_parts):
+                    if idx >= len(sorted_questions):
+                        # More scores provided than questions available
+                        warnings.append(f"Line {i}, Student {student_id_ext}: Extra score data ignored (position {idx + 1})")
+                        break
+                    
+                    question = sorted_questions[idx]
+                    score_str = score_str.strip().replace(',', '.')
+                    
+                    # Skip empty scores
+                    if not score_str:
+                        continue
+                    
+                    try:
+                        score_value = Decimal(score_str)
+                        
+                        # Check if this is a valid score (not zero means student participated)
+                        if score_value > 0:
+                            has_valid_scores = True
+                        
+                        # Validate/Cap score value
+                        if validate_scores and score_value > question.max_score:
+                            if not continue_on_errors:
+                                errors.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Score {score_value} exceeds max {question.max_score}")
+                                continue
+                            else:
+                                warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Score {score_value} capped at max {question.max_score}")
+                                score_value = question.max_score
+                        elif score_value > question.max_score:
+                            warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Score {score_value} capped at max {question.max_score}")
+                            score_value = question.max_score
+                        elif score_value < 0:
+                            warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Score {score_value} set to 0")
+                            score_value = Decimal('0')
+                        
+                        temp_line_scores.append({
+                            'student_id': student_db_id,
+                            'student_ext_id': student_id_ext,
+                            'question_id': question.id,
+                            'question_num': question.number,
+                            'exam_id': exam_id,
+                            'score': score_value,
+                            'line_number': i
+                        })
+                        
+                    except (ValueError, InvalidOperation):
+                        if not continue_on_errors:
+                            errors.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Invalid score format '{score_str}'")
+                            continue
+                        else:
+                            warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Invalid score format '{score_str}', skipped")
+                            continue
+                    except Exception as e:
+                        if not continue_on_errors:
+                            errors.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Error processing score: {str(e)}")
+                            continue
+                        else:
+                            warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Error processing score: {str(e)}, skipped")
+                            continue
+                
+                # If student has no valid scores (all zeros or no scores), mark as not attended
+                if not has_valid_scores and temp_line_scores:
+                    # Check if all scores are zero
+                    all_zeros = all(score['score'] == Decimal('0') for score in temp_line_scores)
+                    if all_zeros:
+                        warnings.append(f"Line {i}, Student {student_id_ext}: All scores are 0, student will be marked as not attended")
+                        # Set attendance to False for this student
+                        try:
+                            attendance_record = StudentExamAttendance.query.filter_by(
+                                student_id=student_db_id, 
+                                exam_id=exam_id
+                            ).first()
+                            
+                            if attendance_record:
+                                attendance_record.attended = False
+                            else:
+                                # Create new attendance record
+                                new_attendance = StudentExamAttendance(
+                                    student_id=student_db_id,
+                                    exam_id=exam_id,
+                                    attended=False
+                                )
+                                db.session.add(new_attendance)
+                            
+                            # Don't add the zero scores to the database
+                            temp_line_scores = []
+                            
+                        except Exception as e:
+                            warnings.append(f"Line {i}, Student {student_id_ext}: Could not update attendance: {str(e)}")
+                
+                # Handle case where student has no scores at all (empty after student_id)
+                elif not temp_line_scores:
+                    warnings.append(f"Line {i}, Student {student_id_ext}: No scores provided, student will be marked as not entered the exam")
+                    # Set attendance to False for this student
+                    try:
+                        attendance_record = StudentExamAttendance.query.filter_by(
+                            student_id=student_db_id, 
+                            exam_id=exam_id
+                        ).first()
+                        
+                        if attendance_record:
+                            attendance_record.attended = False
+                        else:
+                            # Create new attendance record
+                            new_attendance = StudentExamAttendance(
+                                student_id=student_db_id,
+                                exam_id=exam_id,
+                                attended=False
+                            )
+                            db.session.add(new_attendance)
+                        
+                    except Exception as e:
+                        warnings.append(f"Line {i}, Student {student_id_ext}: Could not update attendance: {str(e)}")
+                
+                # Add the scores for this line
+                line_scores.extend(temp_line_scores)
+
             elif import_format == 'total_only':
                 # --- TOTAL SCORE ONLY PARSING ---
                 if len(parts) < 2:
