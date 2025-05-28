@@ -456,7 +456,10 @@ def manage_scores(exam_id):
                         if score_value < 0:
                             score_value = Decimal('0')
                         elif score_value > question.max_score:
-                            score_value = question.max_score
+                            # Check if exceeding max score is allowed
+                            allow_exceed_max = request.form.get('allowExceedMaxScore') == 'on'
+                            if not allow_exceed_max:
+                                score_value = question.max_score
                         
                         # Check if score already exists
                         key = f"{student.id}_{question.id}"
@@ -564,7 +567,10 @@ def auto_save_score(exam_id):
             if score_value < 0:
                 score_value = Decimal('0')
             elif score_value > max_score:
-                score_value = max_score
+                # Check if exceeding max score is allowed
+                allow_exceed_max = data.get('allow_exceed_max_score', False)
+                if not allow_exceed_max:
+                    score_value = max_score
                 
         except (ValueError, InvalidOperation):
             return jsonify({'success': False, 'error': 'Invalid score value'})
@@ -711,7 +717,7 @@ def import_scores(exam_id):
     import_format = request.form.get('import_format', 'detailed') # Default to detailed
     
     # Flag to validate scores against max score
-    validate_scores = request.form.get('validate_max_scores') == 'on'
+    allow_exceed_max = request.form.get('allowExceedMaxScore') == 'on'
     
     # Flag to continue on errors
     continue_on_errors = request.form.get('continue_on_errors') == 'on'
@@ -914,10 +920,14 @@ def import_scores(exam_id):
                                      continue # Skip this score if question not found
 
                                 # Validate against max score if needed
-                                if validate_scores and score_value > question.max_score:
+                                if not allow_exceed_max and score_value > question.max_score:
                                      if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Score {score_value} exceeds max {question.max_score}")
                                      continue # Skip this score if invalid and not continuing
-                                elif score_value > question.max_score:
+                                elif allow_exceed_max and score_value > question.max_score:
+                                    # If allow_exceed_max is True, we don't cap, but we might still want a warning if it's unusually high or for logging.
+                                    # For now, let's assume no warning is needed if explicitly allowed.
+                                    pass # Score is allowed to exceed max_score
+                                elif score_value > question.max_score: # This case implies allow_exceed_max is False
                                      warnings.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Score {score_value} capped at max {question.max_score}")
                                      score_value = question.max_score # Cap if continuing
                                 elif score_value < 0:
@@ -985,10 +995,13 @@ def import_scores(exam_id):
                             score_value = Decimal(score_str)
 
                             # Validate/Cap score value
-                            if validate_scores and score_value > question.max_score:
+                            if not allow_exceed_max and score_value > question.max_score:
                                 if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Score {score_value} exceeds max {question.max_score}")
                                 continue # Skip score
-                            elif score_value > question.max_score:
+                            elif allow_exceed_max and score_value > question.max_score:
+                                # If allow_exceed_max is True, we don't cap.
+                                pass # Score is allowed to exceed max_score
+                            elif score_value > question.max_score: # This case implies allow_exceed_max is False
                                 warnings.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Score {score_value} capped at max {question.max_score}")
                                 score_value = question.max_score
                             elif score_value < 0:
@@ -1055,14 +1068,17 @@ def import_scores(exam_id):
                             has_valid_scores = True
                         
                         # Validate/Cap score value
-                        if validate_scores and score_value > question.max_score:
+                        if not allow_exceed_max and score_value > question.max_score:
                             if not continue_on_errors:
                                 errors.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Score {score_value} exceeds max {question.max_score}")
                                 continue
                             else:
                                 warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Score {score_value} capped at max {question.max_score}")
                                 score_value = question.max_score
-                        elif score_value > question.max_score:
+                        elif allow_exceed_max and score_value > question.max_score:
+                            # If allow_exceed_max is True, we don't cap.
+                            pass # Score is allowed to exceed max_score
+                        elif score_value > question.max_score: # This case implies allow_exceed_max is False
                             warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Score {score_value} capped at max {question.max_score}")
                             score_value = question.max_score
                         elif score_value < 0:
@@ -1211,7 +1227,7 @@ def import_scores(exam_id):
                         
                         # Validate/Cap the score for this question
                         original_q_score = q_score # Keep for potential warning/error message
-                        if validate_scores and q_score > question.max_score:
+                        if not allow_exceed_max and q_score > question.max_score:
                             if not continue_on_errors:
                                 errors.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Distributed score {original_q_score} exceeds max {question.max_score}. Cannot adjust last question accurately.")
                                 final_scores_per_question = {} # Clear scores for this student
@@ -1219,7 +1235,10 @@ def import_scores(exam_id):
                             else:
                                 warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Distributed score {original_q_score} capped at max {question.max_score}")
                                 q_score = question.max_score
-                        elif q_score > question.max_score:
+                        elif allow_exceed_max and q_score > question.max_score:
+                            # If allow_exceed_max is True, we don't cap.
+                            pass # Score is allowed to exceed max_score
+                        elif q_score > question.max_score: # This case implies allow_exceed_max is False
                             warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Distributed score {original_q_score} capped at max {question.max_score}")
                             q_score = question.max_score
                         
@@ -1238,7 +1257,7 @@ def import_scores(exam_id):
                 
                 # Validate/Cap the last question's score
                 original_last_q_score = last_q_score # Keep for potential warning/error message
-                if validate_scores and last_q_score > last_question.max_score:
+                if not allow_exceed_max and last_q_score > last_question.max_score:
                      if not continue_on_errors:
                           errors.append(f"Line {i}, Student {student_id_ext}, Last Q({last_question.number}): Calculated score {original_last_q_score} exceeds max {last_question.max_score} to match total.")
                           final_scores_per_question = {} # Clear scores for this student
@@ -1246,7 +1265,10 @@ def import_scores(exam_id):
                      else:
                          warnings.append(f"Line {i}, Student {student_id_ext}, Last Q({last_question.number}): Calculated score {original_last_q_score} capped at max {last_question.max_score} to match total. Final total might be lower than imported.")
                          last_q_score = last_question.max_score
-                elif last_q_score > last_question.max_score:
+                elif allow_exceed_max and last_q_score > last_question.max_score:
+                    # If allow_exceed_max is True, we don't cap.
+                    pass # Score is allowed to exceed max_score
+                elif last_q_score > last_question.max_score: # This case implies allow_exceed_max is False
                      warnings.append(f"Line {i}, Student {student_id_ext}, Last Q({last_question.number}): Calculated score {original_last_q_score} capped at max {last_question.max_score}. Final total might be lower than imported.")
                      last_q_score = last_question.max_score
                 

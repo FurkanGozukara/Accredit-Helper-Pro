@@ -81,6 +81,7 @@
             
             <div class="table-responsive">
                 <form id="scoresForm" method="POST" action="{{ url_for('student.manage_scores', exam_id=exam.id) }}">
+                    <input type="hidden" id="allowExceedMaxScoreHidden" name="allowExceedMaxScore" value="">
                     {% set questions_sorted = questions|sort(attribute='number') %}
                     {% set questions_per_row = 10 %}
                     {% set total_questions = questions_sorted|length %}
@@ -256,9 +257,11 @@
                         
                         <div class="mb-3">
                             <div class="form-check">
-                                <input type="checkbox" class="form-check-input" id="validate_max_scores" name="validate_max_scores" checked>
-                                <label class="form-check-label" for="validate_max_scores">Validate scores against question maximum</label>
-                                <div class="form-text">If checked, scores higher than question maximum will be reported as errors. Otherwise, they will be capped at the maximum.</div>
+                                <input class="form-check-input" type="checkbox" id="allowExceedMaxScore" name="allowExceedMaxScore">
+                                <label class="form-check-label" for="allowExceedMaxScore">
+                                    <i class="fas fa-arrow-up"></i> Allow scores to exceed maximum (e.g., 30 instead of 25)
+                                </label>
+                                <div class="form-text">When checked, you can enter scores higher than the question's maximum score during import and manual entry.</div>
                             </div>
                         </div>
                         
@@ -286,6 +289,15 @@
         const studentSearch = document.getElementById('studentSearch');
         const clearSearchBtn = document.getElementById('clearSearch');
         const studentTables = document.querySelectorAll('.scores-table');
+        
+        // Allow exceed max score checkbox
+        const allowExceedMaxScoreCheckbox = document.getElementById('allowExceedMaxScore');
+        const allowExceedMaxScoreHidden = document.getElementById('allowExceedMaxScoreHidden');
+        
+        // Update hidden input when checkbox changes
+        allowExceedMaxScoreCheckbox.addEventListener('change', function() {
+            allowExceedMaxScoreHidden.value = this.checked ? 'on' : '';
+        });
         
         // Initialize popovers
         const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
@@ -746,15 +758,16 @@
             // 3. Parse the cleaned string
             let value = parseFloat(cleanedStr);
             const maxScore = parseFloat(input.dataset.maxScore);
+            const allowExceedMaxScore = document.getElementById('allowExceedMaxScore').checked;
 
-            // 4. Validate, cap, and format
+            // 4. Validate, cap (if needed), and format
             if (isNaN(value)) {
                 input.value = ''; // Clear invalid input
                 input.dataset.hasScore = 'false';
             } else {
                 if (value < 0) {
                     value = 0;
-                } else if (value > maxScore) {
+                } else if (!allowExceedMaxScore && value > maxScore) {
                     value = maxScore;
                 }
                 // Format to 2 decimal places and update value
@@ -828,6 +841,7 @@
             
             // Ensure score sent has 2 decimal places if not empty
             const score = valueStr ? parseFloat(parseFloat(valueStr).toFixed(2)) : ""; 
+            const allowExceedMaxScore = document.getElementById('allowExceedMaxScore').checked;
             
             saveStatus.textContent = '⌛ Saving...';
             saveStatus.className = 'text-warning';
@@ -840,7 +854,8 @@
                 body: JSON.stringify({
                     student_id: studentId,
                     question_id: questionId,
-                    score: score
+                    score: score,
+                    allow_exceed_max_score: allowExceedMaxScore
                 })
             })
             .then(response => response.json())
