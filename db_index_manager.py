@@ -68,6 +68,78 @@ class IndexManager:
                 'table': 'exam',
                 'columns': ['course_id', 'is_makeup', 'is_mandatory'],
                 'description': 'Exam filtering for course calculations'
+            },
+            
+            # === STEP 4 BULK LOADING OPTIMIZATIONS ===
+            
+            # Coverage index for Course bulk loading (Step 4)
+            'idx_course_coverage_bulk_load': {
+                'table': 'course',
+                'columns': ['id', 'code', 'name', 'semester', 'course_weight'],
+                'description': 'Step 4: Coverage index for bulk course loading'
+            },
+            
+            # Exam bulk loading coverage index (Step 4)
+            'idx_exam_bulk_load_coverage': {
+                'table': 'exam',
+                'columns': ['course_id', 'id', 'is_makeup', 'is_mandatory', 'name'],
+                'description': 'Step 4: Coverage index for bulk exam loading'
+            },
+            
+            # Student filtering optimization for bulk operations (Step 4)
+            'idx_student_bulk_load_optimized': {
+                'table': 'student',
+                'columns': ['course_id', 'excluded', 'id', 'student_id'],
+                'description': 'Step 4: Optimized index for student filtering in bulk operations'
+            },
+            
+            # Score lookup coverage index with score value (Step 4)
+            'idx_score_bulk_lookup_optimized': {
+                'table': 'score',
+                'columns': ['student_id', 'exam_id', 'question_id', 'score'],
+                'description': 'Step 4: Coverage index for score lookups (includes score value)'
+            },
+            
+            # Score statistics and range queries (Step 4)
+            'idx_score_statistics': {
+                'table': 'score',
+                'columns': ['exam_id', 'score'],
+                'description': 'Step 4: Index for score statistics and range queries'
+            },
+            
+            # Attendance lookup coverage index (Step 4)
+            'idx_attendance_bulk_lookup': {
+                'table': 'student_exam_attendance',
+                'columns': ['student_id', 'exam_id', 'attended'],
+                'description': 'Step 4: Coverage index for attendance lookups'
+            },
+            
+            # Question bulk loading with ordering (Step 4)
+            'idx_question_exam_bulk_load': {
+                'table': 'question',
+                'columns': ['exam_id', 'number', 'id', 'max_score'],
+                'description': 'Step 4: Coverage index for question bulk loading with ordering'
+            },
+            
+            # Course outcome bulk loading optimization (Step 4)
+            'idx_course_outcome_bulk_load': {
+                'table': 'course_outcome',
+                'columns': ['course_id', 'code', 'id'],
+                'description': 'Step 4: Optimized index for course outcome bulk loading'
+            },
+            
+            # Exam weight lookup coverage index (Step 4)
+            'idx_exam_weight_bulk_lookup': {
+                'table': 'exam_weight',
+                'columns': ['course_id', 'exam_id', 'weight'],
+                'description': 'Step 4: Coverage index for exam weight lookups'
+            },
+            
+            # Course settings filtering for excluded courses (Step 4)
+            'idx_course_settings_filtering': {
+                'table': 'course_settings',
+                'columns': ['excluded', 'course_id'],
+                'description': 'Step 4: Index for filtering excluded courses'
             }
         }
     
@@ -280,12 +352,25 @@ def create_indexes_manually(db_path):
         
         # Define the same indexes as in the IndexManager
         indexes = [
+            # Original indexes
             "CREATE INDEX IF NOT EXISTS idx_student_student_id_global ON student (student_id)",
             "CREATE INDEX IF NOT EXISTS idx_student_student_id_course_lookup ON student (student_id, course_id)",
             "CREATE INDEX IF NOT EXISTS idx_course_code_name_search ON course (code, name)",
             "CREATE INDEX IF NOT EXISTS idx_score_course_student_lookup ON score (exam_id, student_id)",
             "CREATE INDEX IF NOT EXISTS idx_course_settings_excluded_lookup ON course_settings (excluded, course_id)",
             "CREATE INDEX IF NOT EXISTS idx_exam_course_lookup ON exam (course_id, is_makeup, is_mandatory)",
+            
+            # Step 4 optimization indexes
+            "CREATE INDEX IF NOT EXISTS idx_course_coverage_bulk_load ON course (id, code, name, semester, course_weight)",
+            "CREATE INDEX IF NOT EXISTS idx_exam_bulk_load_coverage ON exam (course_id, id, is_makeup, is_mandatory, name)",
+            "CREATE INDEX IF NOT EXISTS idx_student_bulk_load_optimized ON student (course_id, excluded, id, student_id)",
+            "CREATE INDEX IF NOT EXISTS idx_score_bulk_lookup_optimized ON score (student_id, exam_id, question_id, score)",
+            "CREATE INDEX IF NOT EXISTS idx_score_statistics ON score (exam_id, score)",
+            "CREATE INDEX IF NOT EXISTS idx_attendance_bulk_lookup ON student_exam_attendance (student_id, exam_id, attended)",
+            "CREATE INDEX IF NOT EXISTS idx_question_exam_bulk_load ON question (exam_id, number, id, max_score)",
+            "CREATE INDEX IF NOT EXISTS idx_course_outcome_bulk_load ON course_outcome (course_id, code, id)",
+            "CREATE INDEX IF NOT EXISTS idx_exam_weight_bulk_lookup ON exam_weight (course_id, exam_id, weight)",
+            "CREATE INDEX IF NOT EXISTS idx_course_settings_filtering ON course_settings (excluded, course_id)",
         ]
         
         created_count = 0

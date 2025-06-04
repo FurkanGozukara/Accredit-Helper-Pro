@@ -57,12 +57,12 @@ class Course(db.Model):
     settings = db.relationship('CourseSettings', backref='course', uselist=False, cascade="all, delete-orphan")
     achievement_levels = db.relationship('AchievementLevel', backref='course', lazy=True, cascade="all, delete-orphan")
 
-    # Keep original __table_args__ if any, or add specific indexes needed
-    # Example: If you need unique code+semester
-    # __table_args__ = (Index('idx_course_code_semester', 'code', 'semester', unique=True),)
+    # Step 4 Optimization: Coverage indexes for bulk loading performance
     __table_args__ = (
         db.UniqueConstraint('code', 'semester', name='_code_semester_uc'),
         Index('idx_course_code_semester', 'code', 'semester'),
+        # Step 4: Coverage index for bulk course loading
+        Index('idx_course_coverage_bulk_load', 'id', 'code', 'name', 'semester', 'course_weight'),
     )
 
     def __repr__(self):
@@ -91,12 +91,14 @@ class Exam(db.Model):
     attendances = db.relationship('StudentExamAttendance', backref='exam', lazy=True, cascade="all, delete-orphan")
     weights = db.relationship('ExamWeight', backref='exam', lazy=True, cascade="all, delete-orphan")
 
-    # Composite indexes for performance
+    # Composite indexes for performance + Step 4 optimizations
     __table_args__ = (
         Index('idx_exam_course_makeup', 'course_id', 'is_makeup'),
         Index('idx_exam_course_mandatory', 'course_id', 'is_mandatory'),
         Index('idx_exam_course_name', 'course_id', 'name'),
         Index('idx_exam_course_final', 'course_id', 'is_final'),
+        # Step 4: Coverage index for bulk exam loading
+        Index('idx_exam_bulk_load_coverage', 'course_id', 'id', 'is_makeup', 'is_mandatory', 'name'),
     )
 
     def __repr__(self):
@@ -112,9 +114,11 @@ class ExamWeight(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    # Composite index for performance (removed unique=True for safety)
+    # Composite index for performance + Step 4 optimizations
     __table_args__ = (
         Index('idx_exam_weight_exam_course', 'exam_id', 'course_id'),
+        # Step 4: Coverage index for exam weight lookups
+        Index('idx_exam_weight_bulk_lookup', 'course_id', 'exam_id', 'weight'),
     )
 
     def __repr__(self):
@@ -136,9 +140,11 @@ class CourseOutcome(db.Model):
     questions = db.relationship('Question', secondary=question_course_outcome,
                                lazy='subquery', backref=db.backref('course_outcomes', lazy=True))
 
-    # Composite index (removed unique=True for safety)
+    # Composite index + Step 4 optimizations
     __table_args__ = (
         Index('idx_course_outcome_course_code', 'course_id', 'code'),
+        # Step 4: Optimized index for course outcome bulk loading
+        Index('idx_course_outcome_bulk_load', 'course_id', 'code', 'id'),
     )
 
     def __repr__(self):
@@ -171,9 +177,11 @@ class Question(db.Model):
     scores = db.relationship('Score', backref='question', lazy=True, cascade="all, delete-orphan")
     # (relationship to course_outcomes defined via secondary table)
 
-    # Composite index (removed unique=True for safety)
+    # Composite index + Step 4 optimizations
     __table_args__ = (
         Index('idx_question_exam_number', 'exam_id', 'number'),
+        # Step 4: Coverage index for question bulk loading with ordering
+        Index('idx_question_exam_bulk_load', 'exam_id', 'number', 'id', 'max_score'),
     )
 
     def __repr__(self):
@@ -195,12 +203,13 @@ class Student(db.Model):
     scores = db.relationship('Score', backref='student', lazy=True, cascade="all, delete-orphan")
     attendances = db.relationship('StudentExamAttendance', backref='student', lazy=True, cascade="all, delete-orphan")
 
-    # Keep original unique constraint if it existed, add performance indexes
-    # Assuming your original had the unique constraint named '_student_course_uc'
+    # Performance indexes + Step 4 optimizations
     __table_args__ = (
         db.UniqueConstraint('student_id', 'course_id', name='_student_course_uc'),
         Index('idx_student_course_student_id', 'course_id', 'student_id'), # Performance index
         Index('idx_student_course_excluded', 'course_id', 'excluded'), # Performance index
+        # Step 4: Optimized index for student filtering in bulk operations
+        Index('idx_student_bulk_load_optimized', 'course_id', 'excluded', 'id', 'student_id'),
     )
 
     def __repr__(self):
@@ -217,10 +226,14 @@ class Score(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    # Composite indexes for performance (removed unique=True for safety)
+    # Composite indexes for performance + Step 4 optimizations
     __table_args__ = (
         Index('idx_score_student_exam_question', 'student_id', 'exam_id', 'question_id'),
         Index('idx_score_exam_question_student', 'exam_id', 'question_id', 'student_id'),
+        # Step 4: Coverage index for score lookups (includes score value for covering index)
+        Index('idx_score_bulk_lookup_optimized', 'student_id', 'exam_id', 'question_id', 'score'),
+        # Step 4: Index for score statistics and range queries
+        Index('idx_score_statistics', 'exam_id', 'score'),
     )
 
     def __repr__(self):
@@ -247,6 +260,11 @@ class CourseSettings(db.Model):
     excluded = db.Column(db.Boolean, nullable=False, default=False, index=True) # Indexed
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    # Step 4 optimization: Index for filtering excluded courses
+    __table_args__ = (
+        Index('idx_course_settings_filtering', 'excluded', 'course_id'),
+    )
 
     def __repr__(self):
         return f"<CourseSettings for Course {self.course_id}>"
@@ -295,9 +313,11 @@ class StudentExamAttendance(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    # Composite index (removed unique=True for safety, assuming original didn't enforce it strictly here)
+    # Composite index + Step 4 optimizations
     __table_args__ = (
         Index('idx_attendance_student_exam', 'student_id', 'exam_id'),
+        # Step 4: Coverage index for attendance lookups
+        Index('idx_attendance_bulk_lookup', 'student_id', 'exam_id', 'attended'),
         # Original had unique constraint _student_exam_attendance_uc, keep if necessary
         # db.UniqueConstraint('student_id', 'exam_id', name='_student_exam_attendance_uc'),
     )
