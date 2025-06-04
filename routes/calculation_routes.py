@@ -2138,6 +2138,16 @@ def all_courses_calculations():
                         'contributes': contributes,
                         'is_individual': True  # Flag to indicate this is individual score
                     }
+                    
+                    # Aggregate individual student scores for program outcomes averages
+                    if contributes and po_score is not None:
+                        if po.id not in po_scores:
+                            po_scores[po.id] = []
+                            po_counts[po.id] = 0
+                        
+                        # Store the original individual score and weight separately without pre-multiplying
+                        po_scores[po.id].append((po_score, Decimal(str(course.course_weight))))
+                        po_counts[po.id] += 1
             else:
                 # Student not in this course, skip
                 continue
@@ -2153,16 +2163,16 @@ def all_courses_calculations():
                     'contributes': contributes,
                     'is_individual': False  # Flag to indicate this is course average
                 }
-            
-            # Aggregate scores for program outcomes
-            if contributes and po_score is not None:
-                if po.id not in po_scores:
-                    po_scores[po.id] = []
-                    po_counts[po.id] = 0
                 
-                # Store the original score and weight separately without pre-multiplying
-                po_scores[po.id].append((po_score, Decimal(str(course.course_weight))))
-                po_counts[po.id] += 1
+                # Aggregate scores for program outcomes
+                if contributes and po_score is not None:
+                    if po.id not in po_scores:
+                        po_scores[po.id] = []
+                        po_counts[po.id] = 0
+                    
+                    # Store the original score and weight separately without pre-multiplying
+                    po_scores[po.id].append((po_score, Decimal(str(course.course_weight))))
+                    po_counts[po.id] += 1
         
         # Calculate average outcome score for this course
         course_avg_outcome_score = calculate_avg_outcome_score(program_outcome_results)

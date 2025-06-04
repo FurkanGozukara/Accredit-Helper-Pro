@@ -236,28 +236,18 @@
                         {% endif %}
                         {% endfor %}
 
-                        <!-- Average row for all courses -->
-                        {% if not filter_student_id %}
+                        <!-- Average row for all courses or filtered student -->
                         <tr class="program-outcome-averages">
-                            <td colspan="4" class="text-center fw-bold bg-secondary text-white">Program Outcome Averages</td>
+                            <td colspan="4" class="text-center fw-bold bg-secondary text-white">
+                                {% if filter_student_id %}
+                                Student's Program Outcome Averages
+                                {% else %}
+                                Program Outcome Averages
+                                {% endif %}
+                            </td>
                             {% for outcome in program_outcomes %}
-                            {% set weighted_total = namespace(value=0) %}
-                            {% set weights_sum = namespace(value=0) %}
-
-                            {% for course_code, data in all_results.items() %}
-                            {% if not data.settings.excluded %}
-                            {% set percentage = data.program_outcome_results.get(outcome.code, {}).get('percentage', 0)|float %}
-                            {% set contributes = data.program_outcome_results.get(outcome.code, {}).get('contributes', False) %}
-                            {% if contributes %}
-                                {% set course_weight = data.course.course_weight|float %}
-                                {% set weighted_total.value = weighted_total.value + (percentage * course_weight) %}
-                                {% set weights_sum.value = weights_sum.value + course_weight %}
-                            {% endif %}
-                            {% endif %}
-                            {% endfor %}
-
-                            {% if weights_sum.value > 0 %}
-                            {% set weighted_average = weighted_total.value / weights_sum.value %}
+                            {% if po_averages and po_averages[outcome.code] is not none %}
+                            {% set weighted_average = po_averages[outcome.code]|float %}
                             {% set cell_class = '' %}
                             {% for level in global_achievement_levels %}
                                 {% if weighted_average|float >= level.min_score|float and weighted_average|float <= level.max_score|float %}
@@ -272,7 +262,6 @@
                             {% endif %}
                             {% endfor %}
                         </tr>
-                        {% endif %}
                     </tbody>
                 </table>
             </div>
@@ -721,23 +710,8 @@
             const backgroundColors = [];
 
             {% for outcome in program_outcomes %}
-            {% set weighted_total = namespace(value=0) %}
-            {% set weights_sum = namespace(value=0) %}
-
-            {% for course_code, course_data in all_results.items() %}
-            {% if not course_data.settings.excluded %}
-            {% set percentage = course_data.program_outcome_results.get(outcome.code, {}).get('percentage', 0)|float %}
-            {% set contributes = course_data.program_outcome_results.get(outcome.code, {}).get('contributes', False) %}
-            {% if contributes %}
-                {% set course_weight = course_data.course.course_weight|float %}
-                {% set weighted_total.value = weighted_total.value + (percentage * course_weight) %}
-                {% set weights_sum.value = weights_sum.value + course_weight %}
-            {% endif %}
-            {% endif %}
-            {% endfor %}
-
-            {% if weights_sum.value > 0 %}
-            {% set weighted_average = weighted_total.value / weights_sum.value %}
+            {% if po_averages and po_averages[outcome.code] is not none %}
+            {% set weighted_average = po_averages[outcome.code]|float %}
             {% set level = get_achievement_level(weighted_average, global_achievement_levels) %}
             labels.push("{{ outcome.code }}");
             data.push({{ weighted_average }});
