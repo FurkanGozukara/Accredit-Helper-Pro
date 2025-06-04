@@ -76,6 +76,9 @@ def create_app():
         db.create_all()
         # Run database migrations to update schema for existing installations
         check_and_update_database(app)
+        # Initialize and check database indexes for optimal performance
+        from db_index_manager import initialize_index_manager
+        initialize_index_manager(app, db)
         # Initialize default program outcomes if they don't exist
         initialize_program_outcomes()
     

@@ -741,6 +741,37 @@ def restore_from_file():
 
     return redirect(url_for('utility.restore_database'))
 
+@utility_bp.route('/index_status')
+def index_status():
+    """Show database index status for debugging"""
+    from db_index_manager import get_index_status_for_debug
+    
+    try:
+        status = get_index_status_for_debug()
+        return render_template('utility/index_status.html', 
+                             status=status, 
+                             active_page='admin')
+    except Exception as e:
+        flash(f'Error getting index status: {str(e)}', 'error')
+        return redirect(url_for('index'))
+
+@utility_bp.route('/recreate_indexes', methods=['POST'])
+def recreate_indexes():
+    """Manually recreate missing database indexes"""
+    try:
+        if hasattr(current_app, 'index_manager'):
+            created_count = current_app.index_manager.create_missing_indexes_only()
+            if created_count > 0:
+                flash(f'Successfully created {created_count} missing database indexes', 'success')
+            else:
+                flash('All required indexes already exist', 'info')
+        else:
+            flash('Index manager not available', 'error')
+    except Exception as e:
+        flash(f'Error recreating indexes: {str(e)}', 'error')
+    
+    return redirect(url_for('utility.index_status'))
+
 @utility_bp.route('/restore/<filename>', methods=['POST'])
 def restore_from_backup(filename):
     """Restore database from an existing backup"""

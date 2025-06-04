@@ -49,6 +49,9 @@ def create_database_if_not_exists():
     # Create all tables within app context
     with app.app_context():
         db.create_all()
+        # Initialize database indexes for optimal performance
+        from db_index_manager import initialize_index_manager
+        initialize_index_manager(app, db)
         # Initialize default program outcomes
         initialize_program_outcomes()
         # Initialize default global achievement levels
