@@ -2120,15 +2120,39 @@ def all_courses_calculations():
         
         # Format program outcome results for this course for display
         program_outcome_results = {}
-        for po in program_outcomes:
-            po_score = result['program_outcome_scores'].get(po.id)
-            contributes = po.id in result['contributing_po_ids']
-            
-            program_outcome_results[po.code] = {
-                'description': po.description,
-                'percentage': po_score if po_score is not None else 0,
-                'contributes': contributes
-            }
+        
+        # If filtering by student ID, show individual student scores instead of course averages
+        if filter_student_id:
+            # Get the specific student in this course
+            student_in_course = Student.query.filter_by(student_id=filter_student_id, course_id=course.id).first()
+            if student_in_course:
+                # Calculate individual student scores
+                individual_result = calculate_individual_student_results(student_in_course.id, course.id, bulk_data, display_method)
+                for po in program_outcomes:
+                    po_score = individual_result.get(po.id)
+                    contributes = po.id in result['contributing_po_ids']
+                    
+                    program_outcome_results[po.code] = {
+                        'description': po.description,
+                        'percentage': po_score if po_score is not None else 0,
+                        'contributes': contributes,
+                        'is_individual': True  # Flag to indicate this is individual score
+                    }
+            else:
+                # Student not in this course, skip
+                continue
+        else:
+            # Show course averages (original behavior)
+            for po in program_outcomes:
+                po_score = result['program_outcome_scores'].get(po.id)
+                contributes = po.id in result['contributing_po_ids']
+                
+                program_outcome_results[po.code] = {
+                    'description': po.description,
+                    'percentage': po_score if po_score is not None else 0,
+                    'contributes': contributes,
+                    'is_individual': False  # Flag to indicate this is course average
+                }
             
             # Aggregate scores for program outcomes
             if contributes and po_score is not None:
@@ -2242,7 +2266,7 @@ def all_courses_calculations():
                           student_info=student_info,
                           filter_student_id=filter_student_id,
                           global_achievement_levels=GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all(),
-                          get_global_achievement_level=lambda score: next((l for l in GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all() if float(l.min_score) <= score <= float(l.max_score)), None))
+                          get_achievement_level=get_achievement_level)
 
 @calculation_bp.route('/all_courses_loading', endpoint='all_courses_loading')
 def all_courses_loading():
@@ -4489,6 +4513,32 @@ def get_student_score(course_id):
             'message': 'An error occurred while retrieving student data',
             'error': str(e)
         }), 500
+
+def calculate_individual_student_results(student_id, course_id, bulk_data, calculation_method='absolute'):
+    """Calculate program outcome scores for an individual student in a course"""
+    course_data = bulk_data.get(course_id)
+    if not course_data:
+        return {}
+    
+    # Get the necessary data
+    program_outcomes = course_data['program_outcomes']
+    scores_dict = course_data['scores_dict']
+    program_to_course_outcomes = course_data['program_to_course_outcomes']
+    outcome_questions = course_data['outcome_questions']
+    normalized_weights = course_data['normalized_weights']
+    attendance_dict = course_data['attendance_dict']
+    
+    # Calculate program outcome scores for this specific student
+    student_po_scores = {}
+    for po in program_outcomes:
+        po_score = calculate_program_outcome_score_optimized(
+            student_id, po.id, course_id, scores_dict,
+            program_to_course_outcomes, outcome_questions, 
+            normalized_weights, attendance_dict
+        )
+        student_po_scores[po.id] = po_score
+    
+    return student_po_scores
 
 # Helper function to calculate average outcome score
 def calculate_avg_outcome_score(program_outcome_results):

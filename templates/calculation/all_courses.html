@@ -133,7 +133,10 @@
                         <p class="mb-1"><strong>Name:</strong> {{ student_info.name }}</p>
                         {% endif %}
                         <p class="mb-1"><strong>Total Enrolled Courses:</strong> {{ student_info.total_courses or 0 }}</p>
-                        <p class="mb-0"><strong>Courses Shown:</strong> {{ student_info.filtered_courses or 0 }}</p>
+                        <p class="mb-1"><strong>Courses Shown:</strong> {{ student_info.filtered_courses or 0 }}</p>
+                        <div class="alert alert-warning mt-2 mb-0 py-2">
+                            <small><i class="fas fa-info-circle"></i> <strong>Note:</strong> When filtering by student ID, the table shows <strong>individual student scores</strong> for each program outcome, not course averages.</small>
+                        </div>
                     </div>
                     <button type="button" class="btn btn-outline-info btn-sm" onclick="clearStudentFilter()">
                         <i class="fas fa-times"></i> Clear Filter
@@ -234,6 +237,7 @@
                         {% endfor %}
 
                         <!-- Average row for all courses -->
+                        {% if not filter_student_id %}
                         <tr class="program-outcome-averages">
                             <td colspan="4" class="text-center fw-bold bg-secondary text-white">Program Outcome Averages</td>
                             {% for outcome in program_outcomes %}
@@ -268,6 +272,7 @@
                             {% endif %}
                             {% endfor %}
                         </tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
@@ -500,13 +505,13 @@
                 }
             });
             
-            // If we couldn't extract levels, use defaults
+            // If we couldn't extract levels, use defaults that match the database
             if (achievementLevels.length === 0) {
                 achievementLevels.push(
                     { name: 'Excellent', minScore: 90.00, maxScore: 100.00, color: 'success' },
                     { name: 'Better', minScore: 70.00, maxScore: 89.99, color: 'info' },
-                    { name: 'Good', minScore: 65.00, maxScore: 69.99, color: 'primary' },
-                    { name: 'Need Improvements', minScore: 50.00, maxScore: 64.99, color: 'warning' },
+                    { name: 'Good', minScore: 60.00, maxScore: 69.99, color: 'primary' },
+                    { name: 'Need Improvements', minScore: 50.00, maxScore: 59.99, color: 'warning' },
                     { name: 'Failure', minScore: 0.01, maxScore: 49.99, color: 'danger' }
                 );
             }
@@ -719,12 +724,12 @@
             {% set weighted_total = namespace(value=0) %}
             {% set weights_sum = namespace(value=0) %}
 
-            {% for course_code, data in all_results.items() %}
-            {% if not data.settings.excluded %}
-            {% set percentage = data.program_outcome_results.get(outcome.code, {}).get('percentage', 0)|float %}
-            {% set contributes = data.program_outcome_results.get(outcome.code, {}).get('contributes', False) %}
+            {% for course_code, course_data in all_results.items() %}
+            {% if not course_data.settings.excluded %}
+            {% set percentage = course_data.program_outcome_results.get(outcome.code, {}).get('percentage', 0)|float %}
+            {% set contributes = course_data.program_outcome_results.get(outcome.code, {}).get('contributes', False) %}
             {% if contributes %}
-                {% set course_weight = data.course.course_weight|float %}
+                {% set course_weight = course_data.course.course_weight|float %}
                 {% set weighted_total.value = weighted_total.value + (percentage * course_weight) %}
                 {% set weights_sum.value = weights_sum.value + course_weight %}
             {% endif %}
@@ -733,32 +738,30 @@
 
             {% if weights_sum.value > 0 %}
             {% set weighted_average = weighted_total.value / weights_sum.value %}
+            {% set level = get_achievement_level(weighted_average, global_achievement_levels) %}
             labels.push("{{ outcome.code }}");
             data.push({{ weighted_average }});
             
-            {% for level in global_achievement_levels %}
-                {% if weighted_average >= level.min_score|float and weighted_average <= level.max_score|float %}
-                    {% if level.color == 'primary' %}
-                        backgroundColors.push('rgba(13, 110, 253, 0.7)');
-                    {% elif level.color == 'secondary' %}
-                        backgroundColors.push('rgba(108, 117, 125, 0.7)');
-                    {% elif level.color == 'success' %}
-                        backgroundColors.push('rgba(25, 135, 84, 0.7)');
-                    {% elif level.color == 'danger' %}
-                        backgroundColors.push('rgba(220, 53, 69, 0.7)');
-                    {% elif level.color == 'warning' %}
-                        backgroundColors.push('rgba(255, 193, 7, 0.7)');
-                    {% elif level.color == 'info' %}
-                        backgroundColors.push('rgba(13, 202, 240, 0.7)');
-                    {% elif level.color == 'dark' %}
-                        backgroundColors.push('rgba(33, 37, 41, 0.7)');
-                    {% elif level.color == 'light' %}
-                        backgroundColors.push('rgba(248, 249, 250, 0.7)');
-                    {% else %}
-                        backgroundColors.push('rgba(108, 117, 125, 0.7)');
-                    {% endif %}
-                {% endif %}
-            {% endfor %}
+            // Add color based on achievement level
+            {% if level.color == 'primary' %}
+                backgroundColors.push('rgba(13, 110, 253, 0.7)');
+            {% elif level.color == 'secondary' %}
+                backgroundColors.push('rgba(108, 117, 125, 0.7)');
+            {% elif level.color == 'success' %}
+                backgroundColors.push('rgba(25, 135, 84, 0.7)');
+            {% elif level.color == 'danger' %}
+                backgroundColors.push('rgba(220, 53, 69, 0.7)');
+            {% elif level.color == 'warning' %}
+                backgroundColors.push('rgba(255, 193, 7, 0.7)');
+            {% elif level.color == 'info' %}
+                backgroundColors.push('rgba(13, 202, 240, 0.7)');
+            {% elif level.color == 'dark' %}
+                backgroundColors.push('rgba(33, 37, 41, 0.7)');
+            {% elif level.color == 'light' %}
+                backgroundColors.push('rgba(248, 249, 250, 0.7)');
+            {% else %}
+                backgroundColors.push('rgba(108, 117, 125, 0.7)');
+            {% endif %}
             {% endif %}
             {% endfor %}
 
