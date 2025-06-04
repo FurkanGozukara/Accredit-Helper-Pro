@@ -873,7 +873,7 @@ def export_course_outcomes_achievement(course_id):
 
 @calculation_bp.route('/all_courses', endpoint='all_courses')
 def all_courses_calculations():
-    """Show program outcome scores for all courses"""
+    """Show program outcome scores for all courses with optional student ID filtering"""
     # Check if this is an AJAX request
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
@@ -915,6 +915,7 @@ def all_courses_calculations():
     # Get filter parameters
     filter_year = request.args.get('year', '')
     search_query = request.args.get('search', '').lower()
+    filter_student_id = request.args.get('student_id', '').strip()
     
     # Get the display method from session or default to absolute
     display_method = session.get('display_method', 'absolute')
@@ -929,6 +930,11 @@ def all_courses_calculations():
     # Filter by search query if provided
     if search_query:
         courses = [c for c in courses if search_query in c.code.lower() or search_query in c.name.lower()]
+    
+    # Filter by student ID if provided
+    student_info = {}
+    if filter_student_id:
+        courses, student_info = filter_courses_by_student(courses, filter_student_id)
     
     # Preload all program outcomes in one query
     program_outcomes = ProgramOutcome.query.all()
@@ -1050,8 +1056,10 @@ def all_courses_calculations():
         sorted_results[key] = all_results[key]
     
     # Log action
-    log = Log(action="ALL_COURSES_CALCULATIONS", 
-             description=f"Viewed program outcome scores for all courses")
+    log_description = f"Viewed program outcome scores for all courses"
+    if filter_student_id:
+        log_description += f" (filtered by student ID: {filter_student_id})"
+    log = Log(action="ALL_COURSES_CALCULATIONS", description=log_description)
     db.session.add(log)
     db.session.commit()
     
@@ -1082,7 +1090,9 @@ def all_courses_calculations():
                                         'max_score': float(l.max_score), 'color': l.color} 
                                        for l in GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()],
             'progress': 100,  # Always 100 when returning final results
-            'current_sort': sort_by
+            'current_sort': sort_by,
+            'student_info': student_info,
+            'filter_student_id': filter_student_id
         })
     
     # For regular requests, render the template
@@ -1094,6 +1104,8 @@ def all_courses_calculations():
                           years=years,
                           active_page='all_courses',
                           current_sort=sort_by,
+                          student_info=student_info,
+                          filter_student_id=filter_student_id,
                           global_achievement_levels=GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all(),
                           get_global_achievement_level=lambda score: next((l for l in GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all() if float(l.min_score) <= score <= float(l.max_score)), None))
 
@@ -1101,6 +1113,84 @@ def all_courses_calculations():
 def all_courses_loading():
     """Redirects to all_courses for backward compatibility"""
     return redirect(url_for('calculation.all_courses'))
+
+def get_cross_course_student_info(student_id):
+    """
+    Get student information across all courses efficiently using database indexes.
+    
+    This function uses the new performance indexes:
+    - idx_student_student_id_global: For fast student ID lookup
+    - idx_student_student_id_course_lookup: For student-to-courses mapping
+    
+    Returns:
+    - student_courses: List of courses the student is enrolled in
+    - student_name: Student's name (from first course found)
+    - total_courses: Total number of courses student is in
+    """
+    if not student_id:
+        return [], None, 0
+    
+    # Use indexed query to find all students with this student_id across all courses
+    # This leverages idx_student_student_id_global for performance
+    students = Student.query.filter_by(student_id=student_id).all()
+    
+    if not students:
+        return [], None, 0
+    
+    # Get course information and student name
+    student_courses = []
+    student_name = None
+    
+    for student in students:
+        # Get the course for this enrollment
+        course = Course.query.get(student.course_id)
+        if course:
+            student_courses.append(course)
+            # Use the first student name we find (should be consistent across courses)
+            if not student_name:
+                # Combine first_name and last_name, handle null last_name
+                if student.last_name:
+                    student_name = f"{student.first_name} {student.last_name}"
+                else:
+                    student_name = student.first_name
+    
+    return student_courses, student_name, len(student_courses)
+
+def filter_courses_by_student(courses, student_id):
+    """
+    Filter courses list to only include courses where the student is enrolled.
+    Uses the cross-course student lookup for efficient filtering.
+    
+    Parameters:
+    - courses: List of courses to filter
+    - student_id: Student ID to filter by
+    
+    Returns:
+    - filtered_courses: List of courses where student is enrolled
+    - student_info: Dict with student name and enrollment info
+    """
+    if not student_id:
+        return courses, {}
+    
+    # Get student's course enrollments
+    student_courses, student_name, total_courses = get_cross_course_student_info(student_id)
+    
+    if not student_courses:
+        return [], {'name': None, 'total_courses': 0, 'filtered_courses': 0}
+    
+    # Create a set of course IDs for efficient lookup
+    student_course_ids = {course.id for course in student_courses}
+    
+    # Filter the courses list
+    filtered_courses = [course for course in courses if course.id in student_course_ids]
+    
+    student_info = {
+        'name': student_name,
+        'total_courses': total_courses,
+        'filtered_courses': len(filtered_courses)
+    }
+    
+    return filtered_courses, student_info
 
 @calculation_bp.route('/all_courses/export', endpoint='export_all_courses')
 def export_all_courses():
@@ -1143,6 +1233,7 @@ def export_all_courses():
     # Get filter parameters
     filter_year = request.args.get('year', '')
     search_query = request.args.get('search', '').lower()
+    filter_student_id = request.args.get('student_id', '').strip()
     
     # Get the display method from session or default to absolute
     display_method = session.get('display_method', 'absolute')
@@ -1157,6 +1248,11 @@ def export_all_courses():
     # Filter by search query if provided
     if search_query:
         courses = [c for c in courses if search_query in c.code.lower() or search_query in c.name.lower()]
+    
+    # Filter by student ID if provided
+    student_info = {}
+    if filter_student_id:
+        courses, student_info = filter_courses_by_student(courses, filter_student_id)
     
     # Preload all program outcomes in one query
     program_outcomes = ProgramOutcome.query.all()
@@ -1275,6 +1371,16 @@ def export_all_courses():
     # Prepare data for CSV export
     csv_data = []
     
+    # Add student info to CSV if filtered by student
+    if filter_student_id and student_info:
+        csv_data.append(['STUDENT FILTER INFORMATION'])
+        csv_data.append(['Student ID', filter_student_id])
+        if student_info.get('name'):
+            csv_data.append(['Student Name', student_info['name']])
+        csv_data.append(['Total Enrolled Courses', student_info.get('total_courses', 0)])
+        csv_data.append(['Filtered Courses Shown', student_info.get('filtered_courses', 0)])
+        csv_data.append([])  # Empty row separator
+    
     # Create header row with program outcome codes
     headers = ['Course Code', 'Course Name', 'Semester', 'Course Weight', 'Average PO Score']
     po_codes = [po.code for po in program_outcomes]
@@ -1333,8 +1439,10 @@ def export_all_courses():
             csv_data.append([level.name, level.min_score, level.max_score, level.color])
     
     # Log action
-    log = Log(action="EXPORT_ALL_COURSES", 
-             description=f"Exported program outcome scores for all courses to CSV")
+    log_description = f"Exported program outcome scores for all courses to CSV"
+    if filter_student_id:
+        log_description += f" (filtered by student ID: {filter_student_id})"
+    log = Log(action="EXPORT_ALL_COURSES", description=log_description)
     db.session.add(log)
     db.session.commit()
     
