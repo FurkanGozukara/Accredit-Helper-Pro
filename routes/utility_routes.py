@@ -2950,3 +2950,43 @@ def validate_backup_file():
             'success': False,
             'message': f'An error occurred while validating the file: {str(e)}'
         })
+
+@utility_bp.route('/logging_config', methods=['GET', 'POST'])
+def logging_config():
+    """Configure logging level"""
+    if request.method == 'POST':
+        new_level = request.form.get('log_level', 'WARNING').upper()
+        
+        # Map string levels to logging constants
+        level_mapping = {
+            'DEBUG': logging.DEBUG,
+            'INFO': logging.INFO,
+            'WARNING': logging.WARNING,
+            'ERROR': logging.ERROR,
+            'CRITICAL': logging.CRITICAL
+        }
+        
+        if new_level in level_mapping:
+            # Update logging level
+            logger = logging.getLogger()
+            logger.setLevel(level_mapping[new_level])
+            
+            # Also update handlers
+            for handler in logger.handlers:
+                handler.setLevel(level_mapping[new_level])
+            
+            # Set environment variable for persistence
+            os.environ['LOG_LEVEL'] = new_level
+            
+            flash(f'Logging level changed to {new_level}', 'success')
+        else:
+            flash('Invalid logging level', 'error')
+        
+        return redirect(url_for('utility.logging_config'))
+    
+    # Get current logging level
+    current_level = logging.getLevelName(logging.getLogger().level)
+    
+    return render_template('utility/logging_config.html', 
+                         current_level=current_level,
+                         levels=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])

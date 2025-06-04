@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Logging Configuration{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">
+                        <i class="fas fa-cog"></i> Logging Configuration
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <strong>Current Logging Level:</strong> {{ current_level }}
+                        <br>
+                        <small>
+                            Reducing the logging level can significantly improve performance when accessing pages that process large amounts of data.
+                        </small>
+                    </div>
+
+                    <form method="POST">
+                        <div class="form-group">
+                            <label for="log_level">Select Logging Level:</label>
+                            <select class="form-control" name="log_level" id="log_level">
+                                {% for level in levels %}
+                                <option value="{{ level }}" {% if level == current_level %}selected{% endif %}>
+                                    {{ level }}
+                                    {% if level == 'DEBUG' %} - Most verbose (slowest){% endif %}
+                                    {% if level == 'INFO' %} - Detailed information{% endif %}
+                                    {% if level == 'WARNING' %} - Warnings and errors only (recommended){% endif %}
+                                    {% if level == 'ERROR' %} - Errors only{% endif %}
+                                    {% if level == 'CRITICAL' %} - Critical errors only (least verbose){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">
+                                <strong>WARNING</strong> level is recommended for production use. 
+                                <strong>DEBUG</strong> level generates extensive logs and may slow down the application significantly.
+                            </small>
+                        </div>
+
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Update Logging Level
+                            </button>
+                            <a href="{{ url_for('utility.index') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to Utilities
+                            </a>
+                        </div>
+                    </form>
+
+                    <div class="mt-4">
+                        <h5>Logging Levels Explained:</h5>
+                        <ul class="list-unstyled">
+                            <li><strong>DEBUG:</strong> All messages including detailed diagnostic information (very verbose)</li>
+                            <li><strong>INFO:</strong> General information about program execution</li>
+                            <li><strong>WARNING:</strong> Warnings about potential issues (recommended for production)</li>
+                            <li><strong>ERROR:</strong> Error messages only</li>
+                            <li><strong>CRITICAL:</strong> Only critical system errors</li>
+                        </ul>
+                        
+                        <div class="alert alert-warning mt-3">
+                            <strong>Performance Note:</strong> The /calculation/all_courses page may generate thousands of log entries when DEBUG or INFO level is enabled. 
+                            For better performance, use WARNING level or higher.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

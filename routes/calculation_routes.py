@@ -2840,22 +2840,35 @@ def calculate_course_outcome_score_optimized(student_id, outcome_id, scores_dict
             has_relative_weight = 'relative_weight' in qco_columns
 
             if has_relative_weight:
-                 # Correctly construct IN clause for SQLite
-                 placeholders = ', '.join('?' * len(outcome_question_ids))
-                 query = f"SELECT question_id, relative_weight FROM question_course_outcome WHERE course_outcome_id = ? AND question_id IN ({placeholders})"
-                 # Pass outcome_id first, then the list of question_ids
-                 params = [outcome_id] + outcome_question_ids
-                 weights_result = db.session.execute(text(query), params).fetchall()
-
-                 for q_id, weight in weights_result:
-                     question_co_weights[q_id] = Decimal(str(weight)) if weight is not None else Decimal('1.0')
+                # Use proper SQLAlchemy query with manual IN clause construction for SQLite compatibility
+                from sqlalchemy import text
+                if outcome_question_ids:
+                    # Create placeholders for IN clause
+                    placeholders = ','.join([':param_' + str(i) for i in range(len(outcome_question_ids))])
+                    query = f"SELECT question_id, relative_weight FROM question_course_outcome WHERE course_outcome_id = :outcome_id AND question_id IN ({placeholders})"
+                    
+                    # Create parameters dictionary
+                    params = {"outcome_id": outcome_id}
+                    for i, q_id in enumerate(outcome_question_ids):
+                        params[f'param_{i}'] = q_id
+                    
+                    weights_result = db.session.execute(text(query), params).fetchall()
+                    
+                    for q_id, weight in weights_result:
+                        question_co_weights[q_id] = Decimal(str(weight)) if weight is not None else Decimal('1.0')
+                
+                # Set default weights for questions not found in the mapping
+                for q_id in outcome_question_ids:
+                    if q_id not in question_co_weights:
+                        question_co_weights[q_id] = Decimal('1.0')
             else:
                 # Default to 1.0 if column doesn't exist
-                 for q_id in outcome_question_ids:
+                for q_id in outcome_question_ids:
                     question_co_weights[q_id] = Decimal('1.0')
 
         except Exception as e:
-            logging.warning(f"Could not fetch Q-CO weights for CO {outcome_id}: {e}")
+            # Only log at ERROR level for actual errors, not warnings
+            logging.error(f"Error fetching Q-CO weights for CO {outcome_id}: {e}")
             # Default all weights to 1.0 on error
             for q_id in outcome_question_ids:
                question_co_weights[q_id] = Decimal('1.0')
@@ -2991,37 +3004,21 @@ def calculate_program_outcome_score_optimized(student_id, outcome_id, course_id,
         if co_ids:
             from sqlalchemy import text
             
-            # Log the query parameters for debugging
-            logging.info(f"Querying weights for PO ID: {outcome_id}, CO IDs: {co_ids}")
-            
-            # For SQLite, we need to construct the query differently based on the number of IDs
-            if len(co_ids) == 1:
-                query = """
-                    SELECT course_outcome_id, program_outcome_id, relative_weight
-                    FROM course_outcome_program_outcome
-                    WHERE program_outcome_id = :po_id AND course_outcome_id = :co_id
-                """
-                params = {"po_id": outcome_id, "co_id": co_ids[0]}
-            else:
-                # For multiple IDs, build the placeholders manually
-                placeholders = ', '.join([f':co_id_{i}' for i in range(len(co_ids))])
-                query = f"""
-                    SELECT course_outcome_id, program_outcome_id, relative_weight
-                    FROM course_outcome_program_outcome
-                    WHERE program_outcome_id = :po_id AND course_outcome_id IN ({placeholders})
-                """
-                # Create a dictionary of parameters with named placeholders
+            # Use proper SQLAlchemy query with manual IN clause construction for SQLite compatibility
+            if co_ids:
+                # Create placeholders for IN clause
+                placeholders = ','.join([':param_' + str(i) for i in range(len(co_ids))])
+                query = f"SELECT course_outcome_id, program_outcome_id, relative_weight FROM course_outcome_program_outcome WHERE program_outcome_id = :po_id AND course_outcome_id IN ({placeholders})"
+                
+                # Create parameters dictionary
                 params = {"po_id": outcome_id}
                 for i, co_id in enumerate(co_ids):
-                    params[f"co_id_{i}"] = co_id
-            
-            with db.engine.connect() as conn:
-                result = conn.execute(text(query), params)
-                for row in result:
-                    co_po_weights[(row[0], row[1])] = Decimal(str(row[2]))
-                    
-            # Log weights for debugging
-            logging.info(f"Retrieved CO-PO weights for PO {outcome_id}: {co_po_weights}")
+                    params[f'param_{i}'] = co_id
+                
+                weights_result = db.session.execute(text(query), params).fetchall()
+                
+                for co_id, po_id, weight in weights_result:
+                    co_po_weights[(co_id, po_id)] = Decimal(str(weight))
             
     except Exception as e:
         logging.error(f"Error retrieving CO-PO weights: {str(e)}")
@@ -3046,9 +3043,6 @@ def calculate_program_outcome_score_optimized(student_id, outcome_id, course_id,
             # Add to our collection for weighted average calculation
             co_scores_and_weights.append((co_score, relative_weight))
             
-            # Log individual outcome contribution
-            logging.info(f"CO {course_outcome.id} score: {co_score}, weight: {relative_weight}")
-            
             # Add to running totals
             total_weighted_score += co_score * relative_weight
             total_weight += relative_weight
@@ -3056,7 +3050,6 @@ def calculate_program_outcome_score_optimized(student_id, outcome_id, course_id,
     # Calculate weighted average
     if total_weight > Decimal('0'):
         final_score = total_weighted_score / total_weight
-        logging.info(f"Final weighted PO {outcome_id} score: {final_score} (total weight: {total_weight})")
         return final_score
     else:
         return Decimal('0')  # Return 0 instead of None when no valid scores

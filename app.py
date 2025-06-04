@@ -21,6 +21,31 @@ from models import db, init_db_session
 # Import database migration function
 from db_migrations import check_and_update_database
 
+# Configure logging level from environment variable
+def configure_logging():
+    """Configure logging based on environment settings"""
+    log_level = os.environ.get('LOG_LEVEL', 'WARNING').upper()
+    
+    # Map string levels to logging constants
+    level_mapping = {
+        'DEBUG': logging.DEBUG,
+        'INFO': logging.INFO,
+        'WARNING': logging.WARNING,
+        'ERROR': logging.ERROR,
+        'CRITICAL': logging.CRITICAL
+    }
+    
+    actual_level = level_mapping.get(log_level, logging.WARNING)
+    
+    # Setup logging
+    logging.basicConfig(
+        filename='app.log',
+        level=actual_level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
+    return actual_level
+
 def create_app():
     app = Flask(__name__)
     
@@ -32,22 +57,23 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(base_dir, "instance", "accredit_data.db")}'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['BACKUP_FOLDER'] = os.path.join(base_dir, 'backups')
+    app.config['WTF_CSRF_ENABLED'] = False  # Disable CSRF for JSON API endpoints
     
     # Ensure instance and backup folders exist
     os.makedirs(app.config['BACKUP_FOLDER'], exist_ok=True)
     os.makedirs(os.path.join(base_dir, 'instance'), exist_ok=True)
     
+    # Configure logging
+    log_level = configure_logging()
+    
+    # Log the current configuration
+    if log_level <= logging.INFO:
+        logging.info(f"Application started with log level: {logging.getLevelName(log_level)}")
+    
     # Initialize extensions with app
     db.init_app(app)
     init_db_session(app)  # Initialize the scoped session
     migrate = Migrate(app, db)
-    
-    # Setup logging
-    logging.basicConfig(
-        filename='app.log',
-        level=logging.DEBUG,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
     
     # Import models
     from models import Course, Exam, CourseOutcome, ProgramOutcome, Question, Student, Score, ExamWeight, AchievementLevel
