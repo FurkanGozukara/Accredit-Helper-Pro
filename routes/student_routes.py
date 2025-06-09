@@ -860,6 +860,8 @@ def import_scores(exam_id):
             continue
         
         try:
+            # Add debug info to help identify problematic lines
+            raw_line = repr(line)  # Show raw representation including special characters
             parts = [p.strip() for p in line.split(delimiter)]
             
             # --- Student ID and Identification ---
@@ -867,7 +869,7 @@ def import_scores(exam_id):
 
             student_id_ext = parts[0].strip().replace('\\t', '')
             if not student_id_ext:
-                if not continue_on_errors: errors.append(f"Line {i}: Empty student ID")
+                warnings.append(f"Line {i}: Empty student ID found - skipping line")
                 continue
 
             student = students_dict.get(student_id_ext)
@@ -888,6 +890,11 @@ def import_scores(exam_id):
                  # Change this from an error to a warning and skip the line
                  warnings.append(f"Line {i}: Student ID {student_id_ext} not found in course. Scores for this line skipped.")
                  continue # Skip processing scores for this student
+                 
+            # Additional safety check to ensure student_db_id is valid
+            if student_db_id is None:
+                warnings.append(f"Line {i}: Student {student_id_ext} could not be resolved to a valid database ID. Scores for this line skipped.")
+                continue
                  
             # Avoid processing the same student multiple times if they appear on the same line (unlikely but possible)
             if student_db_id in processed_students:
@@ -1169,14 +1176,56 @@ def import_scores(exam_id):
 
             elif import_format == 'total_only':
                 # --- TOTAL SCORE ONLY PARSING ---
+                # Check if we have at least student ID and potentially a score field
                 if len(parts) < 2:
-                    if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Missing total score")
+                    # Only student ID provided, no delimiter or score field
+                    warnings.append(f"Line {i}, Student {student_id_ext}: No delimiter or score field found. Expected format: student_id<delimiter>score or student_id<delimiter> (empty score). Raw line: {raw_line}. Student will be marked as not attended.")
+                    # Mark student as not attended
+                    try:
+                        attendance_record = StudentExamAttendance.query.filter_by(
+                            student_id=student_db_id, 
+                            exam_id=exam_id
+                        ).first()
+                        
+                        if attendance_record:
+                            attendance_record.attended = False
+                        else:
+                            # Create new attendance record
+                            new_attendance = StudentExamAttendance(
+                                student_id=student_db_id,
+                                exam_id=exam_id,
+                                attended=False
+                            )
+                            db.session.add(new_attendance)
+                        
+                    except Exception as e:
+                        warnings.append(f"Line {i}, Student {student_id_ext}: Could not update attendance: {str(e)}")
                     continue
                 
                 total_score_str = parts[1].strip().replace(',', '.')
                 if not total_score_str:
                     # If total score string is empty, skip score processing for this student on this line.
-                    warnings.append(f"Line {i}, Student {student_id_ext}: Empty total score provided. No scores will be imported for this student from this line.")
+                    warnings.append(f"Line {i}, Student {student_id_ext}: Empty total score provided. Raw line: {raw_line}. Student will be marked as not attended.")
+                    # Mark student as not attended
+                    try:
+                        attendance_record = StudentExamAttendance.query.filter_by(
+                            student_id=student_db_id, 
+                            exam_id=exam_id
+                        ).first()
+                        
+                        if attendance_record:
+                            attendance_record.attended = False
+                        else:
+                            # Create new attendance record
+                            new_attendance = StudentExamAttendance(
+                                student_id=student_db_id,
+                                exam_id=exam_id,
+                                attended=False
+                            )
+                            db.session.add(new_attendance)
+                        
+                    except Exception as e:
+                        warnings.append(f"Line {i}, Student {student_id_ext}: Could not update attendance: {str(e)}")
                     continue # Skip to the next line in the input file
                 else:
                     try:
@@ -1191,11 +1240,28 @@ def import_scores(exam_id):
                             warnings.append(f"Line {i}: Skipped line - assumed header row for 'Total Score Only' format (Invalid score: '{parts[1]}').")
                             continue # Skip this line entirely
                         else:
-                            # If not the first line, treat as a regular error
-                            if not continue_on_errors:
-                                errors.append(f"Line {i}, Student {student_id_ext}: Invalid total score format '{parts[1]}'")
-                            # If continue_on_errors is true, this student's scores won't be added for this line
-                            # but processing will continue for other lines.
+                            # If not the first line, treat as a warning instead of error for better robustness
+                            warnings.append(f"Line {i}, Student {student_id_ext}: Invalid total score format '{parts[1]}'. Raw line: {raw_line}. Student will be marked as not attended.")
+                            # Mark student as not attended
+                            try:
+                                attendance_record = StudentExamAttendance.query.filter_by(
+                                    student_id=student_db_id, 
+                                    exam_id=exam_id
+                                ).first()
+                                
+                                if attendance_record:
+                                    attendance_record.attended = False
+                                else:
+                                    # Create new attendance record
+                                    new_attendance = StudentExamAttendance(
+                                        student_id=student_db_id,
+                                        exam_id=exam_id,
+                                        attended=False
+                                    )
+                                    db.session.add(new_attendance)
+                                
+                            except Exception as e:
+                                warnings.append(f"Line {i}, Student {student_id_ext}: Could not update attendance: {str(e)}")
                             continue # Skip processing scores for this student on this line
                 
                 num_questions = len(questions)
@@ -1307,15 +1373,9 @@ def import_scores(exam_id):
         except Exception as e:
             error_msg = f"Line {i}: Unexpected error processing line: {str(e)}"
             logging.error(f"Import Error on Line {i}: {traceback.format_exc()}") # Log detailed traceback
-            if continue_on_errors:
-                errors.append(error_msg)
-            else:
-                # If not continuing, flash the error and stop
-                flash(f"{error_msg}. Import aborted.", 'error')
-                # Include previous errors/warnings if any
-                if errors: flash("Previous errors: " + "; ".join(errors), 'warning')
-                if warnings: flash("Previous warnings: " + "; ".join(warnings), 'warning')
-                return redirect(url_for('student.manage_scores', exam_id=exam_id))
+            # Always treat unexpected errors as warnings to make the import more robust
+            warnings.append(f"{error_msg}. Raw line: {raw_line if 'raw_line' in locals() else 'N/A'}")
+            continue
                 
     # --- End of Line Processing Loop ---
 
