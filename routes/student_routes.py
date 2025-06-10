@@ -907,7 +907,27 @@ def import_scores(exam_id):
             if import_format == 'detailed':
                 # --- DETAILED FORMAT PARSING ---
                 if len(parts) < 2: # Need ID and Name minimum for this format, even if scores are missing
-                     if not continue_on_errors: errors.append(f"Line {i}: Not enough data for detailed format (expected student ID and name)")
+                     warnings.append(f"Line {i}, Student {student_id_ext}: Not enough data for detailed format (expected student ID and name). Raw line: {raw_line}. Student will be marked as not attended.")
+                     # Mark student as not attended
+                     try:
+                         attendance_record = StudentExamAttendance.query.filter_by(
+                             student_id=student_db_id, 
+                             exam_id=exam_id
+                         ).first()
+                         
+                         if attendance_record:
+                             attendance_record.attended = False
+                         else:
+                             # Create new attendance record
+                             new_attendance = StudentExamAttendance(
+                                 student_id=student_db_id,
+                                 exam_id=exam_id,
+                                 attended=False
+                             )
+                             db.session.add(new_attendance)
+                         
+                     except Exception as e:
+                         warnings.append(f"Line {i}, Student {student_id_ext}: Could not update attendance: {str(e)}")
                      continue
                 
                 score_data_parts = parts[2:] # Scores start from the 3rd element
@@ -923,13 +943,13 @@ def import_scores(exam_id):
                                 score_value = Decimal(score_str)
                                 question = questions.get(q_num)
                                 if not question:
-                                     if not continue_on_errors: errors.append(f"Line {i}: Header refers to non-existent question {q_num} for student {student_id_ext}")
+                                     warnings.append(f"Line {i}: Header refers to non-existent question {q_num} for student {student_id_ext}")
                                      continue # Skip this score if question not found
 
                                 # Validate against max score if needed
                                 if not allow_exceed_max and score_value > question.max_score:
-                                     if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Score {score_value} exceeds max {question.max_score}")
-                                     continue # Skip this score if invalid and not continuing
+                                     warnings.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Score {score_value} capped at max {question.max_score}")
+                                     score_value = question.max_score
                                 elif allow_exceed_max and score_value > question.max_score:
                                     # If allow_exceed_max is True, we don't cap, but we might still want a warning if it's unusually high or for logging.
                                     # For now, let's assume no warning is needed if explicitly allowed.
@@ -951,10 +971,10 @@ def import_scores(exam_id):
                                     'line_number': i
                                 })
                             except InvalidOperation: # For Decimal conversion errors
-                                if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Invalid score format '{parts[col_idx]}'")
+                                warnings.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Invalid score format '{parts[col_idx]}', skipped")
                                 continue
                             except Exception as e: # Catch other potential errors
-                                 if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Error processing score: {str(e)}")
+                                 warnings.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Error processing score: {str(e)}, skipped")
                                  continue
                                  
                 # Method 2: Parse remaining columns (Original Logic Style Restoration)
@@ -977,7 +997,7 @@ def import_scores(exam_id):
                                     score_str = score_part.strip().replace(',', '.')
                                 else:
                                     # If format is like ":5", treat as invalid for q:score
-                                    if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Invalid question format '{q_part}' in '{score_data}'")
+                                    warnings.append(f"Line {i}, Student {student_id_ext}: Invalid question format '{q_part}' in '{score_data}', skipped")
                                     continue # Skip this part
                             else:
                                 # Fallback: Treat as sequential score if no colon
@@ -987,12 +1007,12 @@ def import_scores(exam_id):
                             # Validate question number
                             if q_num is None:
                                 # Should not happen with the logic above, but safety check
-                                if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Could not determine question number for '{score_data}'")
+                                warnings.append(f"Line {i}, Student {student_id_ext}: Could not determine question number for '{score_data}', skipped")
                                 continue
                             
                             question = questions.get(q_num)
                             if not question:
-                                if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Question number {q_num} not found for this exam (from '{score_data}')")
+                                warnings.append(f"Line {i}, Student {student_id_ext}: Question number {q_num} not found for this exam (from '{score_data}'), skipped")
                                 continue # Skip score for non-existent question
                                 
                             # Validate score string
@@ -1003,8 +1023,8 @@ def import_scores(exam_id):
 
                             # Validate/Cap score value
                             if not allow_exceed_max and score_value > question.max_score:
-                                if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Score {score_value} exceeds max {question.max_score}")
-                                continue # Skip score
+                                warnings.append(f"Line {i}, Student {student_id_ext}, Q{q_num}: Score {score_value} capped at max {question.max_score}")
+                                score_value = question.max_score
                             elif allow_exceed_max and score_value > question.max_score:
                                 # If allow_exceed_max is True, we don't cap.
                                 pass # Score is allowed to exceed max_score
@@ -1027,10 +1047,10 @@ def import_scores(exam_id):
                             })
 
                         except (ValueError, InvalidOperation): # Handles split error or Decimal conversion error
-                             if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Invalid score format or value in '{score_data}'")
+                             warnings.append(f"Line {i}, Student {student_id_ext}: Invalid score format or value in '{score_data}', skipped")
                              continue # Skip this specific score_data part
                         except Exception as e: # Catch other unexpected errors
-                             if not continue_on_errors: errors.append(f"Line {i}, Student {student_id_ext}: Error processing score data '{score_data}': {str(e)}")
+                             warnings.append(f"Line {i}, Student {student_id_ext}: Error processing score data '{score_data}': {str(e)}, skipped")
                              continue # Skip this specific score_data part
                     
                     # After processing all parts for the line, add the valid scores
@@ -1042,9 +1062,29 @@ def import_scores(exam_id):
                 # If no valid score, should be 0
                 # If student has no scores at all, mark as not entered the exam
                 
-                if len(parts) < 2:  # Need at least student_id and one score
-                    if not continue_on_errors: 
-                        errors.append(f"Line {i}, Student {student_id_ext}: Not enough data for simple format (expected student ID and at least one score)")
+                if len(parts) < 2:  # Need at least student_id and potentially score fields
+                    # Only student ID provided, no delimiter or score fields
+                    warnings.append(f"Line {i}, Student {student_id_ext}: No delimiter or score fields found. Expected format: student_id<delimiter>score1<delimiter>score2... Raw line: {raw_line}. Student will be marked as not attended.")
+                    # Mark student as not attended
+                    try:
+                        attendance_record = StudentExamAttendance.query.filter_by(
+                            student_id=student_db_id, 
+                            exam_id=exam_id
+                        ).first()
+                        
+                        if attendance_record:
+                            attendance_record.attended = False
+                        else:
+                            # Create new attendance record
+                            new_attendance = StudentExamAttendance(
+                                student_id=student_db_id,
+                                exam_id=exam_id,
+                                attended=False
+                            )
+                            db.session.add(new_attendance)
+                        
+                    except Exception as e:
+                        warnings.append(f"Line {i}, Student {student_id_ext}: Could not update attendance: {str(e)}")
                     continue
                 
                 score_data_parts = parts[1:]  # Scores start from the 2nd element
@@ -1053,69 +1093,70 @@ def import_scores(exam_id):
                 # Check if student has any valid scores (not just zeros)
                 has_valid_scores = False
                 temp_line_scores = []
+                missing_scores_count = 0
                 
-                for idx, score_str in enumerate(score_data_parts):
-                    if idx >= len(sorted_questions):
-                        # More scores provided than questions available
-                        warnings.append(f"Line {i}, Student {student_id_ext}: Extra score data ignored (position {idx + 1})")
-                        break
+                # Process all questions in the exam, not just the ones with provided scores
+                for idx, question in enumerate(sorted_questions):
+                    score_str = ""
                     
-                    question = sorted_questions[idx]
-                    score_str = score_str.strip().replace(',', '.')
+                    if idx < len(score_data_parts):
+                        score_str = score_data_parts[idx].strip().replace(',', '.')
                     
-                    # Skip empty scores
+                    # Handle missing or empty scores
                     if not score_str:
-                        continue
-                    
-                    try:
-                        score_value = Decimal(score_str)
-                        
-                        # Check if this is a valid score (not zero means student participated)
-                        if score_value > 0:
-                            has_valid_scores = True
-                        
-                        # Validate/Cap score value
-                        if not allow_exceed_max and score_value > question.max_score:
-                            if not continue_on_errors:
-                                errors.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Score {score_value} exceeds max {question.max_score}")
-                                continue
-                            else:
-                                warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Score {score_value} capped at max {question.max_score}")
-                                score_value = question.max_score
-                        elif allow_exceed_max and score_value > question.max_score:
-                            # If allow_exceed_max is True, we don't cap.
-                            pass # Score is allowed to exceed max_score
-                        elif score_value > question.max_score: # This case implies allow_exceed_max is False
-                            warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Score {score_value} capped at max {question.max_score}")
-                            score_value = question.max_score
-                        elif score_value < 0:
-                            warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Score {score_value} set to 0")
+                        # Missing score - set to 0 and count it
+                        score_value = Decimal('0')
+                        missing_scores_count += 1
+                    else:
+                        try:
+                            score_value = Decimal(score_str)
+                        except (ValueError, InvalidOperation):
+                            warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Invalid score format '{score_str}', set to 0")
                             score_value = Decimal('0')
-                        
-                        temp_line_scores.append({
-                            'student_id': student_db_id,
-                            'student_ext_id': student_id_ext,
-                            'question_id': question.id,
-                            'question_num': question.number,
-                            'exam_id': exam_id,
-                            'score': score_value,
-                            'line_number': i
-                        })
-                        
-                    except (ValueError, InvalidOperation):
-                        if not continue_on_errors:
-                            errors.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Invalid score format '{score_str}'")
-                            continue
-                        else:
-                            warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Invalid score format '{score_str}', skipped")
-                            continue
-                    except Exception as e:
-                        if not continue_on_errors:
-                            errors.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Error processing score: {str(e)}")
-                            continue
-                        else:
-                            warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Error processing score: {str(e)}, skipped")
-                            continue
+                            missing_scores_count += 1
+                        except Exception as e:
+                            warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Error processing score: {str(e)}, set to 0")
+                            score_value = Decimal('0')
+                            missing_scores_count += 1
+                    
+                    # Check if this is a valid score (not zero means student participated)
+                    if score_value > 0:
+                        has_valid_scores = True
+                    
+                    # Validate/Cap score value
+                    if not allow_exceed_max and score_value > question.max_score:
+                        warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Score {score_value} capped at max {question.max_score}")
+                        score_value = question.max_score
+                    elif allow_exceed_max and score_value > question.max_score:
+                        # If allow_exceed_max is True, we don't cap.
+                        pass # Score is allowed to exceed max_score
+                    elif score_value > question.max_score: # This case implies allow_exceed_max is False
+                        warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Score {score_value} capped at max {question.max_score}")
+                        score_value = question.max_score
+                    elif score_value < 0:
+                        warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Score {score_value} set to 0")
+                        score_value = Decimal('0')
+                    
+                    temp_line_scores.append({
+                        'student_id': student_db_id,
+                        'student_ext_id': student_id_ext,
+                        'question_id': question.id,
+                        'question_num': question.number,
+                        'exam_id': exam_id,
+                        'score': score_value,
+                        'line_number': i
+                    })
+                
+                # Check for extra scores provided beyond available questions
+                if len(score_data_parts) > len(sorted_questions):
+                    extra_count = len(score_data_parts) - len(sorted_questions)
+                    warnings.append(f"Line {i}, Student {student_id_ext}: {extra_count} extra score(s) provided beyond available questions, ignored")
+                
+                # Notify about missing scores
+                if missing_scores_count > 0:
+                    warnings.append(f"Line {i}, Student {student_id_ext}: {missing_scores_count} missing score(s) set to 0")
+                
+
                 
                 # If student has no valid scores (all zeros or no scores), mark as not attended
                 if not has_valid_scores and temp_line_scores:
