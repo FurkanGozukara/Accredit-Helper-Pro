@@ -5652,22 +5652,69 @@ def is_graduating_student(student_id):
     except Exception:
         return False
 
+@calculation_bp.route('/all_courses/pdf_progress', methods=['GET'])
+def get_pdf_progress():
+    """Get current PDF generation progress from temporary file"""
+    import json
+    import os
+    
+    if 'pdf_progress_file' not in session:
+        return jsonify({
+            'status': 'not_started',
+            'current': 0,
+            'total': 0,
+            'message': 'No PDF generation in progress',
+            'completed': False
+        })
+    
+    progress_file = session['pdf_progress_file']
+    
+    try:
+        if os.path.exists(progress_file):
+            with open(progress_file, 'r', encoding='utf-8') as f:
+                progress_data = json.loads(f.read())
+            return jsonify(progress_data)
+        else:
+            return jsonify({
+                'status': 'not_started',
+                'current': 0,
+                'total': 0,
+                'message': 'No PDF generation in progress',
+                'completed': False
+            })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'current': 0,
+            'total': 0,
+            'message': f'Error reading progress: {str(e)}',
+            'completed': False,
+            'error': str(e)
+        })
+
 @calculation_bp.route('/all_courses/pdf_individual', methods=['POST'])
 def generate_individual_student_pdfs():
-    """Generate individual PDF reports for all students or filtered students"""
-    from weasyprint import HTML, CSS
-    from weasyprint.html import get_html_document
+    """Generate individual PDF reports for all students or filtered students using Playwright"""
     import tempfile
     import zipfile
     from flask import make_response
     import io
+    import os
+    from datetime import datetime
     
     try:
+        print("DEBUG: PDF generation route called")
+        logging.info("PDF generation route called")
+        
         # Get filter parameters from form data
         filter_year = request.form.get('year', '')
         search_query = request.form.get('search', '').lower()
         filter_student_id = request.form.get('student_id', '').strip()
         include_graduating_only = request.form.get('graduating_only', '').lower() == 'true'
+        orientation = request.form.get('orientation', 'landscape')  # 'landscape' or 'portrait'
+        page_size = request.form.get('page_size', 'A4')  # 'A4' or 'A3'
+        
+        print(f"DEBUG: Parameters - year: {filter_year}, search: {search_query}, student_id: {filter_student_id}, graduating_only: {include_graduating_only}, orientation: {orientation}, page_size: {page_size}")
         
         # Get the display method from session or default to absolute
         display_method = session.get('display_method', 'absolute')
@@ -5704,29 +5751,26 @@ def generate_individual_student_pdfs():
             flash('No students found matching the current filters.', 'warning')
             return redirect(url_for('calculation.all_courses'))
         
-        # Create a ZIP file to contain all individual PDFs
-        zip_buffer = io.BytesIO()
+        # Generate PDFs using Playwright
+        pdf_results = generate_student_pdfs_with_playwright(
+            all_students, 
+            filter_year, 
+            search_query, 
+            filter_student_id, 
+            include_graduating_only,
+            display_method,
+            orientation,
+            page_size
+        )
         
-        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-            for student_id in sorted(all_students):
-                # Generate PDF for this student
-                pdf_content = generate_student_pdf_content(student_id, courses, display_method, include_graduating_only)
-                
-                if pdf_content:
-                    # Get student name for filename
-                    student_name = get_student_name(student_id)
-                    safe_name = "".join(c for c in student_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
-                    filename = f"{student_id}_{safe_name}.pdf".replace(' ', '_')
-                    
-                    zip_file.writestr(filename, pdf_content)
+        if not pdf_results['success']:
+            flash(f'Error generating PDF reports: {pdf_results["error"]}', 'danger')
+            return redirect(url_for('calculation.all_courses'))
         
-        zip_buffer.seek(0)
-        
-        # Create response
-        response = make_response(zip_buffer.getvalue())
+        # Always return ZIP file containing both individual PDFs and combined PDF
+        response = make_response(pdf_results['zip_content'])
         response.headers['Content-Type'] = 'application/zip'
         
-        # Generate filename with timestamp and filter info
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filter_suffix = ""
         if include_graduating_only:
@@ -5734,12 +5778,36 @@ def generate_individual_student_pdfs():
         if filter_student_id:
             filter_suffix += f"_student_{filter_student_id}"
         
-        filename = f"individual_student_reports{filter_suffix}_{timestamp}.zip"
+        filename = f"student_reports{filter_suffix}_{timestamp}.zip"
         response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        # Clean up progress file
+        if 'pdf_progress_file' in session:
+            try:
+                progress_file = session['pdf_progress_file']
+                if os.path.exists(progress_file):
+                    # Wait a bit before cleanup to allow final progress read
+                    import threading
+                    def cleanup_after_delay():
+                        import time
+                        time.sleep(5)  # Wait 5 seconds
+                        try:
+                            if os.path.exists(progress_file):
+                                os.remove(progress_file)
+                        except:
+                            pass
+                    
+                    cleanup_thread = threading.Thread(target=cleanup_after_delay)
+                    cleanup_thread.daemon = True
+                    cleanup_thread.start()
+                    
+                del session['pdf_progress_file']
+            except:
+                pass
         
         # Log action
         log = Log(action="GENERATE_INDIVIDUAL_STUDENT_PDFS", 
-                 description=f"Generated individual PDF reports for {len(all_students)} students{filter_suffix}")
+                 description=f"Generated individual PDF reports for {len(all_students)} students{filter_suffix} using Playwright")
         db.session.add(log)
         db.session.commit()
         
@@ -5750,77 +5818,431 @@ def generate_individual_student_pdfs():
         flash(f'Error generating PDF reports: {str(e)}', 'danger')
         return redirect(url_for('calculation.all_courses'))
 
-@calculation_bp.route('/all_courses/pdf_bulk', methods=['POST'])
-def generate_bulk_student_pdf():
-    """Generate a single bulk PDF report containing all students"""
-    from weasyprint import HTML, CSS
+
+
+def generate_student_pdfs_with_playwright(student_ids, filter_year, search_query, filter_student_id, include_graduating_only, display_method, orientation='landscape', page_size='A4'):
+    """Generate individual PDF reports for all students or filtered students using Playwright"""
     import tempfile
-    from flask import make_response
+    import zipfile
+    import io
+    import os
+    from datetime import datetime
+    
+    # Initialize combined_pdf at the very beginning to avoid reference before assignment
+    combined_pdf = None
     
     try:
-        # Get filter parameters from form data
-        filter_year = request.form.get('year', '')
-        search_query = request.form.get('search', '').lower()
-        filter_student_id = request.form.get('student_id', '').strip()
-        include_graduating_only = request.form.get('graduating_only', '').lower() == 'true'
+        logging.info(f"Starting PDF generation for {len(student_ids)} students using Playwright - Entry point reached")
+        print(f"DEBUG: Starting PDF generation for {len(student_ids)} students")
         
-        # Get the display method from session or default to absolute
-        display_method = session.get('display_method', 'absolute')
+        # Initialize progress tracking with temporary file
+        progress_id = f"pdf_generation_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        progress_file = os.path.join(tempfile.gettempdir(), f"pdf_progress_{progress_id}.txt")
         
-        # Get all courses with same filtering as all_courses route
-        courses = Course.query.all()
+        # Write initial progress to file
+        progress_data = {
+            'id': progress_id,
+            'current': 0,
+            'total': len(student_ids),
+            'status': 'starting',
+            'message': 'Initializing PDF generation...',
+            'completed': False,
+            'error': None
+        }
         
-        # Apply filters
-        if filter_year:
-            courses = [c for c in courses if filter_year in c.semester]
+        import json
+        with open(progress_file, 'w', encoding='utf-8') as f:
+            f.write(json.dumps(progress_data))
         
-        if search_query:
-            courses = [c for c in courses if search_query in c.code.lower() or search_query in c.name.lower()]
+        # Store progress file path in session for cleanup
+        session['pdf_progress_file'] = progress_file
         
-        if filter_student_id:
-            courses, _ = filter_courses_by_student(courses, filter_student_id)
+        # Create timestamped directory for this run
+        timestamp = datetime.now().strftime('%d_%B_%Y_%H_%M_%p')
+        student_pdfs_dir = os.path.join(os.getcwd(), 'student_pdfs', timestamp)
+        os.makedirs(student_pdfs_dir, exist_ok=True)
         
-        if include_graduating_only:
-            courses, _ = filter_courses_by_graduating_students(courses, include_graduating_only)
+        logging.info(f"Created PDF output directory: {student_pdfs_dir}")
+        print(f"DEBUG: Created PDF output directory: {student_pdfs_dir}")
         
-        # Generate bulk PDF content
+        # Update progress file
+        progress_data['status'] = 'processing'
+        progress_data['message'] = 'Generating PDF reports...'
+        with open(progress_file, 'w', encoding='utf-8') as f:
+            f.write(json.dumps(progress_data))
+        
+        # Generate PDFs for each student
+        pdf_files = []
+        successful_count = 0
+        
+        for i, student_id in enumerate(sorted(student_ids), 1):
+            remaining = len(student_ids) - i + 1
+            logging.info(f"Generating PDF for student {student_id} ({i}/{len(student_ids)}, {remaining} remaining)")
+            print(f"DEBUG: Generating PDF for student {student_id} ({i}/{len(student_ids)}, {remaining} remaining)")
+            
+            # Update progress file in real-time
+            progress_data['current'] = i
+            progress_data['message'] = f'Generating PDF for student {student_id} ({i}/{len(student_ids)}, {remaining} remaining)'
+            with open(progress_file, 'w', encoding='utf-8') as f:
+                f.write(json.dumps(progress_data))
+            
+            try:
+                # Generate PDF for this student
+                pdf_content = generate_student_pdf_with_playwright(student_id, filter_year, search_query, filter_student_id, include_graduating_only, display_method, orientation, page_size)
+                
+                if pdf_content:
+                    # Get student name for filename
+                    student_name = get_student_name(student_id)
+                    safe_name = "".join(c for c in student_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+                    filename = f"{student_id}_{safe_name}.pdf".replace(' ', '_')
+                    
+                    # Save PDF to individual file
+                    pdf_path = os.path.join(student_pdfs_dir, filename)
+                    with open(pdf_path, 'wb') as f:
+                        f.write(pdf_content)
+                    
+                    pdf_files.append(pdf_path)
+                    successful_count += 1
+                    logging.info(f"Successfully generated PDF for student {student_id}: {filename}")
+                    print(f"DEBUG: Successfully generated PDF for student {student_id}: {filename}")
+                else:
+                    logging.warning(f"Failed to generate PDF for student {student_id}")
+                    print(f"DEBUG: Failed to generate PDF for student {student_id}")
+                    
+            except Exception as e:
+                logging.error(f"Error generating PDF for student {student_id}: {e}")
+                print(f"DEBUG: Error generating PDF for student {student_id}: {e}")
+                continue
+        
+        if not pdf_files:
+            return {
+                'success': False,
+                'error': 'No PDFs were generated successfully'
+            }
+        
+        # Combine all PDFs into a single PDF first
         try:
-            # Try WeasyPrint first, fall back to ReportLab if it fails
-            from weasyprint import HTML
-            html_content = generate_bulk_pdf_content(courses, display_method, include_graduating_only)
-            html_doc = HTML(string=html_content)
-            pdf_content = html_doc.write_pdf()
-        except (ImportError, OSError) as e:
-            logging.warning(f"WeasyPrint not available ({e}), using ReportLab fallback for bulk PDF")
-            pdf_content = generate_bulk_pdf_with_reportlab(courses, display_method, include_graduating_only)
+            combined_pdf = combine_pdfs(pdf_files)
+            if combined_pdf:
+                # Save combined PDF to the directory as well
+                combined_path = os.path.join(student_pdfs_dir, 'combined_all_students.pdf')
+                with open(combined_path, 'wb') as f:
+                    f.write(combined_pdf)
+                logging.info(f"Combined PDF saved: {combined_path}")
+        except Exception as e:
+            logging.error(f"Error combining PDFs: {e}")
         
-        # Create response
-        response = make_response(pdf_content)
-        response.headers['Content-Type'] = 'application/pdf'
+        # Create ZIP file containing all individual PDFs plus the combined PDF
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            # Add all individual PDFs
+            for pdf_path in pdf_files:
+                zip_file.write(pdf_path, os.path.basename(pdf_path))
+            
+            # Add the combined PDF to the ZIP as well
+            if combined_pdf:
+                combined_path = os.path.join(student_pdfs_dir, 'combined_all_students.pdf')
+                if os.path.exists(combined_path):
+                    zip_file.write(combined_path, 'combined_all_students.pdf')
         
-        # Generate filename with timestamp and filter info
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filter_suffix = ""
-        if include_graduating_only:
-            filter_suffix += "_graduating"
-        if filter_student_id:
-            filter_suffix += f"_student_{filter_student_id}"
+        zip_buffer.seek(0)
         
-        filename = f"bulk_student_report{filter_suffix}_{timestamp}.pdf"
-        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        # Mark progress as completed in file
+        progress_data['current'] = len(student_ids)
+        progress_data['status'] = 'completed'
+        progress_data['message'] = f'PDF generation completed! {successful_count}/{len(student_ids)} successful'
+        progress_data['completed'] = True
+        with open(progress_file, 'w', encoding='utf-8') as f:
+            f.write(json.dumps(progress_data))
         
-        # Log action
-        log = Log(action="GENERATE_BULK_STUDENT_PDF", 
-                 description=f"Generated bulk PDF report for {len(courses)} courses{filter_suffix}")
-        db.session.add(log)
-        db.session.commit()
+        logging.info(f"PDF generation completed: {successful_count}/{len(student_ids)} successful")
         
-        return response
+        return {
+            'success': True,
+            'zip_content': zip_buffer.getvalue(),
+            'combined_pdf': combined_pdf,
+            'output_directory': student_pdfs_dir,
+            'successful_count': successful_count,
+            'total_count': len(student_ids)
+        }
         
     except Exception as e:
-        logging.error(f"Error generating bulk student PDF: {e}")
-        flash(f'Error generating PDF report: {str(e)}', 'danger')
-        return redirect(url_for('calculation.all_courses'))
+        # Mark progress as failed in file
+        if 'pdf_progress_file' in session:
+            try:
+                progress_file = session['pdf_progress_file']
+                if os.path.exists(progress_file):
+                    with open(progress_file, 'r', encoding='utf-8') as f:
+                        progress_data = json.loads(f.read())
+                    progress_data['status'] = 'error'
+                    progress_data['error'] = str(e)
+                    progress_data['message'] = f'Error: {str(e)}'
+                    with open(progress_file, 'w', encoding='utf-8') as f:
+                        f.write(json.dumps(progress_data))
+            except:
+                pass  # If file operations fail, just continue
+        
+        logging.error(f"Error generating student PDFs with Playwright: {e}")
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+def generate_student_pdf_with_playwright(student_id, filter_year, search_query, filter_student_id, include_graduating_only, display_method, orientation='landscape', page_size='A4'):
+    """Generate PDF using Playwright (rendering actual web page)"""
+    import asyncio
+    from playwright.async_api import async_playwright
+    from flask import url_for
+    
+    async def generate_student_pdf_async():
+        try:
+            # Get student information
+            student_name = get_student_name(student_id)
+            logging.info(f"Generating PDF for student: {student_name} (ID: {student_id})")
+            print(f"DEBUG: Generating PDF for student: {student_name} (ID: {student_id})")
+            
+            async with async_playwright() as p:
+                print(f"DEBUG: Playwright launched for student {student_id}")
+                browser = await p.chromium.launch(headless=True)
+                print(f"DEBUG: Browser launched for student {student_id}")
+                page = await browser.new_page()
+                print(f"DEBUG: Page created for student {student_id}")
+                
+                # Build URL with filters to render the student's page
+                # Use the all_courses page with student filter applied
+                base_url = request.url_root.rstrip('/')
+                url_params = {
+                    'student_id': student_id
+                }
+                
+                # Add other filters if they exist
+                if filter_year:
+                    url_params['year'] = filter_year
+                if search_query:
+                    url_params['search'] = search_query
+                if include_graduating_only:
+                    url_params['graduating_only'] = 'true'
+                
+                # Build URL
+                from urllib.parse import urlencode
+                url = f"{base_url}/calculation/all_courses?{urlencode(url_params)}"
+                
+                logging.info(f"Navigating to URL: {url}")
+                
+                # Navigate to the page
+                await page.goto(url, wait_until='networkidle')
+                
+                # Wait for the page to fully load
+                await page.wait_for_selector('table', timeout=30000)
+                
+                # Remove any unnecessary elements for PDF (like navigation, buttons)
+                await page.evaluate("""
+                    () => {
+                        // Remove elements that shouldn't be in PDF
+                        const elementsToHide = [
+                            '.navbar', '.nav', '.dropdown', '.btn', 'button',
+                            '.form-control', '.form-select', 'input', '.alert-dismissible .btn-close',
+                            '.modal', '.offcanvas', '.alert', '.card-header h5'
+                        ];
+                        
+                        elementsToHide.forEach(selector => {
+                            const elements = document.querySelectorAll(selector);
+                            elements.forEach(el => el.style.display = 'none');
+                        });
+                        
+                        // Add PDF-specific styling for better table fitting
+                        const style = document.createElement('style');
+                        style.textContent = `
+                            @media print {
+                                body { 
+                                    margin: 0 !important; 
+                                    font-family: Arial, sans-serif !important;
+                                    font-size: 10px !important;
+                                }
+                                .container-fluid { 
+                                    max-width: none !important; 
+                                    padding: 0 !important;
+                                }
+                                .card { 
+                                    border: 1px solid #dee2e6 !important; 
+                                    box-shadow: none !important;
+                                    margin: 0 !important;
+                                }
+                                .card-body {
+                                    padding: 5px !important;
+                                }
+                                .table-responsive {
+                                    overflow: visible !important;
+                                }
+                                .table { 
+                                    font-size: 8px !important;
+                                    width: 100% !important;
+                                    table-layout: fixed !important;
+                                    margin: 0 !important;
+                                }
+                                .table th, .table td { 
+                                    padding: 3px 2px !important;
+                                    font-size: 8px !important;
+                                    line-height: 1.1 !important;
+                                    word-wrap: break-word !important;
+                                    overflow: hidden !important;
+                                    white-space: nowrap !important;
+                                }
+                                .table th {
+                                    font-weight: bold !important;
+                                    background-color: #f8f9fa !important;
+                                }
+                                .table td:first-child {
+                                    white-space: normal !important;
+                                    min-width: 60px !important;
+                                }
+                                .table td:nth-child(2) {
+                                    white-space: normal !important;
+                                    min-width: 80px !important;
+                                }
+                                .table td:nth-child(3) {
+                                    min-width: 40px !important;
+                                }
+                                /* Program outcome columns - make them narrower */
+                                .table td:nth-child(n+4) {
+                                    min-width: 35px !important;
+                                    text-align: center !important;
+                                }
+                                .btn, .dropdown, .form-control, .form-select { display: none !important; }
+                                .no-print { display: none !important; }
+                                
+                                /* Rotate program outcome headers for better space usage */
+                                .table thead th:nth-child(n+4) {
+                                    writing-mode: vertical-rl !important;
+                                    text-orientation: mixed !important;
+                                    height: 80px !important;
+                                    vertical-align: bottom !important;
+                                    padding: 2px !important;
+                                    font-size: 7px !important;
+                                }
+                                
+                                /* Chart styling for PDF */
+                                canvas {
+                                    max-width: 100% !important;
+                                    height: auto !important;
+                                }
+                                
+                                /* Achievement levels table */
+                                .achievement-levels-table {
+                                    font-size: 7px !important;
+                                }
+                                .achievement-levels-table th,
+                                .achievement-levels-table td {
+                                    padding: 2px !important;
+                                }
+                            }
+                        `;
+                        document.head.appendChild(style);
+                        
+                        // Add title for PDF
+                        const title = document.createElement('div');
+                        title.innerHTML = '<h2 style="text-align: center; margin: 10px 0; font-size: 14px;">Student Academic Report - ' + document.querySelector('[data-student-name]')?.getAttribute('data-student-name') || 'Student ID: """ + str(student_id) + """' + '</h2>';
+                        document.body.insertBefore(title, document.body.firstChild);
+                        
+                        // Add class to achievement levels table for styling
+                        const achievementTable = document.querySelector('.table-sm');
+                        if (achievementTable) {
+                            achievementTable.classList.add('achievement-levels-table');
+                        }
+                    }
+                """)
+                
+                # Generate PDF with user-selected orientation and page size
+                is_landscape = orientation.lower() == 'landscape'
+                
+                # Adjust margins based on page size for better fit
+                if page_size.upper() == 'A3':
+                    margins = {
+                        'top': '0.5cm',
+                        'right': '0.5cm', 
+                        'bottom': '0.5cm',
+                        'left': '0.5cm'
+                    }
+                else:  # A4
+                    margins = {
+                        'top': '0.7cm',
+                        'right': '0.7cm',
+                        'bottom': '0.7cm', 
+                        'left': '0.7cm'
+                    }
+                
+                pdf_bytes = await page.pdf(
+                    format=page_size.upper(),
+                    landscape=is_landscape,
+                    print_background=True,
+                    margin=margins
+                )
+                
+                await browser.close()
+                
+                logging.info(f"PDF generated successfully for student {student_id} ({len(pdf_bytes)} bytes)")
+                return pdf_bytes
+                
+        except Exception as e:
+            logging.error(f"Error generating PDF for student {student_id}: {e}")
+            return None
+    
+    try:
+        # Run the async function
+        print(f"DEBUG: About to run async function for student {student_id}")
+        
+        # Check if we're already in an event loop
+        try:
+            loop = asyncio.get_running_loop()
+            print(f"DEBUG: Running in existing event loop")
+            # If we're in a loop, we need to use run_until_complete or create a new thread
+            import threading
+            import concurrent.futures
+            
+            def run_in_thread():
+                return asyncio.run(generate_student_pdf_async())
+            
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(run_in_thread)
+                result = future.result(timeout=300)  # 5 minute timeout
+                print(f"DEBUG: Async function completed for student {student_id}")
+                return result
+                
+        except RuntimeError:
+            # No event loop running, we can use asyncio.run
+            print(f"DEBUG: No event loop, using asyncio.run for student {student_id}")
+            result = asyncio.run(generate_student_pdf_async())
+            print(f"DEBUG: Async function completed for student {student_id}")
+            return result
+            
+    except Exception as e:
+        logging.error(f"Error running async PDF generation for student {student_id}: {e}")
+        print(f"DEBUG: Error running async PDF generation for student {student_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+def combine_pdfs(pdf_paths):
+    """Combine multiple PDFs into a single PDF"""
+    from PyPDF2 import PdfMerger
+    import io
+    
+    try:
+        merger = PdfMerger()
+        for pdf_path in pdf_paths:
+            with open(pdf_path, 'rb') as f:
+                merger.append(f)
+        
+        combined_pdf = io.BytesIO()
+        merger.write(combined_pdf)
+        merger.close()
+        
+        combined_pdf.seek(0)
+        return combined_pdf.getvalue()
+        
+    except Exception as e:
+        logging.error(f"Error combining PDFs: {e}")
+        return None
 
 def filter_courses_by_graduating_students(courses, include_graduating_only=False):
     """
@@ -5913,626 +6335,6 @@ def get_student_name(student_id):
         else:
             return student.first_name
     return f"Student {student_id}"
-
-def generate_student_pdf_content(student_id, courses, display_method='absolute', include_graduating_only=False):
-    """Generate PDF content for a single student across all their courses"""
-    try:
-        # Try WeasyPrint first, fall back to ReportLab if it fails
-        try:
-            from weasyprint import HTML
-            return generate_student_pdf_with_weasyprint(student_id, courses, display_method, include_graduating_only)
-        except (ImportError, OSError) as e:
-            logging.warning(f"WeasyPrint not available ({e}), using ReportLab fallback")
-            return generate_student_pdf_with_reportlab(student_id, courses, display_method, include_graduating_only)
-    except Exception as e:
-        logging.error(f"Error generating PDF for student {student_id}: {e}")
-        return None
-
-def generate_student_pdf_with_weasyprint(student_id, courses, display_method='absolute', include_graduating_only=False):
-    """Generate PDF using WeasyPrint (HTML/CSS approach)"""
-    from weasyprint import HTML
-    
-    try:
-        # Get student information
-        student_name = get_student_name(student_id)
-        
-        # Build HTML content
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>Student Report - {student_name}</title>
-            <style>
-                body {{ 
-                    font-family: Arial, sans-serif; 
-                    margin: 20px; 
-                    line-height: 1.4;
-                }}
-                .header {{ 
-                    text-align: center; 
-                    margin-bottom: 30px;
-                    border-bottom: 2px solid #333;
-                    padding-bottom: 20px;
-                }}
-                .student-info {{ 
-                    background: #f8f9fa; 
-                    padding: 15px; 
-                    border-radius: 5px; 
-                    margin-bottom: 20px;
-                }}
-                .course {{ 
-                    margin-bottom: 25px; 
-                    page-break-inside: avoid;
-                }}
-                .course-header {{ 
-                    background: #007bff; 
-                    color: white; 
-                    padding: 10px; 
-                    margin-bottom: 10px;
-                }}
-                table {{ 
-                    width: 100%; 
-                    border-collapse: collapse; 
-                    margin-bottom: 15px;
-                }}
-                th, td {{ 
-                    border: 1px solid #ddd; 
-                    padding: 8px; 
-                    text-align: center;
-                }}
-                th {{ 
-                    background: #f8f9fa;
-                }}
-                .success {{ background: #d4edda; }}
-                .info {{ background: #d1ecf1; }}
-                .primary {{ background: #cce5ff; }}
-                .warning {{ background: #fff3cd; }}
-                .danger {{ background: #f8d7da; }}
-                .na {{ background: #e9ecef; }}
-                .summary {{ 
-                    background: #e8f4f8; 
-                    padding: 15px; 
-                    border-radius: 5px; 
-                    margin-top: 20px;
-                }}
-                .footer {{ 
-                    text-align: center; 
-                    margin-top: 30px; 
-                    font-size: 12px; 
-                    color: #666;
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <h1>Student Academic Report</h1>
-                <h2>{student_name} (ID: {student_id})</h2>
-                <p>Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-                {'<p><strong>Graduating Student Report</strong></p>' if include_graduating_only else ''}
-            </div>
-        """
-        
-        # Get program outcomes
-        program_outcomes = ProgramOutcome.query.all()
-        
-        # Track aggregated scores for summary
-        total_scores = {}
-        total_weights = {}
-        course_count = 0
-        
-        # Process each course
-        for course in courses:
-            # Check if student is enrolled in this course
-            student_in_course = Student.query.filter_by(student_id=student_id, course_id=course.id).first()
-            if not student_in_course:
-                continue
-                
-            course_count += 1
-            
-            # Get bulk data for optimization
-            bulk_data = bulk_load_course_data([course.id], display_method)
-            
-            # Calculate individual student results
-            individual_result = calculate_individual_student_results(student_in_course.id, course.id, bulk_data, display_method)
-            
-            # Get course outcome results for display  
-            course_result = calculate_course_results_from_bulk_data_v2_optimized(course.id, bulk_data, display_method)
-            
-            html_content += f"""
-            <div class="course">
-                <div class="course-header">
-                    <h3>{course.code} - {course.name}</h3>
-                    <p>Semester: {course.semester} | Weight: {course.course_weight}</p>
-                </div>
-                
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Program Outcome</th>
-                            <th>Description</th>
-                            <th>Student Score (%)</th>
-                            <th>Achievement Level</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            """
-            
-            # Add program outcome rows
-            for po in program_outcomes:
-                po_score = individual_result.get(po.id)
-                contributes = po.id in course_result.get('contributing_po_ids', [])
-                
-                if contributes and po_score is not None:
-                    # Get achievement level
-                    achievement_levels = GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()
-                    level = get_achievement_level(po_score, achievement_levels)
-                    
-                    # Aggregate for summary
-                    if po.id not in total_scores:
-                        total_scores[po.id] = 0
-                        total_weights[po.id] = 0
-                    total_scores[po.id] += po_score * float(course.course_weight)
-                    total_weights[po.id] += float(course.course_weight)
-                    
-                    html_content += f"""
-                    <tr class="{level.color if level else ''}">
-                        <td><strong>{po.code}</strong></td>
-                        <td>{po.description}</td>
-                        <td>{po_score:.2f}%</td>
-                        <td>{level.name if level else 'N/A'}</td>
-                    </tr>
-                    """
-                else:
-                    html_content += f"""
-                    <tr class="na">
-                        <td><strong>{po.code}</strong></td>
-                        <td>{po.description}</td>
-                        <td>N/A</td>
-                        <td>Not Applicable</td>
-                    </tr>
-                    """
-            
-            html_content += """
-                    </tbody>
-                </table>
-            </div>
-            """
-        
-        # Add summary section
-        html_content += """
-        <div class="summary">
-            <h3>Overall Program Outcome Summary</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Program Outcome</th>
-                        <th>Overall Score (%)</th>
-                        <th>Achievement Level</th>
-                    </tr>
-                </thead>
-                <tbody>
-        """
-        
-        achievement_levels = GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()
-        
-        for po in program_outcomes:
-            if po.id in total_scores and total_weights[po.id] > 0:
-                avg_score = total_scores[po.id] / total_weights[po.id]
-                level = get_achievement_level(avg_score, achievement_levels)
-                
-                html_content += f"""
-                <tr class="{level.color if level else ''}">
-                    <td><strong>{po.code}</strong></td>
-                    <td>{avg_score:.2f}%</td>
-                    <td>{level.name if level else 'N/A'}</td>
-                </tr>
-                """
-            else:
-                html_content += f"""
-                <tr class="na">
-                    <td><strong>{po.code}</strong></td>
-                    <td>N/A</td>
-                    <td>Not Applicable</td>
-                </tr>
-                """
-        
-        html_content += f"""
-                </tbody>
-            </table>
-            <p><strong>Total Courses:</strong> {course_count}</p>
-        </div>
-        
-        <div class="footer">
-            <p>This report was generated by Accredit Helper Pro</p>
-            <p>Report includes {course_count} courses for student {student_name}</p>
-        </div>
-        </body>
-        </html>
-        """
-        
-        # Convert to PDF
-        html_doc = HTML(string=html_content)
-        return html_doc.write_pdf()
-        
-    except Exception as e:
-        logging.error(f"Error generating PDF for student {student_id}: {e}")
-        return None
-
-def generate_bulk_pdf_content(courses, display_method='absolute', include_graduating_only=False):
-    """Generate bulk PDF content containing all students from filtered courses"""
-    try:
-        # Get all unique students from the courses
-        all_students = {}  # student_id -> student_name
-        
-        for course in courses:
-            course_students = Student.query.filter_by(course_id=course.id).all()
-            for student in course_students:
-                if include_graduating_only:
-                    if is_graduating_student(student.student_id):
-                        all_students[student.student_id] = get_student_name(student.student_id)
-                else:
-                    all_students[student.student_id] = get_student_name(student.student_id)
-        
-        # Build HTML content
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>Bulk Student Report</title>
-            <style>
-                body {{ 
-                    font-family: Arial, sans-serif; 
-                    margin: 20px; 
-                    line-height: 1.4;
-                }}
-                .header {{ 
-                    text-align: center; 
-                    margin-bottom: 30px;
-                    border-bottom: 2px solid #333;
-                    padding-bottom: 20px;
-                }}
-                .student-section {{ 
-                    margin-bottom: 40px; 
-                    page-break-before: always;
-                }}
-                .student-section:first-child {{ 
-                    page-break-before: auto;
-                }}
-                .student-header {{ 
-                    background: #28a745; 
-                    color: white; 
-                    padding: 15px; 
-                    margin-bottom: 20px;
-                    text-align: center;
-                }}
-                .course {{ 
-                    margin-bottom: 20px;
-                }}
-                .course-header {{ 
-                    background: #007bff; 
-                    color: white; 
-                    padding: 8px; 
-                    margin-bottom: 8px;
-                    font-size: 14px;
-                }}
-                table {{ 
-                    width: 100%; 
-                    border-collapse: collapse; 
-                    margin-bottom: 15px;
-                    font-size: 12px;
-                }}
-                th, td {{ 
-                    border: 1px solid #ddd; 
-                    padding: 6px; 
-                    text-align: center;
-                }}
-                th {{ 
-                    background: #f8f9fa;
-                    font-size: 11px;
-                }}
-                .success {{ background: #d4edda; }}
-                .info {{ background: #d1ecf1; }}
-                .primary {{ background: #cce5ff; }}
-                .warning {{ background: #fff3cd; }}
-                .danger {{ background: #f8d7da; }}
-                .na {{ background: #e9ecef; }}
-                .summary {{ 
-                    background: #e8f4f8; 
-                    padding: 10px; 
-                    border-radius: 5px; 
-                    margin-top: 15px;
-                }}
-                .footer {{ 
-                    text-align: center; 
-                    margin-top: 30px; 
-                    font-size: 10px; 
-                    color: #666;
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <h1>Bulk Student Academic Report</h1>
-                <p>Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-                <p>Total Students: {len(all_students)} | Total Courses: {len(courses)}</p>
-                {'<p><strong>Graduating Students Only</strong></p>' if include_graduating_only else ''}
-            </div>
-        """
-        
-        # Process each student
-        for student_id in sorted(all_students.keys()):
-            student_name = all_students[student_id]
-            
-            html_content += f"""
-            <div class="student-section">
-                <div class="student-header">
-                    <h2>{student_name} (ID: {student_id})</h2>
-                </div>
-            """
-            
-            # Get student's courses from the filtered list
-            student_courses = []
-            for course in courses:
-                if Student.query.filter_by(student_id=student_id, course_id=course.id).first():
-                    student_courses.append(course)
-            
-            if student_courses:
-                program_outcomes = ProgramOutcome.query.all()
-                
-                # Compact table for all courses
-                html_content += """
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Course</th>
-                """
-                
-                for po in program_outcomes[:6]:  # Limit to first 6 POs for space
-                    html_content += f"<th>{po.code}</th>"
-                
-                html_content += """
-                        </tr>
-                    </thead>
-                    <tbody>
-                """
-                
-                for course in student_courses:
-                    student_in_course = Student.query.filter_by(student_id=student_id, course_id=course.id).first()
-                    if student_in_course:
-                        bulk_data = bulk_load_course_data([course.id], display_method)
-                        individual_result = calculate_individual_student_results(student_in_course.id, course.id, bulk_data, display_method)
-                        
-                        html_content += f"""
-                        <tr>
-                            <td><strong>{course.code}</strong><br>{course.semester}</td>
-                        """
-                        
-                        for po in program_outcomes[:6]:
-                            po_score = individual_result.get(po.id)
-                            if po_score is not None:
-                                achievement_levels = GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()
-                                level = get_achievement_level(po_score, achievement_levels)
-                                html_content += f'<td class="{level.color if level else ""}">{po_score:.1f}%</td>'
-                            else:
-                                html_content += '<td class="na">N/A</td>'
-                        
-                        html_content += "</tr>"
-                
-                html_content += f"""
-                    </tbody>
-                </table>
-                <p><strong>Courses:</strong> {len(student_courses)}</p>
-                """
-            else:
-                html_content += "<p>No courses found for this student.</p>"
-            
-            html_content += "</div>"
-        
-        html_content += f"""
-        <div class="footer">
-            <p>This bulk report was generated by Accredit Helper Pro</p>
-            <p>Report includes {len(all_students)} students across {len(courses)} courses</p>
-        </div>
-        </body>
-        </html>
-        """
-        
-        return html_content
-        
-    except Exception as e:
-        logging.error(f"Error generating bulk PDF content: {e}")
-        raise
-
-def generate_student_pdf_with_reportlab(student_id, courses, display_method='absolute', include_graduating_only=False):
-    """Generate PDF using ReportLab (programmatic approach) - Windows-friendly fallback"""
-    from reportlab.pdfgen import canvas
-    from reportlab.lib.pagesizes import letter, A4
-    from reportlab.lib import colors
-    from reportlab.lib.units import inch
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    import io
-    
-    try:
-        # Get student information
-        student_name = get_student_name(student_id)
-        
-        # Create PDF buffer
-        buffer = io.BytesIO()
-        
-        # Create document
-        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
-        
-        # Get styles
-        styles = getSampleStyleSheet()
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=16,
-            spaceAfter=30,
-            alignment=1  # Center alignment
-        )
-        
-        # Build document content
-        story = []
-        
-        # Title
-        story.append(Paragraph("Student Academic Report", title_style))
-        story.append(Paragraph(f"<b>{student_name}</b> (ID: {student_id})", styles['Heading2']))
-        story.append(Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
-        
-        if include_graduating_only:
-            story.append(Paragraph("<b>Graduating Student Report</b>", styles['Normal']))
-        
-        story.append(Spacer(1, 20))
-        
-        # Get program outcomes
-        program_outcomes = ProgramOutcome.query.all()
-        
-        # Track aggregated scores for summary
-        total_scores = {}
-        total_weights = {}
-        course_count = 0
-        
-        # Process each course
-        for course in courses:
-            # Check if student is enrolled in this course
-            student_in_course = Student.query.filter_by(student_id=student_id, course_id=course.id).first()
-            if not student_in_course:
-                continue
-                
-            course_count += 1
-            
-            # Course header
-            story.append(Paragraph(f"<b>{course.code} - {course.name}</b>", styles['Heading3']))
-            story.append(Paragraph(f"Semester: {course.semester} | Weight: {course.course_weight}", styles['Normal']))
-            story.append(Spacer(1, 10))
-            
-            # Get bulk data for optimization
-            bulk_data = bulk_load_course_data([course.id], display_method)
-            
-            # Calculate individual student results
-            individual_result = calculate_individual_student_results(student_in_course.id, course.id, bulk_data, display_method)
-            
-            # Get course outcome results for display  
-            course_result = calculate_course_results_from_bulk_data_v2_optimized(course.id, bulk_data, display_method)
-            
-            # Create table data
-            table_data = [['Program Outcome', 'Description', 'Student Score (%)', 'Achievement Level']]
-            
-            # Add program outcome rows
-            for po in program_outcomes:
-                po_score = individual_result.get(po.id)
-                contributes = po.id in course_result.get('contributing_po_ids', [])
-                
-                if contributes and po_score is not None:
-                    # Get achievement level
-                    achievement_levels = GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()
-                    level = get_achievement_level(po_score, achievement_levels)
-                    
-                    # Aggregate for summary
-                    if po.id not in total_scores:
-                        total_scores[po.id] = 0
-                        total_weights[po.id] = 0
-                    total_scores[po.id] += po_score * float(course.course_weight)
-                    total_weights[po.id] += float(course.course_weight)
-                    
-                    table_data.append([
-                        po.code,
-                        po.description[:30] + "..." if len(po.description) > 30 else po.description,
-                        f"{po_score:.2f}%",
-                        level.name if level else 'N/A'
-                    ])
-                else:
-                    table_data.append([
-                        po.code,
-                        po.description[:30] + "..." if len(po.description) > 30 else po.description,
-                        'N/A',
-                        'Not Applicable'
-                    ])
-            
-            # Create and style table
-            table = Table(table_data, colWidths=[1*inch, 2.5*inch, 1*inch, 1.5*inch])
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 10),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('FONTSIZE', (0, 1), (-1, -1), 8),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ]))
-            
-            story.append(table)
-            story.append(Spacer(1, 20))
-        
-        # Add summary section
-        if course_count > 1:  # Only add summary if multiple courses
-            story.append(PageBreak())
-            story.append(Paragraph("<b>Overall Program Outcome Summary</b>", styles['Heading2']))
-            story.append(Spacer(1, 10))
-            
-            # Summary table
-            summary_data = [['Program Outcome', 'Overall Score (%)', 'Achievement Level']]
-            achievement_levels = GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()
-            
-            for po in program_outcomes:
-                if po.id in total_scores and total_weights[po.id] > 0:
-                    avg_score = total_scores[po.id] / total_weights[po.id]
-                    level = get_achievement_level(avg_score, achievement_levels)
-                    
-                    summary_data.append([
-                        po.code,
-                        f"{avg_score:.2f}%",
-                        level.name if level else 'N/A'
-                    ])
-                else:
-                    summary_data.append([
-                        po.code,
-                        'N/A',
-                        'Not Applicable'
-                    ])
-            
-            summary_table = Table(summary_data, colWidths=[2*inch, 1.5*inch, 2*inch])
-            summary_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 12),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.lightblue),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('FONTSIZE', (0, 1), (-1, -1), 10),
-            ]))
-            
-            story.append(summary_table)
-            story.append(Spacer(1, 20))
-        
-        story.append(Paragraph(f"<b>Total Courses:</b> {course_count}", styles['Normal']))
-        
-        # Footer
-        story.append(Spacer(1, 30))
-        story.append(Paragraph("This report was generated by Accredit Helper Pro", styles['Normal']))
-        story.append(Paragraph(f"Report includes {course_count} courses for student {student_name}", styles['Normal']))
-        
-        # Build PDF
-        doc.build(story)
-        
-        # Get PDF data
-        pdf_data = buffer.getvalue()
-        buffer.close()
-        
-        return pdf_data
-        
-    except Exception as e:
-        logging.error(f"Error generating ReportLab PDF for student {student_id}: {e}")
-        return None
 
 def generate_bulk_pdf_with_reportlab(courses, display_method='absolute', include_graduating_only=False):
     """Generate bulk PDF using ReportLab (programmatic approach) - Windows-friendly fallback"""

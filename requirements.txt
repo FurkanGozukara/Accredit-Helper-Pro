@@ -10,7 +10,8 @@ pandas
 chardet
 flask_migrate
 jellyfish
-weasyprint
 reportlab
 html5lib
 tqdm
+playwright
+PyPDF2

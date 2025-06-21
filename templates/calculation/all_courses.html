@@ -184,19 +184,16 @@
                         </button>
                         <ul class="dropdown-menu" aria-labelledby="pdfDropdown">
                             <li>
-                                <button class="dropdown-item" type="button" onclick="generateIndividualPDFs()">
-                                    <i class="fas fa-users"></i> Individual Student Reports (ZIP)
-                                </button>
-                            </li>
-                            <li>
-                                <button class="dropdown-item" type="button" onclick="generateBulkPDF()">
-                                    <i class="fas fa-file-pdf"></i> Combined Bulk Report (PDF)
+                                <button class="dropdown-item" type="button" onclick="showPDFOptionsModal('individual')">
+                                    <i class="fas fa-file-archive"></i> Generate Student PDF Reports
+                                    <small class="text-muted d-block">Individual PDFs + Combined PDF (ZIP file)</small>
                                 </button>
                             </li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <small class="dropdown-item-text text-muted">
-                                    <i class="fas fa-info-circle"></i> PDFs respect current filters
+                                    <i class="fas fa-info-circle"></i> PDFs respect current filters<br/>
+                                    <i class="fas fa-robot"></i> Now powered by Playwright
                                 </small>
                             </li>
                         </ul>
@@ -1227,43 +1224,7 @@
         document.body.removeChild(form);
     }
 
-    function generateBulkPDF() {
-        // Create a form to submit current filter parameters
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '/calculation/all_courses/pdf_bulk';
-        
-        // Add current filter parameters as hidden inputs
-        const params = new URLSearchParams(window.location.search);
-        
-        // Add year filter
-        const yearFilter = document.getElementById('yearFilter');
-        if (yearFilter && yearFilter.value !== 'all') {
-            addHiddenInput(form, 'year', yearFilter.value);
-        }
-        
-        // Add search filter
-        const courseSearch = document.getElementById('courseSearch');
-        if (courseSearch && courseSearch.value) {
-            addHiddenInput(form, 'search', courseSearch.value);
-        }
-        
-        // Add student ID filter
-        const studentIdFilter = document.getElementById('studentIdFilter');
-        if (studentIdFilter && studentIdFilter.value) {
-            addHiddenInput(form, 'student_id', studentIdFilter.value);
-        }
-        
-        // Add graduating students filter
-        const graduatingFilter = document.getElementById('graduatingStudentsFilter');
-        if (graduatingFilter && graduatingFilter.checked) {
-            addHiddenInput(form, 'graduating_only', 'true');
-        }
-        
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
-    }
+
 
     function addHiddenInput(form, name, value) {
         const input = document.createElement('input');
@@ -1272,5 +1233,298 @@
         input.value = value;
         form.appendChild(input);
     }
+
+    // New PDF generation functions with progress tracking
+    function showPDFOptionsModal(type) {
+        // Show modal with output format options
+        const modal = new bootstrap.Modal(document.getElementById('pdfOptionsModal'));
+        modal.show();
+        
+        // Store the type for later use
+        document.getElementById('pdfOptionsModal').setAttribute('data-pdf-type', type);
+    }
+
+    function generateIndividualPDFsWithOptions() {
+        const orientation = document.querySelector('input[name="orientation"]:checked').value;
+        const pageSize = document.querySelector('input[name="pageSize"]:checked').value;
+        
+        // Show progress modal
+        const optionsModal = bootstrap.Modal.getInstance(document.getElementById('pdfOptionsModal'));
+        optionsModal.hide();
+        
+        const progressModal = new bootstrap.Modal(document.getElementById('pdfProgressModal'));
+        progressModal.show();
+        
+        // Reset progress
+        updateProgress(0, 0, 'Initializing PDF generation...');
+        
+        // Prepare form data
+        const formData = new FormData();
+        formData.append('orientation', orientation);
+        formData.append('page_size', pageSize);
+        
+        // Add year filter
+        const yearFilter = document.getElementById('yearFilter');
+        if (yearFilter && yearFilter.value !== 'all') {
+            formData.append('year', yearFilter.value);
+        }
+        
+        // Add search filter
+        const courseSearch = document.getElementById('courseSearch');
+        if (courseSearch && courseSearch.value) {
+            formData.append('search', courseSearch.value);
+        }
+        
+        // Add student ID filter
+        const studentIdFilter = document.getElementById('studentIdFilter');
+        if (studentIdFilter && studentIdFilter.value) {
+            formData.append('student_id', studentIdFilter.value);
+        }
+        
+        // Add graduating students filter
+        const graduatingFilter = document.getElementById('graduatingStudentsFilter');
+        if (graduatingFilter && graduatingFilter.checked) {
+            formData.append('graduating_only', 'true');
+        }
+        
+        // Send AJAX request
+        fetch('/calculation/all_courses/pdf_individual', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.blob();
+            } else {
+                throw new Error('PDF generation failed');
+            }
+        })
+        .then(blob => {
+            // Clear the progress interval
+            if (window.currentProgressInterval) {
+                clearInterval(window.currentProgressInterval);
+                window.currentProgressInterval = null;
+            }
+            
+            // Small delay to show completion message, then hide modal
+            setTimeout(() => {
+                progressModal.hide();
+            }, 1500);
+            
+            // Create download link
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            
+            // Create filename with timestamp
+            const now = new Date();
+            const timestamp = now.getFullYear().toString() + 
+                            (now.getMonth() + 1).toString().padStart(2, '0') + 
+                            now.getDate().toString().padStart(2, '0') + '_' +
+                            now.getHours().toString().padStart(2, '0') + 
+                            now.getMinutes().toString().padStart(2, '0') + 
+                            now.getSeconds().toString().padStart(2, '0');
+            
+            let filterSuffix = '';
+            if (graduatingFilter && graduatingFilter.checked) {
+                filterSuffix += '_graduating';
+            }
+            if (studentIdFilter && studentIdFilter.value) {
+                filterSuffix += '_student_' + studentIdFilter.value;
+            }
+            
+            a.download = `student_reports${filterSuffix}_${timestamp}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            // Show success message
+            showAlert('success', 'PDF reports generated successfully!');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            progressModal.hide();
+            showAlert('danger', 'Error generating PDF reports: ' + error.message);
+        });
+        
+        // Start real-time progress tracking
+        trackProgress();
+    }
+    
+    function trackProgress() {
+        // Poll the progress endpoint every 2 seconds
+        const interval = setInterval(() => {
+            fetch('/calculation/all_courses/pdf_progress')
+                .then(response => response.json())
+                .then(progress => {
+                    updateProgress(progress.current, progress.total, progress.message);
+                    
+                    // If completed or error, stop polling
+                    if (progress.completed || progress.status === 'error') {
+                        clearInterval(interval);
+                        window.currentProgressInterval = null;
+                        
+                        if (progress.status === 'error') {
+                            // Handle error case
+                            const progressModal = bootstrap.Modal.getInstance(document.getElementById('pdfProgressModal'));
+                            progressModal.hide();
+                            showAlert('danger', 'Error generating PDF reports: ' + (progress.error || 'Unknown error'));
+                        }
+                        // Success case is handled by the main AJAX response
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching progress:', error);
+                    // Continue polling on error, don't stop
+                });
+        }, 2000); // Poll every 2 seconds
+        
+        // Store interval ID so we can clear it if needed
+        window.currentProgressInterval = interval;
+    }
+    
+    function showAlert(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        // Insert at the top of the page content
+        const pageContent = document.getElementById('pageContent');
+        pageContent.insertBefore(alertDiv, pageContent.firstChild);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
+
+    function updateProgress(current, total, message) {
+        const progressBar = document.getElementById('pdfProgressBar');
+        const progressText = document.getElementById('pdfProgressText');
+        const progressMessage = document.getElementById('pdfProgressMessage');
+        
+        if (total > 0) {
+            const percentage = Math.round((current / total) * 100);
+            progressBar.style.width = percentage + '%';
+            progressBar.setAttribute('aria-valuenow', percentage);
+            // Format like debug output: "55/305 (18%)"
+            progressText.textContent = `${Math.floor(current)}/${total} (${percentage}%)`;
+        } else {
+            progressBar.style.width = '0%';
+            progressText.textContent = '0/0 (0%)';
+        }
+        
+        progressMessage.textContent = message;
+    }
 </script>
+
+<!-- PDF Options Modal -->
+<div class="modal fade" id="pdfOptionsModal" tabindex="-1" aria-labelledby="pdfOptionsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="pdfOptionsModalLabel">
+                    <i class="fas fa-file-pdf"></i> PDF Generation Options
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-3">
+                    <i class="fas fa-info-circle"></i> 
+                    <strong>What you'll get:</strong> A ZIP file containing individual PDF reports for each student PLUS a combined PDF with all students.
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Page Orientation:</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="orientation" id="orientationLandscape" value="landscape" checked>
+                            <label class="form-check-label" for="orientationLandscape">
+                                <i class="fas fa-mobile-alt" style="transform: rotate(90deg);"></i> Landscape
+                                <small class="text-muted d-block">Better for tables with many columns (Recommended)</small>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="orientation" id="orientationPortrait" value="portrait">
+                            <label class="form-check-label" for="orientationPortrait">
+                                <i class="fas fa-mobile-alt"></i> Portrait
+                                <small class="text-muted d-block">Standard vertical orientation</small>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Page Size:</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="pageSize" id="pageSizeA4" value="A4" checked>
+                            <label class="form-check-label" for="pageSizeA4">
+                                <i class="fas fa-file"></i> A4 (210 × 297 mm)
+                                <small class="text-muted d-block">Standard size</small>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="pageSize" id="pageSizeA3" value="A3">
+                            <label class="form-check-label" for="pageSizeA3">
+                                <i class="fas fa-file" style="font-size: 1.2em;"></i> A3 (297 × 420 mm)
+                                <small class="text-muted d-block">Larger size - better for wide tables</small>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> 
+                    <strong>Note:</strong> PDFs are generated by rendering actual web pages using Playwright for maximum accuracy.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="generateIndividualPDFsWithOptions()">
+                    <i class="fas fa-play"></i> Generate PDFs
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PDF Progress Modal -->
+<div class="modal fade" id="pdfProgressModal" tabindex="-1" aria-labelledby="pdfProgressModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="pdfProgressModalLabel">
+                    <i class="fas fa-cog fa-spin"></i> Generating PDF Reports
+                </h5>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" 
+                             style="width: 0%" 
+                             aria-valuenow="0" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100"
+                             id="pdfProgressBar">
+                        </div>
+                    </div>
+                    <div class="text-center mt-2">
+                        <strong id="pdfProgressText">0/0 (0%)</strong>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <p id="pdfProgressMessage">Initializing PDF generation...</p>
+                    <small class="text-muted">
+                        <i class="fas fa-clock"></i> This may take a few minutes depending on the number of students.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %} 
