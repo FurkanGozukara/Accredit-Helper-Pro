@@ -342,42 +342,232 @@ def generate_student_pdf_with_playwright_simple(student_id, filter_year, search_
                     # If table doesn't load, try waiting for any content
                     await page.wait_for_selector('body', timeout=60000)  # 1 minute fallback
                 
-                # Apply minimal PDF styling
+                # Apply comprehensive PDF styling for proper page fitting
                 await page.evaluate(f"""
                     () => {{
-                        // Remove only essential interactive elements
-                        const elementsToHide = ['.navbar', '.btn', 'button', '.modal', '.dropdown'];
+                        // Remove interactive elements
+                        const elementsToHide = [
+                            '.navbar', '.nav', '.dropdown', '.btn', 'button',
+                            '.form-control', '.form-select', 'input', '.alert-dismissible .btn-close',
+                            '.modal', '.offcanvas', '.toast', '.sidebar'
+                        ];
+                        
                         elementsToHide.forEach(selector => {{
                             const elements = document.querySelectorAll(selector);
                             elements.forEach(el => el.style.display = 'none');
                         }});
                         
-                        // Add basic PDF styles
+                        // Add comprehensive PDF-optimized styles
                         const style = document.createElement('style');
-                        style.textContent = `@media print {{ body {{ font-size: 10px; }} .table {{ font-size: 8px; }} }}`;
+                        style.textContent = `
+                            @media print {{
+                                * {{
+                                    -webkit-print-color-adjust: exact !important;
+                                    color-adjust: exact !important;
+                                }}
+                                
+                                body {{
+                                    margin: 0 !important;
+                                    padding: 5px !important;
+                                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+                                    font-size: 10px !important;
+                                    line-height: 1.2 !important;
+                                    color: #333 !important;
+                                    background: white !important;
+                                }}
+                                
+                                .container, .container-fluid {{
+                                    max-width: 100% !important;
+                                    width: 100% !important;
+                                    padding: 0 !important;
+                                    margin: 0 !important;
+                                }}
+                                
+                                .row {{
+                                    margin: 0 !important;
+                                    padding: 0 !important;
+                                }}
+                                
+                                .col, .col-12, .col-md-12 {{
+                                    padding: 0 !important;
+                                    margin: 0 !important;
+                                }}
+                                
+                                /* Table styling for proper fitting */
+                                .table {{
+                                    width: 100% !important;
+                                    font-size: 7px !important;
+                                    border-collapse: collapse !important;
+                                    margin: 5px 0 !important;
+                                    table-layout: auto !important;
+                                }}
+                                
+                                .table th, .table td {{
+                                    padding: 2px 1px !important;
+                                    font-size: 7px !important;
+                                    line-height: 1.1 !important;
+                                    border: 1px solid #ddd !important;
+                                    text-align: center !important;
+                                    vertical-align: middle !important;
+                                    word-wrap: break-word !important;
+                                    overflow-wrap: break-word !important;
+                                }}
+                                
+                                .table th {{
+                                    background-color: #f8f9fa !important;
+                                    font-weight: bold !important;
+                                    font-size: 6px !important;
+                                }}
+                                
+                                /* Course code column - make it narrower */
+                                .table td:first-child, .table th:first-child {{
+                                    width: 60px !important;
+                                    max-width: 60px !important;
+                                    font-size: 6px !important;
+                                }}
+                                
+                                /* Course name column - adjust width */
+                                .table td:nth-child(2), .table th:nth-child(2) {{
+                                    width: 120px !important;
+                                    max-width: 120px !important;
+                                    text-align: left !important;
+                                    font-size: 6px !important;
+                                }}
+                                
+                                /* Program outcome columns - optimize width */
+                                .table td:nth-child(n+4), .table th:nth-child(n+4) {{
+                                    width: 35px !important;
+                                    max-width: 35px !important;
+                                    font-size: 6px !important;
+                                }}
+                                
+                                /* Student info section */
+                                .alert, .alert-info {{
+                                    padding: 8px !important;
+                                    margin: 5px 0 !important;
+                                    font-size: 10px !important;
+                                    background-color: #d1ecf1 !important;
+                                    border: 1px solid #bee5eb !important;
+                                    border-radius: 4px !important;
+                                }}
+                                
+                                /* Chart section */
+                                .chart-container {{
+                                    width: 100% !important;
+                                    height: auto !important;
+                                    margin: 10px 0 !important;
+                                }}
+                                
+                                /* Achievement levels table */
+                                .achievement-levels {{
+                                    font-size: 8px !important;
+                                    margin: 10px 0 !important;
+                                }}
+                                
+                                /* Color preservation for cells */
+                                .table-success {{ background-color: #d4edda !important; }}
+                                .table-info {{ background-color: #d1ecf1 !important; }}
+                                .table-warning {{ background-color: #fff3cd !important; }}
+                                .table-danger {{ background-color: #f8d7da !important; }}
+                                .table-primary {{ background-color: #d1ecf1 !important; }}
+                                
+                                /* Responsive table wrapper */
+                                .table-responsive {{
+                                    overflow: visible !important;
+                                    width: 100% !important;
+                                }}
+                                
+                                /* Page break handling */
+                                .page-break {{
+                                    page-break-before: always !important;
+                                }}
+                                
+                                /* Hide search and filter elements */
+                                .form-group, .input-group, .search-container {{
+                                    display: none !important;
+                                }}
+                                
+                                /* Adjust margins for better fitting */
+                                h1, h2, h3, h4, h5, h6 {{
+                                    margin: 8px 0 4px 0 !important;
+                                    font-size: 12px !important;
+                                    font-weight: bold !important;
+                                }}
+                                
+                                /* Ensure no content overflows */
+                                * {{
+                                    box-sizing: border-box !important;
+                                }}
+                            }}
+                        `;
                         document.head.appendChild(style);
                         
-                        // Add title
+                        // Force table to fit page width
+                        const tables = document.querySelectorAll('.table');
+                        tables.forEach(table => {{
+                            // Calculate and adjust column widths
+                            const cells = table.querySelectorAll('th, td');
+                            const totalCols = table.rows[0] ? table.rows[0].cells.length : 0;
+                            
+                            // Set specific widths for better fitting
+                            if (totalCols > 10) {{
+                                // For wide tables, make columns smaller
+                                cells.forEach((cell, index) => {{
+                                    if (index === 0) cell.style.width = '50px'; // Course code
+                                    else if (index === 1) cell.style.width = '100px'; // Course name
+                                    else if (index === 2) cell.style.width = '40px'; // Weight
+                                    else cell.style.width = '30px'; // Program outcomes
+                                }});
+                            }}
+                        }});
+                        
+                        // Add title with student info
                         const title = document.createElement('div');
-                        title.innerHTML = '<h2 style="text-align: center; margin: 10px 0;">Student Report - ID: {student_id}</h2>';
+                        title.innerHTML = `
+                            <div style="text-align: center; margin: 5px 0; padding: 5px; border-bottom: 2px solid #333;">
+                                <h1 style="margin: 0; font-size: 14px; color: #333;">Student Academic Report</h1>
+                                <p style="margin: 2px 0; font-size: 10px; color: #666;">Student ID: {student_id}</p>
+                            </div>
+                        `;
                         document.body.insertBefore(title, document.body.firstChild);
+                        
+                        // Remove any empty or unnecessary elements
+                        const emptyElements = document.querySelectorAll('div:empty, p:empty, span:empty');
+                        emptyElements.forEach(el => {{
+                            if (!el.hasChildNodes()) el.remove();
+                        }});
+                        
+                        // Force layout recalculation
+                        document.body.offsetHeight;
                     }}
                 """)
                 
-                # Generate PDF with optimized settings
+                # Generate PDF with optimized settings for better fitting
                 is_landscape = orientation.lower() == 'landscape'
-                margins = {
-                    'top': '0.5cm' if page_size.upper() == 'A3' else '0.7cm',
-                    'right': '0.5cm' if page_size.upper() == 'A3' else '0.7cm',
-                    'bottom': '0.5cm' if page_size.upper() == 'A3' else '0.7cm',
-                    'left': '0.5cm' if page_size.upper() == 'A3' else '0.7cm'
-                }
+                
+                # Adjust margins based on page size and orientation
+                if page_size.upper() == 'A3':
+                    margins = {
+                        'top': '0.3cm',
+                        'right': '0.3cm', 
+                        'bottom': '0.3cm',
+                        'left': '0.3cm'
+                    }
+                else:  # A4
+                    margins = {
+                        'top': '0.5cm',
+                        'right': '0.4cm',
+                        'bottom': '0.5cm', 
+                        'left': '0.4cm'
+                    }
                 
                 pdf_bytes = await page.pdf(
                     format=page_size.upper(),
                     landscape=is_landscape,
                     print_background=True,
-                    margin=margins
+                    margin=margins,
+                    prefer_css_page_size=False,
+                    display_header_footer=False
                 )
                 
                 await browser.close()
