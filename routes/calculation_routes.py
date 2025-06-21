@@ -21,6 +21,9 @@ import numpy as np
 import base64
 import json
 from flask import current_app
+import concurrent.futures
+import threading
+import math
 
 calculation_bp = Blueprint('calculation', __name__, url_prefix='/calculation')
 
@@ -5910,8 +5913,9 @@ def generate_individual_student_pdfs():
         include_graduating_only = request.form.get('graduating_only', '').lower() == 'true'
         orientation = request.form.get('orientation', 'landscape')  # 'landscape' or 'portrait'
         page_size = request.form.get('page_size', 'A4')  # 'A4' or 'A3'
+        thread_count = int(request.form.get('thread_count', 4))  # Default to 4 threads
         
-        print(f"DEBUG: Parameters - year: {filter_year}, search: {search_query}, student_id: {filter_student_id}, graduating_only: {include_graduating_only}, orientation: {orientation}, page_size: {page_size}")
+        print(f"DEBUG: Parameters - year: {filter_year}, search: {search_query}, student_id: {filter_student_id}, graduating_only: {include_graduating_only}, orientation: {orientation}, page_size: {page_size}, thread_count: {thread_count}")
         
         # Get the display method from session or default to absolute
         display_method = session.get('display_method', 'absolute')
@@ -6016,8 +6020,10 @@ def generate_individual_student_pdfs():
         print(f"DEBUG: Total students to process: {len(all_students)}")
         print(f"DEBUG: Session progress file stored: {session.get('pdf_progress_file')}")
         
-        # Generate PDFs using Playwright
-        pdf_results = generate_student_pdfs_with_playwright(
+        # Generate PDFs using multi-threaded Playwright
+        from .pdf_multithread import generate_student_pdfs_multithreaded
+        
+        pdf_results = generate_student_pdfs_multithreaded(
             all_students, 
             filter_year, 
             search_query, 
@@ -6025,7 +6031,8 @@ def generate_individual_student_pdfs():
             include_graduating_only,
             display_method,
             orientation,
-            page_size
+            page_size,
+            thread_count
         )
         
         if not pdf_results['success']:
@@ -6085,7 +6092,7 @@ def generate_individual_student_pdfs():
 
 
 
-def generate_student_pdfs_with_playwright(student_ids, filter_year, search_query, filter_student_id, include_graduating_only, display_method, orientation='landscape', page_size='A4'):
+def generate_student_pdfs_with_playwright(student_ids, filter_year, search_query, filter_student_id, include_graduating_only, display_method, orientation='landscape', page_size='A4', thread_count=4):
     """Generate individual PDF reports for all students or filtered students using Playwright"""
     import tempfile
     import zipfile
@@ -6138,51 +6145,44 @@ def generate_student_pdfs_with_playwright(student_ids, filter_year, search_query
         pdf_files = []
         successful_count = 0
         
-        for i, student_id in enumerate(sorted(student_ids), 1):
-            remaining = len(student_ids) - i + 1
-            logging.info(f"Generating PDF for student {student_id} ({i}/{len(student_ids)}, {remaining} remaining)")
-            print(f"DEBUG: Generating PDF for student {student_id} ({i}/{len(student_ids)}, {remaining} remaining)")
+        # Split students into chunks for multi-threading
+        student_list = sorted(list(student_ids))
+        chunk_size = math.ceil(len(student_list) / thread_count)
+        student_chunks = [student_list[i:i + chunk_size] for i in range(0, len(student_list), chunk_size)]
+        
+        # Progress lock for thread-safe progress updates
+        progress_lock = threading.Lock()
+        
+        # Use ThreadPoolExecutor for multi-threading
+        with concurrent.futures.ThreadPoolExecutor(max_workers=thread_count) as executor:
+            futures = []
+            for i, student_chunk in enumerate(student_chunks):
+                if student_chunk:  # Only submit non-empty chunks
+                    futures.append(executor.submit(
+                        generate_student_pdfs_chunk, 
+                        student_chunk, 
+                        filter_year, 
+                        search_query, 
+                        filter_student_id, 
+                        include_graduating_only, 
+                        display_method, 
+                        orientation, 
+                        page_size, 
+                        student_pdfs_dir, 
+                        progress_file, 
+                        i,
+                        len(student_ids),
+                        progress_lock
+                    ))
             
-            # Update progress file in real-time
-            progress_data['current'] = i
-            progress_data['message'] = f'Generating PDF for student {student_id} ({i}/{len(student_ids)}, {remaining} remaining)'
-            progress_data['timestamp'] = datetime.now().isoformat()
-            with open(progress_file, 'w', encoding='utf-8') as f:
-                f.write(json.dumps(progress_data))
-            print(f"DEBUG: Updated progress to {i}/{len(student_ids)} in file {progress_file}")
-            
-            # Ensure session is updated (in case it was cleared)
-            if session.get('pdf_progress_file') != progress_file:
-                session['pdf_progress_file'] = progress_file
-                session.modified = True
-            
-            try:
-                # Generate PDF for this student
-                pdf_content = generate_student_pdf_with_playwright(student_id, filter_year, search_query, filter_student_id, include_graduating_only, display_method, orientation, page_size)
-                
-                if pdf_content:
-                    # Get student name for filename
-                    student_name = get_student_name(student_id)
-                    safe_name = "".join(c for c in student_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
-                    filename = f"{student_id}_{safe_name}.pdf".replace(' ', '_')
-                    
-                    # Save PDF to individual file
-                    pdf_path = os.path.join(student_pdfs_dir, filename)
-                    with open(pdf_path, 'wb') as f:
-                        f.write(pdf_content)
-                    
-                    pdf_files.append(pdf_path)
-                    successful_count += 1
-                    logging.info(f"Successfully generated PDF for student {student_id}: {filename}")
-                    print(f"DEBUG: Successfully generated PDF for student {student_id}: {filename}")
-                else:
-                    logging.warning(f"Failed to generate PDF for student {student_id}")
-                    print(f"DEBUG: Failed to generate PDF for student {student_id}")
-                    
-            except Exception as e:
-                logging.error(f"Error generating PDF for student {student_id}: {e}")
-                print(f"DEBUG: Error generating PDF for student {student_id}: {e}")
-                continue
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    chunk_result = future.result()
+                    pdf_files.extend(chunk_result['pdf_files'])
+                    successful_count += chunk_result['successful_count']
+                except Exception as e:
+                    logging.error(f"Error generating PDF chunk: {e}")
+                    print(f"DEBUG: Error generating PDF chunk: {e}")
         
         if not pdf_files:
             return {
@@ -6260,13 +6260,13 @@ def generate_student_pdfs_with_playwright(student_ids, filter_year, search_query
             'error': str(e)
         }
 
-def generate_student_pdf_with_playwright(student_id, filter_year, search_query, filter_student_id, include_graduating_only, display_method, orientation='landscape', page_size='A4'):
-    """Generate PDF using Playwright (rendering actual web page)"""
+def generate_student_pdfs_chunk(student_chunk, filter_year, search_query, filter_student_id, include_graduating_only, display_method, orientation, page_size, student_pdfs_dir, progress_file, chunk_index):
+    """Generate PDFs for a chunk of students"""
     import asyncio
     from playwright.async_api import async_playwright
     from flask import url_for
     
-    async def generate_student_pdf_async():
+    async def generate_student_pdf_async(student_id):
         try:
             # Get student information
             student_name = get_student_name(student_id)
@@ -6461,7 +6461,7 @@ def generate_student_pdf_with_playwright(student_id, filter_year, search_query, 
     
     try:
         # Run the async function
-        print(f"DEBUG: About to run async function for student {student_id}")
+        print(f"DEBUG: About to run async function for student chunk {chunk_index}")
         
         # Check if we're already in an event loop
         try:
@@ -6472,27 +6472,27 @@ def generate_student_pdf_with_playwright(student_id, filter_year, search_query, 
             import concurrent.futures
             
             def run_in_thread():
-                return asyncio.run(generate_student_pdf_async())
+                return asyncio.run(generate_student_pdf_async(student_id))
             
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(run_in_thread)
-                result = future.result(timeout=300)  # 5 minute timeout
-                print(f"DEBUG: Async function completed for student {student_id}")
-                return result
+                futures = [executor.submit(run_in_thread) for student_id in student_chunk]
+                results = [future.result() for future in futures]
+                print(f"DEBUG: Async function completed for student chunk {chunk_index}")
+                return results
                 
         except RuntimeError:
             # No event loop running, we can use asyncio.run
-            print(f"DEBUG: No event loop, using asyncio.run for student {student_id}")
-            result = asyncio.run(generate_student_pdf_async())
-            print(f"DEBUG: Async function completed for student {student_id}")
-            return result
+            print(f"DEBUG: No event loop, using asyncio.run for student chunk {chunk_index}")
+            results = [asyncio.run(generate_student_pdf_async(student_id)) for student_id in student_chunk]
+            print(f"DEBUG: Async function completed for student chunk {chunk_index}")
+            return results
             
     except Exception as e:
-        logging.error(f"Error running async PDF generation for student {student_id}: {e}")
-        print(f"DEBUG: Error running async PDF generation for student {student_id}: {e}")
+        logging.error(f"Error running async PDF generation for student chunk {chunk_index}: {e}")
+        print(f"DEBUG: Error running async PDF generation for student chunk {chunk_index}: {e}")
         import traceback
         traceback.print_exc()
-        return None
+        return []
 
 def combine_pdfs(pdf_paths):
     """Combine multiple PDFs into a single PDF"""

@@ -1224,8 +1224,6 @@
         document.body.removeChild(form);
     }
 
-
-
     function addHiddenInput(form, name, value) {
         const input = document.createElement('input');
         input.type = 'hidden';
@@ -1247,6 +1245,7 @@
     function generateIndividualPDFsWithOptions() {
         const orientation = document.querySelector('input[name="orientation"]:checked').value;
         const pageSize = document.querySelector('input[name="pageSize"]:checked').value;
+        const threadCount = document.getElementById('threadCountSlider').value;
         
         // Show progress modal
         const optionsModal = bootstrap.Modal.getInstance(document.getElementById('pdfOptionsModal'));
@@ -1256,12 +1255,13 @@
         progressModal.show();
         
         // Reset progress
-        updateProgress(0, 0, 'Initializing PDF generation...');
+        updateProgress(0, 0, 'Initializing multi-threaded PDF generation...');
         
         // Prepare form data
         const formData = new FormData();
         formData.append('orientation', orientation);
         formData.append('page_size', pageSize);
+        formData.append('thread_count', threadCount);
         
         // Add year filter
         const yearFilter = document.getElementById('yearFilter');
@@ -1405,7 +1405,7 @@
         }, 5000);
     }
 
-    function updateProgress(current, total, message) {
+    function updateProgress(current, total, message, threadInfo = null) {
         const progressBar = document.getElementById('pdfProgressBar');
         const progressText = document.getElementById('pdfProgressText');
         const progressMessage = document.getElementById('pdfProgressMessage');
@@ -1421,7 +1421,18 @@
             progressText.textContent = '0/0 (0%)';
         }
         
-        progressMessage.textContent = message;
+        progressMessage.innerHTML = message;
+        
+        // Display thread information if available
+        if (threadInfo && Object.keys(threadInfo).length > 0) {
+            let threadStatus = '<div class="mt-2"><small class="text-muted">Thread Status:</small><br/>';
+            for (const [threadId, info] of Object.entries(threadInfo)) {
+                const threadPercentage = info.total > 0 ? Math.round((info.processed / info.total) * 100) : 0;
+                threadStatus += `<small>Thread ${threadId}: ${info.processed}/${info.total} (${threadPercentage}%) - ${info.successful} successful</small><br/>`;
+            }
+            threadStatus += '</div>';
+            progressMessage.innerHTML += threadStatus;
+        }
     }
     
     // Debug function to clear progress tracking when stuck
@@ -1476,6 +1487,33 @@
         });
     }
     
+    // Thread preview functions
+    function updateThreadPreview(threadCount) {
+        const threadCountDisplay = document.getElementById('threadCountDisplay');
+        const threadPreview = document.getElementById('threadPreview');
+        const speedEstimate = document.getElementById('speedEstimate');
+        
+        threadCountDisplay.textContent = threadCount + ' Thread' + (threadCount == 1 ? '' : 's');
+        
+        // Estimate student count (this will be updated when we know actual count)
+        const estimatedStudents = 100; // Placeholder - will be dynamic
+        const studentsPerThread = Math.ceil(estimatedStudents / threadCount);
+        
+        threadPreview.textContent = `Each thread will process ~${studentsPerThread} students`;
+        
+        // Speed estimate (assuming near-linear scaling with some overhead)
+        const speedImprovement = Math.min(threadCount * 0.8, 8); // 80% efficiency, max 8x
+        speedEstimate.innerHTML = `
+            <i class="fas fa-rocket"></i> 
+            Estimated speed improvement: <strong>~${speedImprovement.toFixed(1)}x faster</strong> than single-threaded
+        `;
+    }
+    
+    // Initialize thread preview on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateThreadPreview(4); // Initialize with default value
+    });
+
     // Debug function - only visible in development
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         console.log('Debug mode: Progress functions available:');
@@ -1499,6 +1537,35 @@
                     <i class="fas fa-info-circle"></i> 
                     <strong>What you'll get:</strong> A ZIP file containing individual PDF reports for each student PLUS a combined PDF with all students.
                 </div>
+                
+                <!-- Thread Count Section -->
+                <div class="mb-4">
+                    <label class="form-label">
+                        <i class="fas fa-cogs"></i> Thread Count (Multi-processing):
+                    </label>
+                    <div class="row align-items-center">
+                        <div class="col-8">
+                            <input type="range" class="form-range" id="threadCountSlider" min="1" max="8" value="4" 
+                                   oninput="updateThreadPreview(this.value)">
+                        </div>
+                        <div class="col-4">
+                            <span class="badge bg-primary" id="threadCountDisplay">4 Threads</span>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i> 
+                            More threads = faster generation. <span id="threadPreview">Each thread will process ~25 students</span>
+                        </small>
+                    </div>
+                    <div class="mt-2">
+                        <div class="alert alert-success alert-sm" id="speedEstimate">
+                            <i class="fas fa-rocket"></i> 
+                            Estimated speed improvement: <strong>~4x faster</strong> than single-threaded
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Page Orientation:</label>
