@@ -1349,7 +1349,7 @@
             showAlert('danger', 'Error generating PDF reports: ' + error.message);
         });
         
-        // Start real-time progress tracking
+        // Start real-time progress tracking immediately (backend now has robust fallback)
         trackProgress();
     }
     
@@ -1422,6 +1422,65 @@
         }
         
         progressMessage.textContent = message;
+    }
+    
+    // Debug function to clear progress tracking when stuck
+    function clearProgressTracking() {
+        fetch('/calculation/all_courses/pdf_progress/clear', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(result => {
+            console.log('Progress tracking cleared:', result);
+            showAlert('info', 'All progress files cleared. Try generating PDFs again.');
+            
+            // Clear any running intervals
+            if (window.currentProgressInterval) {
+                clearInterval(window.currentProgressInterval);
+                window.currentProgressInterval = null;
+            }
+            
+            // Reset progress display
+            updateProgress(0, 0, 'Progress tracking cleared');
+        })
+        .catch(error => {
+            console.error('Error clearing progress:', error);
+            showAlert('warning', 'Error clearing progress tracking.');
+        });
+    }
+    
+    // Debug function to clean only stale progress files
+    function cleanStaleProgress() {
+        fetch('/calculation/all_courses/pdf_progress/clean_stale', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(result => {
+            console.log('Stale progress files cleaned:', result);
+            showAlert('info', result.message);
+            
+            // Clear any running intervals if no files are active
+            if (result.cleaned_count > 0 && window.currentProgressInterval) {
+                clearInterval(window.currentProgressInterval);
+                window.currentProgressInterval = null;
+            }
+            
+            // Reset progress display if files were cleaned
+            if (result.cleaned_count > 0) {
+                updateProgress(0, 0, 'Stale progress files cleaned');
+            }
+        })
+        .catch(error => {
+            console.error('Error cleaning stale progress:', error);
+            showAlert('warning', 'Error cleaning stale progress files.');
+        });
+    }
+    
+    // Debug function - only visible in development
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        console.log('Debug mode: Progress functions available:');
+        console.log('- clearProgressTracking() - clears all progress files');
+        console.log('- cleanStaleProgress() - cleans only stale files');
     }
 </script>
 

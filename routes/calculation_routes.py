@@ -5652,13 +5652,194 @@ def is_graduating_student(student_id):
     except Exception:
         return False
 
+@calculation_bp.route('/all_courses/pdf_progress/clear', methods=['POST'])
+def clear_pdf_progress():
+    """Clear progress tracking session and old files - for debugging"""
+    import json
+    import os
+    import tempfile
+    import glob
+    
+    print("DEBUG: Clear progress endpoint called")
+    
+    # Clear session
+    if 'pdf_progress_file' in session:
+        old_file = session['pdf_progress_file']
+        del session['pdf_progress_file']
+        print(f"DEBUG: Cleared session progress file: {old_file}")
+    
+    # Clean up all old progress files
+    try:
+        temp_dir = tempfile.gettempdir()
+        pattern = os.path.join(temp_dir, "pdf_progress_*.txt")
+        old_files = glob.glob(pattern)
+        
+        for old_file in old_files:
+            try:
+                os.remove(old_file)
+                print(f"DEBUG: Removed old progress file: {old_file}")
+            except:
+                pass
+    except:
+        pass
+    
+    return jsonify({'status': 'cleared', 'message': 'All progress files cleared'})
+
+@calculation_bp.route('/all_courses/pdf_progress/clean_stale', methods=['POST'])
+def clean_stale_pdf_progress():
+    """Clean up only stale progress files (not actively being updated)"""
+    import json
+    import os
+    import tempfile
+    import glob
+    from datetime import datetime
+    
+    print("DEBUG: Clean stale progress endpoint called")
+    
+    cleaned_count = 0
+    
+    try:
+        temp_dir = tempfile.gettempdir()
+        pattern = os.path.join(temp_dir, "pdf_progress_*.txt")
+        progress_files = glob.glob(pattern)
+        current_time = datetime.now().timestamp()
+        
+        for progress_file in progress_files:
+            try:
+                file_mod_age = current_time - os.path.getmtime(progress_file)
+                
+                # If file hasn't been modified in the last 2 minutes, consider it stale
+                if file_mod_age > 120:
+                    os.remove(progress_file)
+                    print(f"DEBUG: Removed stale progress file: {progress_file} (not modified for {file_mod_age:.0f}s)")
+                    cleaned_count += 1
+                else:
+                    print(f"DEBUG: Keeping active progress file: {progress_file} (modified {file_mod_age:.0f}s ago)")
+            except Exception as e:
+                print(f"DEBUG: Error processing {progress_file}: {e}")
+                
+    except Exception as e:
+        print(f"DEBUG: Error cleaning stale files: {e}")
+    
+    # Clear session as well
+    if 'pdf_progress_file' in session:
+        del session['pdf_progress_file']
+    
+    return jsonify({
+        'status': 'cleaned', 
+        'message': f'Cleaned {cleaned_count} stale progress files',
+        'cleaned_count': cleaned_count
+    })
+
 @calculation_bp.route('/all_courses/pdf_progress', methods=['GET'])
 def get_pdf_progress():
     """Get current PDF generation progress from temporary file"""
     import json
     import os
+    import tempfile
+    import glob
+    from datetime import datetime, timedelta
     
-    if 'pdf_progress_file' not in session:
+    print("DEBUG: Progress endpoint called")  # Debug logging
+    
+    # IGNORE SESSION COMPLETELY - always find the most actively updated file
+    # This fixes concurrency issues where session isn't properly shared
+    print("DEBUG: Ignoring session, finding most active progress file")
+    
+    # Search for recent progress files in temp directory
+    temp_dir = tempfile.gettempdir()
+    pattern = os.path.join(temp_dir, "pdf_progress_*.txt")
+    progress_files = glob.glob(pattern)
+    progress_file = None
+    
+    if progress_files:
+        # Filter to only files from the last 2 hours that are actively being written to
+        current_time = datetime.now().timestamp()
+        recent_files = []
+        for pf in progress_files:
+            try:
+                file_age = current_time - os.path.getctime(pf)
+                # Check if file was modified recently (within last 30 seconds) - indicates active generation
+                file_mod_age = current_time - os.path.getmtime(pf)
+                
+                if file_age < 7200:  # Within 2 hours
+                    recent_files.append((pf, file_mod_age, file_age))
+                else:
+                    # Remove old files
+                    try:
+                        os.remove(pf)
+                        print(f"DEBUG: Cleaned up old progress file: {pf}")
+                    except:
+                        pass
+            except:
+                pass
+        
+        if recent_files:
+            # Sort by modification time (most recently modified first) - this indicates active generation
+            recent_files.sort(key=lambda x: x[1])  # Sort by modification age (newest first)
+            most_recent_file, mod_age, creation_age = recent_files[0]
+            
+            print(f"DEBUG: Found {len(recent_files)} recent files")
+            print(f"DEBUG: Most recently modified: {most_recent_file} (modified {mod_age:.0f}s ago, created {creation_age:.0f}s ago)")
+            
+            # Check if the most recent file is actually stale (not being actively updated)
+            if mod_age > 60:  # If not modified in the last 60 seconds, consider it stale
+                print(f"DEBUG: Most recent file is stale (not modified in {mod_age:.0f}s), marking as completed or cleaning up")
+                
+                # Try to read the file and mark it as completed if it's still showing as processing
+                try:
+                    with open(most_recent_file, 'r', encoding='utf-8') as f:
+                        progress_data = json.loads(f.read())
+                    
+                    # If it's still showing as processing but hasn't been updated, mark as completed
+                    if progress_data.get('status') == 'processing' and not progress_data.get('completed'):
+                        print(f"DEBUG: Marking stale progress file as completed")
+                        progress_data['status'] = 'completed'
+                        progress_data['completed'] = True
+                        progress_data['message'] = f"PDF generation completed (app was restarted)"
+                        progress_data['timestamp'] = datetime.now().isoformat()
+                        
+                        with open(most_recent_file, 'w', encoding='utf-8') as f:
+                            f.write(json.dumps(progress_data))
+                except:
+                    pass  # If we can't read/update the file, just ignore it
+                
+                # Clean up old stale files
+                for old_file, old_mod_age, old_creation_age in recent_files:
+                    if old_mod_age > 300:  # Remove files not modified in 5+ minutes
+                        try:
+                            os.remove(old_file)
+                            print(f"DEBUG: Cleaned up stale progress file: {old_file}")
+                        except:
+                            pass
+                
+                # Return no active generation
+                return jsonify({
+                    'status': 'not_started',
+                    'current': 0,
+                    'total': 0,
+                    'message': 'No active PDF generation in progress',
+                    'completed': False
+                })
+            
+            # File is recent enough, use it
+            progress_file = most_recent_file
+            print(f"DEBUG: Using active progress file: {progress_file}")
+            
+            # Update session for future requests (but don't rely on it)
+            session['pdf_progress_file'] = progress_file
+            session.modified = True
+        else:
+            print("DEBUG: No recent progress files found")
+            return jsonify({
+                'status': 'not_started',
+                'current': 0,
+                'total': 0,
+                'message': 'No PDF generation in progress',
+                'completed': False
+            })
+    else:
+        print("DEBUG: No progress files found")
         return jsonify({
             'status': 'not_started',
             'current': 0,
@@ -5667,14 +5848,29 @@ def get_pdf_progress():
             'completed': False
         })
     
-    progress_file = session['pdf_progress_file']
+    print(f"DEBUG: Using progress file: {progress_file}")  # Debug logging
     
     try:
         if os.path.exists(progress_file):
             with open(progress_file, 'r', encoding='utf-8') as f:
                 progress_data = json.loads(f.read())
+            print(f"DEBUG: Progress data read from {progress_file}: {progress_data}")  # Debug logging
+            
+            # Add validation to ensure we have valid progress data
+            if 'current' not in progress_data or 'total' not in progress_data:
+                print("DEBUG: Invalid progress data structure")
+                return jsonify({
+                    'status': 'error',
+                    'current': 0,
+                    'total': 0,
+                    'message': 'Invalid progress data',
+                    'completed': False,
+                    'error': 'Invalid progress data structure'
+                })
+            
             return jsonify(progress_data)
         else:
+            print("DEBUG: Progress file does not exist")  # Debug logging
             return jsonify({
                 'status': 'not_started',
                 'current': 0,
@@ -5683,6 +5879,7 @@ def get_pdf_progress():
                 'completed': False
             })
     except Exception as e:
+        print(f"DEBUG: Error reading progress file: {e}")  # Debug logging
         return jsonify({
             'status': 'error',
             'current': 0,
@@ -5750,6 +5947,74 @@ def generate_individual_student_pdfs():
         if not all_students:
             flash('No students found matching the current filters.', 'warning')
             return redirect(url_for('calculation.all_courses'))
+
+        # CLEAR OLD PROGRESS FILE FROM SESSION FIRST to avoid confusion
+        if 'pdf_progress_file' in session:
+            old_progress_file = session.get('pdf_progress_file')
+            print(f"DEBUG: Clearing old progress file from session: {old_progress_file}")
+            del session['pdf_progress_file']
+        
+        # Clean up old progress files to prevent confusion
+        try:
+            temp_dir = tempfile.gettempdir()
+            pattern = os.path.join(temp_dir, "pdf_progress_*.txt")
+            old_files = glob.glob(pattern)
+            current_time = datetime.now().timestamp()
+            
+            for old_file in old_files:
+                try:
+                    # Remove files older than 1 hour but not if they're actively being written to
+                    file_age = current_time - os.path.getctime(old_file)
+                    file_mod_age = current_time - os.path.getmtime(old_file)
+                    
+                    # Only remove if file is old AND hasn't been modified recently
+                    if file_age > 3600 and file_mod_age > 300:  # 1 hour old and not modified in 5 minutes
+                        os.remove(old_file)
+                        print(f"DEBUG: Cleaned up old progress file: {old_file}")
+                except:
+                    pass  # Ignore cleanup errors
+        except:
+            pass  # Ignore cleanup errors
+        
+        # Initialize progress tracking IMMEDIATELY before starting PDF generation
+        # This ensures frontend can start polling progress right away
+        progress_id = f"pdf_generation_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        progress_file = os.path.join(tempfile.gettempdir(), f"pdf_progress_{progress_id}.txt")
+        
+        # Write initial progress to file
+        progress_data = {
+            'id': progress_id,
+            'current': 0,
+            'total': len(all_students),
+            'status': 'initializing',
+            'message': f'Preparing to generate PDFs for {len(all_students)} students...',
+            'completed': False,
+            'error': None,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        import json
+        import glob
+        with open(progress_file, 'w', encoding='utf-8') as f:
+            f.write(json.dumps(progress_data))
+        
+        # Store progress file path in session IMMEDIATELY and force commit
+        session['pdf_progress_file'] = progress_file
+        session.permanent = True  # Make session permanent so it persists across requests
+        
+        # Force save the session multiple ways to ensure it's available for progress polling
+        try:
+            session.modified = True
+            from flask import current_app
+            if hasattr(current_app, 'save_session'):
+                current_app.save_session(session, response=None)
+        except Exception as e:
+            print(f"DEBUG: Session save attempt failed: {e}")
+            # Continue anyway, fallback mechanism will handle it
+        
+        print(f"DEBUG: Progress tracking initialized - File: {progress_file}")
+        print(f"DEBUG: Total students to process: {len(all_students)}")
+        print(f"DEBUG: Session progress file stored: {session.get('pdf_progress_file')}")
         
         # Generate PDFs using Playwright
         pdf_results = generate_student_pdfs_with_playwright(
@@ -5835,27 +6100,13 @@ def generate_student_pdfs_with_playwright(student_ids, filter_year, search_query
         logging.info(f"Starting PDF generation for {len(student_ids)} students using Playwright - Entry point reached")
         print(f"DEBUG: Starting PDF generation for {len(student_ids)} students")
         
-        # Initialize progress tracking with temporary file
-        progress_id = f"pdf_generation_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        progress_file = os.path.join(tempfile.gettempdir(), f"pdf_progress_{progress_id}.txt")
-        
-        # Write initial progress to file
-        progress_data = {
-            'id': progress_id,
-            'current': 0,
-            'total': len(student_ids),
-            'status': 'starting',
-            'message': 'Initializing PDF generation...',
-            'completed': False,
-            'error': None
-        }
-        
-        import json
-        with open(progress_file, 'w', encoding='utf-8') as f:
-            f.write(json.dumps(progress_data))
-        
-        # Store progress file path in session for cleanup
-        session['pdf_progress_file'] = progress_file
+        # Get existing progress file from session (created in the route handler)
+        progress_file = session.get('pdf_progress_file')
+        if not progress_file:
+            # Fallback if no progress file exists
+            progress_id = f"pdf_generation_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            progress_file = os.path.join(tempfile.gettempdir(), f"pdf_progress_{progress_id}.txt")
+            session['pdf_progress_file'] = progress_file
         
         # Create timestamped directory for this run
         timestamp = datetime.now().strftime('%d_%B_%Y_%H_%M_%p')
@@ -5865,11 +6116,23 @@ def generate_student_pdfs_with_playwright(student_ids, filter_year, search_query
         logging.info(f"Created PDF output directory: {student_pdfs_dir}")
         print(f"DEBUG: Created PDF output directory: {student_pdfs_dir}")
         
-        # Update progress file
-        progress_data['status'] = 'processing'
-        progress_data['message'] = 'Generating PDF reports...'
+        # Update progress file to processing status
+        import json
+        progress_data = {
+            'current': 0,
+            'total': len(student_ids),
+            'status': 'processing',
+            'message': 'Starting PDF generation...',
+            'completed': False,
+            'error': None,
+            'timestamp': datetime.now().isoformat()
+        }
         with open(progress_file, 'w', encoding='utf-8') as f:
             f.write(json.dumps(progress_data))
+        
+        # Update session to ensure it points to this progress file
+        session['pdf_progress_file'] = progress_file
+        session.modified = True
         
         # Generate PDFs for each student
         pdf_files = []
@@ -5883,8 +6146,15 @@ def generate_student_pdfs_with_playwright(student_ids, filter_year, search_query
             # Update progress file in real-time
             progress_data['current'] = i
             progress_data['message'] = f'Generating PDF for student {student_id} ({i}/{len(student_ids)}, {remaining} remaining)'
+            progress_data['timestamp'] = datetime.now().isoformat()
             with open(progress_file, 'w', encoding='utf-8') as f:
                 f.write(json.dumps(progress_data))
+            print(f"DEBUG: Updated progress to {i}/{len(student_ids)} in file {progress_file}")
+            
+            # Ensure session is updated (in case it was cleared)
+            if session.get('pdf_progress_file') != progress_file:
+                session['pdf_progress_file'] = progress_file
+                session.modified = True
             
             try:
                 # Generate PDF for this student
@@ -5952,6 +6222,7 @@ def generate_student_pdfs_with_playwright(student_ids, filter_year, search_query
         progress_data['status'] = 'completed'
         progress_data['message'] = f'PDF generation completed! {successful_count}/{len(student_ids)} successful'
         progress_data['completed'] = True
+        progress_data['timestamp'] = datetime.now().isoformat()
         with open(progress_file, 'w', encoding='utf-8') as f:
             f.write(json.dumps(progress_data))
         
@@ -5977,6 +6248,7 @@ def generate_student_pdfs_with_playwright(student_ids, filter_year, search_query
                     progress_data['status'] = 'error'
                     progress_data['error'] = str(e)
                     progress_data['message'] = f'Error: {str(e)}'
+                    progress_data['timestamp'] = datetime.now().isoformat()
                     with open(progress_file, 'w', encoding='utf-8') as f:
                         f.write(json.dumps(progress_data))
             except:
