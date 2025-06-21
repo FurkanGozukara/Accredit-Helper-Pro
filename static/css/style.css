@@ -179,4 +179,28 @@ body {
     margin-bottom: 10px;
     position: relative;
     overflow: hidden;
+}
+
+/* Graduation button styling */
+.graduation-btn {
+    background: linear-gradient(45deg, #007bff, #0056b3);
+    border: none;
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+    font-weight: 600;
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+.graduation-btn:hover {
+    background: linear-gradient(45deg, #0056b3, #004085);
+    box-shadow: 0 6px 12px rgba(0, 123, 255, 0.4);
+    transform: translateY(-2px);
+    color: white;
+}
+
+.graduation-btn:focus,
+.graduation-btn:active {
+    background: linear-gradient(45deg, #0056b3, #004085);
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+    color: white;
 } 

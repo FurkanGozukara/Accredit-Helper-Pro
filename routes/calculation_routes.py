@@ -3,7 +3,7 @@ from app import db
 from models import (
     Course, Student, Exam, CourseOutcome, Question, Score, 
     ProgramOutcome, ExamWeight, StudentExamAttendance, CourseSettings,
-    AchievementLevel, Log, GlobalAchievementLevel
+    AchievementLevel, Log, GlobalAchievementLevel, GraduatingStudent
 )
 from datetime import datetime
 import logging
@@ -2004,7 +2004,7 @@ def calculate_course_results_from_bulk_data(course_id, bulk_data, calculation_me
 
 @calculation_bp.route('/all_courses', endpoint='all_courses')
 def all_courses_calculations():
-    """Show program outcome scores for all courses with optional student ID filtering"""
+    """Show program outcome scores for all courses with optional student ID and graduating students filtering"""
     # Check if this is an AJAX request
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
@@ -2047,6 +2047,7 @@ def all_courses_calculations():
     filter_year = request.args.get('year', '')
     search_query = request.args.get('search', '').lower()
     filter_student_id = request.args.get('student_id', '').strip()
+    include_graduating_only = request.args.get('graduating_only', '').lower() == 'true'
     
     # Get the display method from session or default to absolute
     display_method = session.get('display_method', 'absolute')
@@ -2066,6 +2067,10 @@ def all_courses_calculations():
     student_info = {}
     if filter_student_id:
         courses, student_info = filter_courses_by_student(courses, filter_student_id)
+    
+    # Filter by graduating students if requested
+    # Always get graduating filter info to enable/disable checkbox properly
+    courses, graduating_filter_info = filter_courses_by_graduating_students(courses, include_graduating_only)
     
     # Preload all program outcomes in one query
     program_outcomes = ProgramOutcome.query.all()
@@ -2228,6 +2233,8 @@ def all_courses_calculations():
     log_description = f"Viewed program outcome scores for all courses"
     if filter_student_id:
         log_description += f" (filtered by student ID: {filter_student_id})"
+    if include_graduating_only:
+        log_description += f" (graduating students only)"
     log = Log(action="ALL_COURSES_CALCULATIONS", description=log_description)
     db.session.add(log)
     db.session.commit()
@@ -2261,7 +2268,9 @@ def all_courses_calculations():
             'progress': 100,  # Always 100 when returning final results
             'current_sort': sort_by,
             'student_info': student_info,
-            'filter_student_id': filter_student_id
+            'filter_student_id': filter_student_id,
+            'graduating_filter_info': graduating_filter_info,
+            'include_graduating_only': include_graduating_only
         })
     
     # For regular requests, render the template
@@ -2275,6 +2284,8 @@ def all_courses_calculations():
                           current_sort=sort_by,
                           student_info=student_info,
                           filter_student_id=filter_student_id,
+                          graduating_filter_info=graduating_filter_info,
+                          include_graduating_only=include_graduating_only,
                           global_achievement_levels=GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all(),
                           get_achievement_level=get_achievement_level)
 
@@ -2403,6 +2414,7 @@ def export_all_courses():
     filter_year = request.args.get('year', '')
     search_query = request.args.get('search', '').lower()
     filter_student_id = request.args.get('student_id', '').strip()
+    include_graduating_only = request.args.get('graduating_only', '').lower() == 'true'
     
     # Get the display method from session or default to absolute
     display_method = session.get('display_method', 'absolute')
@@ -2422,6 +2434,10 @@ def export_all_courses():
     student_info = {}
     if filter_student_id:
         courses, student_info = filter_courses_by_student(courses, filter_student_id)
+    
+    # Filter by graduating students if requested
+    # Always get graduating filter info to enable/disable checkbox properly
+    courses, graduating_filter_info = filter_courses_by_graduating_students(courses, include_graduating_only)
     
     # Preload all program outcomes in one query
     program_outcomes = ProgramOutcome.query.all()
@@ -5223,3 +5239,1245 @@ def cross_course_outcomes_data():
     except Exception as e:
         logging.error(f"Error calculating cross-course outcome data: {str(e)}")
         return jsonify({'success': False, 'message': f'An error occurred: {str(e)}'}), 500
+
+# ================================
+# GRADUATING STUDENTS MANAGEMENT
+# ================================
+
+@calculation_bp.route('/graduating_students', methods=['GET', 'POST'])
+def manage_graduating_students():
+    """
+    Manage graduating students for MÜDEK filtering.
+    Migration-safe route that handles table existence gracefully.
+    """
+    from db_migrations import graduating_students_table_exists, ensure_graduating_students_table
+    
+    # Check if table exists, create if needed
+    table_available = graduating_students_table_exists()
+    migration_message = None
+    
+    if not table_available:
+        # Try to create the table
+        success = ensure_graduating_students_table()
+        if success:
+            table_available = True
+            migration_message = "Graduating students table was automatically created for your database."
+        else:
+            # Table creation failed, show error page
+            return render_template('calculation/graduating_students.html',
+                                 error="Unable to create graduating students table. Please check your database permissions.",
+                                 graduating_students=[],
+                                 total_count=0,
+                                 table_available=False,
+                                 active_page='calculations')
+    
+    # Handle POST requests (add students)
+    if request.method == 'POST':
+        if not table_available:
+            flash('Graduating students feature is not available.', 'error')
+            return redirect(url_for('calculation.manage_graduating_students'))
+        
+        action = request.form.get('action')
+        
+        if action == 'add_single':
+            student_id = request.form.get('student_id', '').strip()
+            if student_id:
+                try:
+                    # Check if already exists
+                    existing = GraduatingStudent.query.filter_by(student_id=student_id).first()
+                    if existing:
+                        flash(f'Student ID {student_id} is already in the graduating students list.', 'warning')
+                    else:
+                        # Add new graduating student
+                        graduating_student = GraduatingStudent(student_id=student_id)
+                        db.session.add(graduating_student)
+                        db.session.commit()
+                        
+                        # Log action
+                        log = Log(action="ADD_GRADUATING_STUDENT", 
+                                description=f"Added graduating student: {student_id}")
+                        db.session.add(log)
+                        db.session.commit()
+                        
+                        flash(f'Successfully added student ID {student_id} to graduating students.', 'success')
+                except Exception as e:
+                    db.session.rollback()
+                    flash(f'Error adding student: {str(e)}', 'error')
+            else:
+                flash('Please enter a valid student ID.', 'error')
+        
+        elif action == 'add_bulk':
+            bulk_data = request.form.get('bulk_student_ids', '').strip()
+            if bulk_data:
+                try:
+                    # Split by newlines and clean up
+                    student_ids = [line.strip() for line in bulk_data.split('\n') if line.strip()]
+                    added_count = 0
+                    skipped_count = 0
+                    
+                    for student_id in student_ids:
+                        # Check if already exists
+                        existing = GraduatingStudent.query.filter_by(student_id=student_id).first()
+                        if existing:
+                            skipped_count += 1
+                        else:
+                            graduating_student = GraduatingStudent(student_id=student_id)
+                            db.session.add(graduating_student)
+                            added_count += 1
+                    
+                    db.session.commit()
+                    
+                    # Log action
+                    log = Log(action="BULK_ADD_GRADUATING_STUDENTS", 
+                            description=f"Bulk added {added_count} graduating students, skipped {skipped_count} duplicates")
+                    db.session.add(log)
+                    db.session.commit()
+                    
+                    flash(f'Successfully added {added_count} students. Skipped {skipped_count} duplicates.', 'success')
+                except Exception as e:
+                    db.session.rollback()
+                    flash(f'Error adding students: {str(e)}', 'error')
+            else:
+                flash('Please enter student IDs (one per line).', 'error')
+        
+        elif action == 'clear_all':
+            try:
+                count = GraduatingStudent.query.count()
+                GraduatingStudent.query.delete()
+                db.session.commit()
+                
+                # Log action
+                log = Log(action="CLEAR_ALL_GRADUATING_STUDENTS", 
+                        description=f"Cleared all {count} graduating students")
+                db.session.add(log)
+                db.session.commit()
+                
+                flash(f'Successfully cleared {count} graduating students.', 'success')
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Error clearing students: {str(e)}', 'error')
+        
+        return redirect(url_for('calculation.manage_graduating_students'))
+    
+    # GET request - display the management page
+    graduating_students = []
+    total_count = 0
+    
+    if table_available:
+        try:
+            graduating_students = GraduatingStudent.query.order_by(GraduatingStudent.student_id).all()
+            total_count = len(graduating_students)
+        except Exception as e:
+            flash(f'Error loading graduating students: {str(e)}', 'error')
+    
+    return render_template('calculation/graduating_students.html',
+                         graduating_students=graduating_students,
+                         total_count=total_count,
+                         table_available=table_available,
+                         migration_message=migration_message,
+                         active_page='calculations')
+
+@calculation_bp.route('/graduating_students/delete/<int:student_id>', methods=['POST'])
+def delete_graduating_student(student_id):
+    """Delete a specific graduating student"""
+    from db_migrations import graduating_students_table_exists
+    
+    if not graduating_students_table_exists():
+        flash('Graduating students feature is not available.', 'error')
+        return redirect(url_for('calculation.manage_graduating_students'))
+    
+    try:
+        graduating_student = GraduatingStudent.query.get_or_404(student_id)
+        student_id_value = graduating_student.student_id
+        
+        db.session.delete(graduating_student)
+        db.session.commit()
+        
+        # Log action
+        log = Log(action="DELETE_GRADUATING_STUDENT", 
+                description=f"Deleted graduating student: {student_id_value}")
+        db.session.add(log)
+        db.session.commit()
+        
+        flash(f'Successfully removed student ID {student_id_value} from graduating students.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting student: {str(e)}', 'error')
+    
+    return redirect(url_for('calculation.manage_graduating_students'))
+
+@calculation_bp.route('/graduating_students/export', methods=['GET'])
+def export_graduating_students():
+    """Export graduating students list as CSV"""
+    from db_migrations import graduating_students_table_exists
+    
+    if not graduating_students_table_exists():
+        flash('Graduating students feature is not available.', 'error')
+        return redirect(url_for('calculation.manage_graduating_students'))
+    
+    try:
+        graduating_students = GraduatingStudent.query.order_by(GraduatingStudent.student_id).all()
+        
+        # Prepare data for export
+        export_data = []
+        for student in graduating_students:
+            export_data.append({
+                'Student ID': student.student_id,
+                'Added Date': student.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            })
+        
+        # Use existing export utility
+        return export_to_excel_csv(export_data, 'graduating_students')
+        
+    except Exception as e:
+        flash(f'Error exporting graduating students: {str(e)}', 'error')
+        return redirect(url_for('calculation.manage_graduating_students'))
+
+def get_graduating_student_ids():
+    """
+    Helper function to get all graduating student IDs.
+    Returns empty list if table doesn't exist or on error.
+    """
+    from db_migrations import graduating_students_table_exists
+    
+    try:
+        if not graduating_students_table_exists():
+            return []
+        
+        graduating_students = GraduatingStudent.query.all()
+        return [gs.student_id for gs in graduating_students]
+    except Exception:
+        return []
+
+def is_graduating_student(student_id):
+    """
+    Check if a student ID is in the graduating students list.
+    Returns False if table doesn't exist or on error.
+    """
+    from db_migrations import graduating_students_table_exists
+    
+    try:
+        if not graduating_students_table_exists():
+            return False
+        
+        return GraduatingStudent.query.filter_by(student_id=student_id).first() is not None
+    except Exception:
+        return False
+
+@calculation_bp.route('/all_courses/pdf_individual', methods=['POST'])
+def generate_individual_student_pdfs():
+    """Generate individual PDF reports for all students or filtered students"""
+    from weasyprint import HTML, CSS
+    from weasyprint.html import get_html_document
+    import tempfile
+    import zipfile
+    from flask import make_response
+    import io
+    
+    try:
+        # Get filter parameters from form data
+        filter_year = request.form.get('year', '')
+        search_query = request.form.get('search', '').lower()
+        filter_student_id = request.form.get('student_id', '').strip()
+        include_graduating_only = request.form.get('graduating_only', '').lower() == 'true'
+        
+        # Get the display method from session or default to absolute
+        display_method = session.get('display_method', 'absolute')
+        
+        # Get all courses with same filtering as all_courses route
+        courses = Course.query.all()
+        
+        # Apply filters
+        if filter_year:
+            courses = [c for c in courses if filter_year in c.semester]
+        
+        if search_query:
+            courses = [c for c in courses if search_query in c.code.lower() or search_query in c.name.lower()]
+        
+        if filter_student_id:
+            courses, _ = filter_courses_by_student(courses, filter_student_id)
+        
+        if include_graduating_only:
+            courses, _ = filter_courses_by_graduating_students(courses, include_graduating_only)
+        
+        # Get all unique students from the filtered courses
+        all_students = set()
+        for course in courses:
+            course_students = Student.query.filter_by(course_id=course.id).all()
+            for student in course_students:
+                # If graduating students filter is enabled, only include graduating students
+                if include_graduating_only:
+                    if is_graduating_student(student.student_id):
+                        all_students.add(student.student_id)
+                else:
+                    all_students.add(student.student_id)
+        
+        if not all_students:
+            flash('No students found matching the current filters.', 'warning')
+            return redirect(url_for('calculation.all_courses'))
+        
+        # Create a ZIP file to contain all individual PDFs
+        zip_buffer = io.BytesIO()
+        
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for student_id in sorted(all_students):
+                # Generate PDF for this student
+                pdf_content = generate_student_pdf_content(student_id, courses, display_method, include_graduating_only)
+                
+                if pdf_content:
+                    # Get student name for filename
+                    student_name = get_student_name(student_id)
+                    safe_name = "".join(c for c in student_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+                    filename = f"{student_id}_{safe_name}.pdf".replace(' ', '_')
+                    
+                    zip_file.writestr(filename, pdf_content)
+        
+        zip_buffer.seek(0)
+        
+        # Create response
+        response = make_response(zip_buffer.getvalue())
+        response.headers['Content-Type'] = 'application/zip'
+        
+        # Generate filename with timestamp and filter info
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filter_suffix = ""
+        if include_graduating_only:
+            filter_suffix += "_graduating"
+        if filter_student_id:
+            filter_suffix += f"_student_{filter_student_id}"
+        
+        filename = f"individual_student_reports{filter_suffix}_{timestamp}.zip"
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        # Log action
+        log = Log(action="GENERATE_INDIVIDUAL_STUDENT_PDFS", 
+                 description=f"Generated individual PDF reports for {len(all_students)} students{filter_suffix}")
+        db.session.add(log)
+        db.session.commit()
+        
+        return response
+        
+    except Exception as e:
+        logging.error(f"Error generating individual student PDFs: {e}")
+        flash(f'Error generating PDF reports: {str(e)}', 'danger')
+        return redirect(url_for('calculation.all_courses'))
+
+@calculation_bp.route('/all_courses/pdf_bulk', methods=['POST'])
+def generate_bulk_student_pdf():
+    """Generate a single bulk PDF report containing all students"""
+    from weasyprint import HTML, CSS
+    import tempfile
+    from flask import make_response
+    
+    try:
+        # Get filter parameters from form data
+        filter_year = request.form.get('year', '')
+        search_query = request.form.get('search', '').lower()
+        filter_student_id = request.form.get('student_id', '').strip()
+        include_graduating_only = request.form.get('graduating_only', '').lower() == 'true'
+        
+        # Get the display method from session or default to absolute
+        display_method = session.get('display_method', 'absolute')
+        
+        # Get all courses with same filtering as all_courses route
+        courses = Course.query.all()
+        
+        # Apply filters
+        if filter_year:
+            courses = [c for c in courses if filter_year in c.semester]
+        
+        if search_query:
+            courses = [c for c in courses if search_query in c.code.lower() or search_query in c.name.lower()]
+        
+        if filter_student_id:
+            courses, _ = filter_courses_by_student(courses, filter_student_id)
+        
+        if include_graduating_only:
+            courses, _ = filter_courses_by_graduating_students(courses, include_graduating_only)
+        
+        # Generate bulk PDF content
+        try:
+            # Try WeasyPrint first, fall back to ReportLab if it fails
+            from weasyprint import HTML
+            html_content = generate_bulk_pdf_content(courses, display_method, include_graduating_only)
+            html_doc = HTML(string=html_content)
+            pdf_content = html_doc.write_pdf()
+        except (ImportError, OSError) as e:
+            logging.warning(f"WeasyPrint not available ({e}), using ReportLab fallback for bulk PDF")
+            pdf_content = generate_bulk_pdf_with_reportlab(courses, display_method, include_graduating_only)
+        
+        # Create response
+        response = make_response(pdf_content)
+        response.headers['Content-Type'] = 'application/pdf'
+        
+        # Generate filename with timestamp and filter info
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filter_suffix = ""
+        if include_graduating_only:
+            filter_suffix += "_graduating"
+        if filter_student_id:
+            filter_suffix += f"_student_{filter_student_id}"
+        
+        filename = f"bulk_student_report{filter_suffix}_{timestamp}.pdf"
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        # Log action
+        log = Log(action="GENERATE_BULK_STUDENT_PDF", 
+                 description=f"Generated bulk PDF report for {len(courses)} courses{filter_suffix}")
+        db.session.add(log)
+        db.session.commit()
+        
+        return response
+        
+    except Exception as e:
+        logging.error(f"Error generating bulk student PDF: {e}")
+        flash(f'Error generating PDF report: {str(e)}', 'danger')
+        return redirect(url_for('calculation.all_courses'))
+
+def filter_courses_by_graduating_students(courses, include_graduating_only=False):
+    """
+    Filter courses based on graduating students enrollment.
+    Migration-safe function that handles table existence gracefully.
+    
+    Parameters:
+    - courses: List of courses to filter
+    - include_graduating_only: If True, only include courses with graduating students
+    
+    Returns:
+    - filtered_courses: List of courses (filtered or original if feature unavailable)
+    - filter_info: Dict with filtering information and statistics
+    """
+    from db_migrations import graduating_students_table_exists
+    
+    # If feature is disabled or table doesn't exist, return original courses
+    if not include_graduating_only or not graduating_students_table_exists():
+        return courses, {
+            'enabled': include_graduating_only,
+            'available': graduating_students_table_exists(),
+            'total_graduating_students': 0,
+            'courses_with_graduating_students': 0,
+            'filtered_courses': len(courses),
+            'original_courses': len(courses)
+        }
+    
+    try:
+        # Get all graduating student IDs
+        graduating_student_ids = get_graduating_student_ids()
+        
+        if not graduating_student_ids:
+            # No graduating students defined, return empty list
+            return [], {
+                'enabled': True,
+                'available': True,
+                'total_graduating_students': 0,
+                'courses_with_graduating_students': 0,
+                'filtered_courses': 0,
+                'original_courses': len(courses)
+            }
+        
+        # Filter courses that have at least one graduating student enrolled
+        filtered_courses = []
+        courses_with_graduating_students = 0
+        
+        for course in courses:
+            # Check if any graduating students are enrolled in this course
+            course_students = Student.query.filter_by(course_id=course.id).all()
+            course_student_ids = {student.student_id for student in course_students}
+            
+            # Check if any graduating students are in this course
+            has_graduating_students = any(student_id in graduating_student_ids 
+                                        for student_id in course_student_ids)
+            
+            if has_graduating_students:
+                filtered_courses.append(course)
+                courses_with_graduating_students += 1
+        
+        filter_info = {
+            'enabled': True,
+            'available': True,
+            'total_graduating_students': len(graduating_student_ids),
+            'courses_with_graduating_students': courses_with_graduating_students,
+            'filtered_courses': len(filtered_courses),
+            'original_courses': len(courses)
+        }
+        
+        return filtered_courses, filter_info
+        
+    except Exception as e:
+        # On error, return original courses and log the issue
+        logging.error(f"Error filtering courses by graduating students: {e}")
+        return courses, {
+            'enabled': include_graduating_only,
+            'available': False,
+            'error': str(e),
+            'total_graduating_students': 0,
+            'courses_with_graduating_students': 0,
+            'filtered_courses': len(courses),
+            'original_courses': len(courses)
+        }
+
+def get_student_name(student_id):
+    """Get student name from student ID across all courses"""
+    student = Student.query.filter_by(student_id=student_id).first()
+    if student:
+        if student.last_name:
+            return f"{student.first_name} {student.last_name}"
+        else:
+            return student.first_name
+    return f"Student {student_id}"
+
+def generate_student_pdf_content(student_id, courses, display_method='absolute', include_graduating_only=False):
+    """Generate PDF content for a single student across all their courses"""
+    try:
+        # Try WeasyPrint first, fall back to ReportLab if it fails
+        try:
+            from weasyprint import HTML
+            return generate_student_pdf_with_weasyprint(student_id, courses, display_method, include_graduating_only)
+        except (ImportError, OSError) as e:
+            logging.warning(f"WeasyPrint not available ({e}), using ReportLab fallback")
+            return generate_student_pdf_with_reportlab(student_id, courses, display_method, include_graduating_only)
+    except Exception as e:
+        logging.error(f"Error generating PDF for student {student_id}: {e}")
+        return None
+
+def generate_student_pdf_with_weasyprint(student_id, courses, display_method='absolute', include_graduating_only=False):
+    """Generate PDF using WeasyPrint (HTML/CSS approach)"""
+    from weasyprint import HTML
+    
+    try:
+        # Get student information
+        student_name = get_student_name(student_id)
+        
+        # Build HTML content
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Student Report - {student_name}</title>
+            <style>
+                body {{ 
+                    font-family: Arial, sans-serif; 
+                    margin: 20px; 
+                    line-height: 1.4;
+                }}
+                .header {{ 
+                    text-align: center; 
+                    margin-bottom: 30px;
+                    border-bottom: 2px solid #333;
+                    padding-bottom: 20px;
+                }}
+                .student-info {{ 
+                    background: #f8f9fa; 
+                    padding: 15px; 
+                    border-radius: 5px; 
+                    margin-bottom: 20px;
+                }}
+                .course {{ 
+                    margin-bottom: 25px; 
+                    page-break-inside: avoid;
+                }}
+                .course-header {{ 
+                    background: #007bff; 
+                    color: white; 
+                    padding: 10px; 
+                    margin-bottom: 10px;
+                }}
+                table {{ 
+                    width: 100%; 
+                    border-collapse: collapse; 
+                    margin-bottom: 15px;
+                }}
+                th, td {{ 
+                    border: 1px solid #ddd; 
+                    padding: 8px; 
+                    text-align: center;
+                }}
+                th {{ 
+                    background: #f8f9fa;
+                }}
+                .success {{ background: #d4edda; }}
+                .info {{ background: #d1ecf1; }}
+                .primary {{ background: #cce5ff; }}
+                .warning {{ background: #fff3cd; }}
+                .danger {{ background: #f8d7da; }}
+                .na {{ background: #e9ecef; }}
+                .summary {{ 
+                    background: #e8f4f8; 
+                    padding: 15px; 
+                    border-radius: 5px; 
+                    margin-top: 20px;
+                }}
+                .footer {{ 
+                    text-align: center; 
+                    margin-top: 30px; 
+                    font-size: 12px; 
+                    color: #666;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>Student Academic Report</h1>
+                <h2>{student_name} (ID: {student_id})</h2>
+                <p>Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                {'<p><strong>Graduating Student Report</strong></p>' if include_graduating_only else ''}
+            </div>
+        """
+        
+        # Get program outcomes
+        program_outcomes = ProgramOutcome.query.all()
+        
+        # Track aggregated scores for summary
+        total_scores = {}
+        total_weights = {}
+        course_count = 0
+        
+        # Process each course
+        for course in courses:
+            # Check if student is enrolled in this course
+            student_in_course = Student.query.filter_by(student_id=student_id, course_id=course.id).first()
+            if not student_in_course:
+                continue
+                
+            course_count += 1
+            
+            # Get bulk data for optimization
+            bulk_data = bulk_load_course_data([course.id], display_method)
+            
+            # Calculate individual student results
+            individual_result = calculate_individual_student_results(student_in_course.id, course.id, bulk_data, display_method)
+            
+            # Get course outcome results for display  
+            course_result = calculate_course_results_from_bulk_data_v2_optimized(course.id, bulk_data, display_method)
+            
+            html_content += f"""
+            <div class="course">
+                <div class="course-header">
+                    <h3>{course.code} - {course.name}</h3>
+                    <p>Semester: {course.semester} | Weight: {course.course_weight}</p>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Program Outcome</th>
+                            <th>Description</th>
+                            <th>Student Score (%)</th>
+                            <th>Achievement Level</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            """
+            
+            # Add program outcome rows
+            for po in program_outcomes:
+                po_score = individual_result.get(po.id)
+                contributes = po.id in course_result.get('contributing_po_ids', [])
+                
+                if contributes and po_score is not None:
+                    # Get achievement level
+                    achievement_levels = GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()
+                    level = get_achievement_level(po_score, achievement_levels)
+                    
+                    # Aggregate for summary
+                    if po.id not in total_scores:
+                        total_scores[po.id] = 0
+                        total_weights[po.id] = 0
+                    total_scores[po.id] += po_score * float(course.course_weight)
+                    total_weights[po.id] += float(course.course_weight)
+                    
+                    html_content += f"""
+                    <tr class="{level.color if level else ''}">
+                        <td><strong>{po.code}</strong></td>
+                        <td>{po.description}</td>
+                        <td>{po_score:.2f}%</td>
+                        <td>{level.name if level else 'N/A'}</td>
+                    </tr>
+                    """
+                else:
+                    html_content += f"""
+                    <tr class="na">
+                        <td><strong>{po.code}</strong></td>
+                        <td>{po.description}</td>
+                        <td>N/A</td>
+                        <td>Not Applicable</td>
+                    </tr>
+                    """
+            
+            html_content += """
+                    </tbody>
+                </table>
+            </div>
+            """
+        
+        # Add summary section
+        html_content += """
+        <div class="summary">
+            <h3>Overall Program Outcome Summary</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Program Outcome</th>
+                        <th>Overall Score (%)</th>
+                        <th>Achievement Level</th>
+                    </tr>
+                </thead>
+                <tbody>
+        """
+        
+        achievement_levels = GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()
+        
+        for po in program_outcomes:
+            if po.id in total_scores and total_weights[po.id] > 0:
+                avg_score = total_scores[po.id] / total_weights[po.id]
+                level = get_achievement_level(avg_score, achievement_levels)
+                
+                html_content += f"""
+                <tr class="{level.color if level else ''}">
+                    <td><strong>{po.code}</strong></td>
+                    <td>{avg_score:.2f}%</td>
+                    <td>{level.name if level else 'N/A'}</td>
+                </tr>
+                """
+            else:
+                html_content += f"""
+                <tr class="na">
+                    <td><strong>{po.code}</strong></td>
+                    <td>N/A</td>
+                    <td>Not Applicable</td>
+                </tr>
+                """
+        
+        html_content += f"""
+                </tbody>
+            </table>
+            <p><strong>Total Courses:</strong> {course_count}</p>
+        </div>
+        
+        <div class="footer">
+            <p>This report was generated by Accredit Helper Pro</p>
+            <p>Report includes {course_count} courses for student {student_name}</p>
+        </div>
+        </body>
+        </html>
+        """
+        
+        # Convert to PDF
+        html_doc = HTML(string=html_content)
+        return html_doc.write_pdf()
+        
+    except Exception as e:
+        logging.error(f"Error generating PDF for student {student_id}: {e}")
+        return None
+
+def generate_bulk_pdf_content(courses, display_method='absolute', include_graduating_only=False):
+    """Generate bulk PDF content containing all students from filtered courses"""
+    try:
+        # Get all unique students from the courses
+        all_students = {}  # student_id -> student_name
+        
+        for course in courses:
+            course_students = Student.query.filter_by(course_id=course.id).all()
+            for student in course_students:
+                if include_graduating_only:
+                    if is_graduating_student(student.student_id):
+                        all_students[student.student_id] = get_student_name(student.student_id)
+                else:
+                    all_students[student.student_id] = get_student_name(student.student_id)
+        
+        # Build HTML content
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Bulk Student Report</title>
+            <style>
+                body {{ 
+                    font-family: Arial, sans-serif; 
+                    margin: 20px; 
+                    line-height: 1.4;
+                }}
+                .header {{ 
+                    text-align: center; 
+                    margin-bottom: 30px;
+                    border-bottom: 2px solid #333;
+                    padding-bottom: 20px;
+                }}
+                .student-section {{ 
+                    margin-bottom: 40px; 
+                    page-break-before: always;
+                }}
+                .student-section:first-child {{ 
+                    page-break-before: auto;
+                }}
+                .student-header {{ 
+                    background: #28a745; 
+                    color: white; 
+                    padding: 15px; 
+                    margin-bottom: 20px;
+                    text-align: center;
+                }}
+                .course {{ 
+                    margin-bottom: 20px;
+                }}
+                .course-header {{ 
+                    background: #007bff; 
+                    color: white; 
+                    padding: 8px; 
+                    margin-bottom: 8px;
+                    font-size: 14px;
+                }}
+                table {{ 
+                    width: 100%; 
+                    border-collapse: collapse; 
+                    margin-bottom: 15px;
+                    font-size: 12px;
+                }}
+                th, td {{ 
+                    border: 1px solid #ddd; 
+                    padding: 6px; 
+                    text-align: center;
+                }}
+                th {{ 
+                    background: #f8f9fa;
+                    font-size: 11px;
+                }}
+                .success {{ background: #d4edda; }}
+                .info {{ background: #d1ecf1; }}
+                .primary {{ background: #cce5ff; }}
+                .warning {{ background: #fff3cd; }}
+                .danger {{ background: #f8d7da; }}
+                .na {{ background: #e9ecef; }}
+                .summary {{ 
+                    background: #e8f4f8; 
+                    padding: 10px; 
+                    border-radius: 5px; 
+                    margin-top: 15px;
+                }}
+                .footer {{ 
+                    text-align: center; 
+                    margin-top: 30px; 
+                    font-size: 10px; 
+                    color: #666;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>Bulk Student Academic Report</h1>
+                <p>Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                <p>Total Students: {len(all_students)} | Total Courses: {len(courses)}</p>
+                {'<p><strong>Graduating Students Only</strong></p>' if include_graduating_only else ''}
+            </div>
+        """
+        
+        # Process each student
+        for student_id in sorted(all_students.keys()):
+            student_name = all_students[student_id]
+            
+            html_content += f"""
+            <div class="student-section">
+                <div class="student-header">
+                    <h2>{student_name} (ID: {student_id})</h2>
+                </div>
+            """
+            
+            # Get student's courses from the filtered list
+            student_courses = []
+            for course in courses:
+                if Student.query.filter_by(student_id=student_id, course_id=course.id).first():
+                    student_courses.append(course)
+            
+            if student_courses:
+                program_outcomes = ProgramOutcome.query.all()
+                
+                # Compact table for all courses
+                html_content += """
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Course</th>
+                """
+                
+                for po in program_outcomes[:6]:  # Limit to first 6 POs for space
+                    html_content += f"<th>{po.code}</th>"
+                
+                html_content += """
+                        </tr>
+                    </thead>
+                    <tbody>
+                """
+                
+                for course in student_courses:
+                    student_in_course = Student.query.filter_by(student_id=student_id, course_id=course.id).first()
+                    if student_in_course:
+                        bulk_data = bulk_load_course_data([course.id], display_method)
+                        individual_result = calculate_individual_student_results(student_in_course.id, course.id, bulk_data, display_method)
+                        
+                        html_content += f"""
+                        <tr>
+                            <td><strong>{course.code}</strong><br>{course.semester}</td>
+                        """
+                        
+                        for po in program_outcomes[:6]:
+                            po_score = individual_result.get(po.id)
+                            if po_score is not None:
+                                achievement_levels = GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()
+                                level = get_achievement_level(po_score, achievement_levels)
+                                html_content += f'<td class="{level.color if level else ""}">{po_score:.1f}%</td>'
+                            else:
+                                html_content += '<td class="na">N/A</td>'
+                        
+                        html_content += "</tr>"
+                
+                html_content += f"""
+                    </tbody>
+                </table>
+                <p><strong>Courses:</strong> {len(student_courses)}</p>
+                """
+            else:
+                html_content += "<p>No courses found for this student.</p>"
+            
+            html_content += "</div>"
+        
+        html_content += f"""
+        <div class="footer">
+            <p>This bulk report was generated by Accredit Helper Pro</p>
+            <p>Report includes {len(all_students)} students across {len(courses)} courses</p>
+        </div>
+        </body>
+        </html>
+        """
+        
+        return html_content
+        
+    except Exception as e:
+        logging.error(f"Error generating bulk PDF content: {e}")
+        raise
+
+def generate_student_pdf_with_reportlab(student_id, courses, display_method='absolute', include_graduating_only=False):
+    """Generate PDF using ReportLab (programmatic approach) - Windows-friendly fallback"""
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    import io
+    
+    try:
+        # Get student information
+        student_name = get_student_name(student_id)
+        
+        # Create PDF buffer
+        buffer = io.BytesIO()
+        
+        # Create document
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+        
+        # Get styles
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            spaceAfter=30,
+            alignment=1  # Center alignment
+        )
+        
+        # Build document content
+        story = []
+        
+        # Title
+        story.append(Paragraph("Student Academic Report", title_style))
+        story.append(Paragraph(f"<b>{student_name}</b> (ID: {student_id})", styles['Heading2']))
+        story.append(Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+        
+        if include_graduating_only:
+            story.append(Paragraph("<b>Graduating Student Report</b>", styles['Normal']))
+        
+        story.append(Spacer(1, 20))
+        
+        # Get program outcomes
+        program_outcomes = ProgramOutcome.query.all()
+        
+        # Track aggregated scores for summary
+        total_scores = {}
+        total_weights = {}
+        course_count = 0
+        
+        # Process each course
+        for course in courses:
+            # Check if student is enrolled in this course
+            student_in_course = Student.query.filter_by(student_id=student_id, course_id=course.id).first()
+            if not student_in_course:
+                continue
+                
+            course_count += 1
+            
+            # Course header
+            story.append(Paragraph(f"<b>{course.code} - {course.name}</b>", styles['Heading3']))
+            story.append(Paragraph(f"Semester: {course.semester} | Weight: {course.course_weight}", styles['Normal']))
+            story.append(Spacer(1, 10))
+            
+            # Get bulk data for optimization
+            bulk_data = bulk_load_course_data([course.id], display_method)
+            
+            # Calculate individual student results
+            individual_result = calculate_individual_student_results(student_in_course.id, course.id, bulk_data, display_method)
+            
+            # Get course outcome results for display  
+            course_result = calculate_course_results_from_bulk_data_v2_optimized(course.id, bulk_data, display_method)
+            
+            # Create table data
+            table_data = [['Program Outcome', 'Description', 'Student Score (%)', 'Achievement Level']]
+            
+            # Add program outcome rows
+            for po in program_outcomes:
+                po_score = individual_result.get(po.id)
+                contributes = po.id in course_result.get('contributing_po_ids', [])
+                
+                if contributes and po_score is not None:
+                    # Get achievement level
+                    achievement_levels = GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()
+                    level = get_achievement_level(po_score, achievement_levels)
+                    
+                    # Aggregate for summary
+                    if po.id not in total_scores:
+                        total_scores[po.id] = 0
+                        total_weights[po.id] = 0
+                    total_scores[po.id] += po_score * float(course.course_weight)
+                    total_weights[po.id] += float(course.course_weight)
+                    
+                    table_data.append([
+                        po.code,
+                        po.description[:30] + "..." if len(po.description) > 30 else po.description,
+                        f"{po_score:.2f}%",
+                        level.name if level else 'N/A'
+                    ])
+                else:
+                    table_data.append([
+                        po.code,
+                        po.description[:30] + "..." if len(po.description) > 30 else po.description,
+                        'N/A',
+                        'Not Applicable'
+                    ])
+            
+            # Create and style table
+            table = Table(table_data, colWidths=[1*inch, 2.5*inch, 1*inch, 1.5*inch])
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]))
+            
+            story.append(table)
+            story.append(Spacer(1, 20))
+        
+        # Add summary section
+        if course_count > 1:  # Only add summary if multiple courses
+            story.append(PageBreak())
+            story.append(Paragraph("<b>Overall Program Outcome Summary</b>", styles['Heading2']))
+            story.append(Spacer(1, 10))
+            
+            # Summary table
+            summary_data = [['Program Outcome', 'Overall Score (%)', 'Achievement Level']]
+            achievement_levels = GlobalAchievementLevel.query.order_by(GlobalAchievementLevel.min_score.desc()).all()
+            
+            for po in program_outcomes:
+                if po.id in total_scores and total_weights[po.id] > 0:
+                    avg_score = total_scores[po.id] / total_weights[po.id]
+                    level = get_achievement_level(avg_score, achievement_levels)
+                    
+                    summary_data.append([
+                        po.code,
+                        f"{avg_score:.2f}%",
+                        level.name if level else 'N/A'
+                    ])
+                else:
+                    summary_data.append([
+                        po.code,
+                        'N/A',
+                        'Not Applicable'
+                    ])
+            
+            summary_table = Table(summary_data, colWidths=[2*inch, 1.5*inch, 2*inch])
+            summary_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.lightblue),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+            ]))
+            
+            story.append(summary_table)
+            story.append(Spacer(1, 20))
+        
+        story.append(Paragraph(f"<b>Total Courses:</b> {course_count}", styles['Normal']))
+        
+        # Footer
+        story.append(Spacer(1, 30))
+        story.append(Paragraph("This report was generated by Accredit Helper Pro", styles['Normal']))
+        story.append(Paragraph(f"Report includes {course_count} courses for student {student_name}", styles['Normal']))
+        
+        # Build PDF
+        doc.build(story)
+        
+        # Get PDF data
+        pdf_data = buffer.getvalue()
+        buffer.close()
+        
+        return pdf_data
+        
+    except Exception as e:
+        logging.error(f"Error generating ReportLab PDF for student {student_id}: {e}")
+        return None
+
+def generate_bulk_pdf_with_reportlab(courses, display_method='absolute', include_graduating_only=False):
+    """Generate bulk PDF using ReportLab (programmatic approach) - Windows-friendly fallback"""
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    import io
+    
+    try:
+        # Get all unique students from the courses
+        all_students = {}  # student_id -> student_name
+        
+        for course in courses:
+            course_students = Student.query.filter_by(course_id=course.id).all()
+            for student in course_students:
+                if include_graduating_only:
+                    if is_graduating_student(student.student_id):
+                        all_students[student.student_id] = get_student_name(student.student_id)
+                else:
+                    all_students[student.student_id] = get_student_name(student.student_id)
+        
+        # Create PDF buffer
+        buffer = io.BytesIO()
+        
+        # Create document
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+        
+        # Get styles
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            spaceAfter=30,
+            alignment=1  # Center alignment
+        )
+        
+        # Build document content
+        story = []
+        
+        # Main title
+        story.append(Paragraph("Bulk Student Academic Report", title_style))
+        story.append(Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+        story.append(Paragraph(f"Total Students: {len(all_students)} | Total Courses: {len(courses)}", styles['Normal']))
+        
+        if include_graduating_only:
+            story.append(Paragraph("<b>Graduating Students Only</b>", styles['Normal']))
+        
+        story.append(Spacer(1, 30))
+        
+        # Get program outcomes for compact display (limit to first 6)
+        program_outcomes = ProgramOutcome.query.all()[:6]
+        
+        # Process each student (compact format for bulk report)
+        for idx, student_id in enumerate(sorted(all_students.keys())):
+            student_name = all_students[student_id]
+            
+            # Student header
+            story.append(Paragraph(f"<b>{student_name}</b> (ID: {student_id})", styles['Heading3']))
+            
+            # Get student's courses from the filtered list
+            student_courses = []
+            for course in courses:
+                if Student.query.filter_by(student_id=student_id, course_id=course.id).first():
+                    student_courses.append(course)
+            
+            if student_courses:
+                # Create compact table for all courses
+                table_data = [['Course'] + [po.code for po in program_outcomes]]
+                
+                for course in student_courses:
+                    student_in_course = Student.query.filter_by(student_id=student_id, course_id=course.id).first()
+                    if student_in_course:
+                        # Get individual results
+                        bulk_data = bulk_load_course_data([course.id], display_method)
+                        individual_result = calculate_individual_student_results(student_in_course.id, course.id, bulk_data, display_method)
+                        
+                        # Build row data
+                        row_data = [f"{course.code}\\n{course.semester}"]
+                        
+                        for po in program_outcomes:
+                            po_score = individual_result.get(po.id)
+                            if po_score is not None:
+                                row_data.append(f"{po_score:.1f}%")
+                            else:
+                                row_data.append('N/A')
+                        
+                        table_data.append(row_data)
+                
+                # Create and style table
+                col_widths = [1.5*inch] + [0.8*inch] * len(program_outcomes)
+                table = Table(table_data, colWidths=col_widths)
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.green),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 9),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.lightgreen),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                    ('FONTSIZE', (0, 1), (-1, -1), 8),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ]))
+                
+                story.append(table)
+                story.append(Paragraph(f"Courses: {len(student_courses)}", styles['Normal']))
+            else:
+                story.append(Paragraph("No courses found for this student.", styles['Normal']))
+            
+            story.append(Spacer(1, 15))
+            
+            # Add page break every 3 students to avoid overcrowding
+            if (idx + 1) % 3 == 0 and idx < len(all_students) - 1:
+                story.append(PageBreak())
+        
+        # Footer
+        story.append(Spacer(1, 30))
+        story.append(Paragraph("This bulk report was generated by Accredit Helper Pro", styles['Normal']))
+        story.append(Paragraph(f"Report includes {len(all_students)} students across {len(courses)} courses", styles['Normal']))
+        
+        # Build PDF
+        doc.build(story)
+        
+        # Get PDF data
+        pdf_data = buffer.getvalue()
+        buffer.close()
+        
+        return pdf_data
+        
+    except Exception as e:
+        logging.error(f"Error generating bulk ReportLab PDF: {e}")
+        return None

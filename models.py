@@ -326,4 +326,19 @@ class StudentExamAttendance(db.Model):
         attendance_status = "attended" if self.attended else "did not attend"
         return f"<StudentExamAttendance: Student {self.student_id} {attendance_status} Exam {self.exam_id}>"
 
+class GraduatingStudent(db.Model):
+    """Simple model to track student IDs that will graduate (for MÜDEK filtering)"""
+    __tablename__ = 'graduating_student'
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.String(20), nullable=False, unique=True, index=True)  # Unique student ID
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    
+    # Performance index for fast lookups
+    __table_args__ = (
+        Index('idx_graduating_student_student_id', 'student_id'),
+    )
+    
+    def __repr__(self):
+        return f"<GraduatingStudent {self.student_id}>"
+
 # --- END OF FILE models.py ---

@@ -15,7 +15,7 @@ sys.path.append('.')
 
 # Import the models
 from models import db, Course, Exam, CourseOutcome, ProgramOutcome, Question, AchievementLevel, GlobalAchievementLevel
-from models import Student, Score, ExamWeight, course_outcome_program_outcome, question_course_outcome
+from models import Student, Score, ExamWeight, course_outcome_program_outcome, question_course_outcome, GraduatingStudent
 
 # Initialize Faker for generating realistic data
 fake = Faker()
@@ -1147,6 +1147,57 @@ def generate_achievement_levels(courses):
 
     return all_levels
 
+def generate_graduating_students(all_students):
+    """
+    Generate sample graduating students for demo purposes.
+    Selects about 30-40% of students randomly to be graduating students.
+    """
+    try:
+        # Check if graduating_student table exists
+        from db_migrations import graduating_students_table_exists
+        if not graduating_students_table_exists():
+            print("graduating_student table doesn't exist, skipping graduating students generation")
+            return []
+        
+        # Check if we already have graduating students
+        existing_count = session.query(GraduatingStudent).count()
+        if existing_count > 0:
+            print(f"Found {existing_count} existing graduating students, skipping generation")
+            return session.query(GraduatingStudent).all()
+        
+        if not all_students:
+            print("No students available for graduating students selection")
+            return []
+        
+        # Get unique student IDs (since students can be in multiple courses)
+        unique_student_ids = list(set(student.student_id for student in all_students))
+        
+        # Select 30-40% of students to be graduating
+        graduation_rate = random.uniform(0.30, 0.40)
+        num_graduating = max(1, int(len(unique_student_ids) * graduation_rate))
+        
+        # Randomly select graduating students
+        graduating_student_ids = random.sample(unique_student_ids, num_graduating)
+        
+        graduating_students_to_add = []
+        for student_id in graduating_student_ids:
+            graduating_student = GraduatingStudent(
+                student_id=student_id,
+                created_at=datetime.now()
+            )
+            graduating_students_to_add.append(graduating_student)
+        
+        session.add_all(graduating_students_to_add)
+        session.commit()
+        print(f"Created {len(graduating_students_to_add)} graduating students ({graduation_rate:.1%} of {len(unique_student_ids)} unique students)")
+        
+        return graduating_students_to_add
+        
+    except Exception as e:
+        session.rollback()
+        print(f"Error creating graduating students: {e}")
+        return []
+
 def main():
     print("Generating demo data for Accredit Helper Pro...")
 
@@ -1277,6 +1328,9 @@ def main():
     print("\n--- Generating Achievement Levels ---")
     generate_achievement_levels(courses_to_process)
 
+    # --- Graduating Students (Demo Data) ---
+    print("\n--- Generating Graduating Students ---")
+    graduating_students = generate_graduating_students(all_students)
 
     # --- Scores (Using Normal Distribution Logic) ---
     print("\n--- Generating Scores ---")
@@ -1405,6 +1459,14 @@ def main():
     final_score_count = session.query(Score).count()
     final_ach_level_count = session.query(AchievementLevel).count()
     final_global_ach_level_count = session.query(GlobalAchievementLevel).count()
+    
+    # Count graduating students if table exists
+    final_graduating_students_count = 0
+    try:
+        final_graduating_students_count = session.query(GraduatingStudent).count()
+    except Exception:
+        # Table might not exist, that's ok
+        pass
 
     print(f"\nDatabase now contains:")
     print(f"  - {final_course_count} total courses")
@@ -1416,6 +1478,8 @@ def main():
     print(f"  - {final_score_count} scores")
     print(f"  - {final_ach_level_count} course-specific achievement levels")
     print(f"  - {final_global_ach_level_count} global achievement levels")
+    if final_graduating_students_count > 0:
+        print(f"  - {final_graduating_students_count} graduating students (for MÜDEK filtering)")
     print("\nDemo data generation process complete.")
 
     session.close()

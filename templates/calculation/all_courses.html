@@ -23,6 +23,9 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Program Outcome Scores for All Courses</h1>
         <div>
+            <a href="{{ url_for('calculation.manage_graduating_students') }}" class="btn btn-lg btn-primary me-2 graduation-btn">
+                <i class="fas fa-graduation-cap me-1"></i> Manage Graduating Students
+            </a>
             <a href="{{ url_for('calculation.manage_global_achievement_levels') }}" class="btn btn-primary me-2">
                 <i class="fas fa-cog"></i> Configure Achievement Levels
             </a>
@@ -67,6 +70,59 @@
                             <option value="avg_score_desc" {% if current_sort == 'avg_score_desc' %}selected{% endif %}>Average Outcome Score (High-Low)</option>
                         </select>
                     </div>
+
+                    <!-- Graduating Students Filter -->
+                    {% if graduating_filter_info and graduating_filter_info.available %}
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="graduatingStudentsFilter" value="1" 
+                                   {% if include_graduating_only %}checked{% endif %}
+                                   onchange="applyGraduatingStudentsFilter(this.checked)">
+                            <label class="form-check-label" for="graduatingStudentsFilter">
+                                <i class="fas fa-graduation-cap"></i> Show only graduating students
+                            </label>
+                        </div>
+                        <div class="form-text">
+                            <small>Filter analysis to only include students who are graduating (for MÜDEK requirements).</small>
+                            {% if graduating_filter_info.enabled %}
+                            <br><small class="text-info">
+                                <i class="fas fa-info-circle"></i> 
+                                Showing {{ graduating_filter_info.filtered_courses }} of {{ graduating_filter_info.original_courses }} courses 
+                                ({{ graduating_filter_info.courses_with_graduating_students }} courses have graduating students, 
+                                {{ graduating_filter_info.total_graduating_students }} total graduating students defined)
+                            </small>
+                            {% else %}
+                            <br><small class="text-success">
+                                <i class="fas fa-check-circle"></i> 
+                                {{ graduating_filter_info.total_graduating_students }} graduating students defined, 
+                                {{ graduating_filter_info.courses_with_graduating_students }} courses have graduating students available
+                            </small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <!-- Feature not available or no graduating students defined -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="graduatingStudentsFilter" value="1" disabled>
+                            <label class="form-check-label text-muted" for="graduatingStudentsFilter">
+                                <i class="fas fa-graduation-cap"></i> Show only graduating students
+                            </label>
+                        </div>
+                        <div class="form-text">
+                            <small class="text-muted">
+                                {% if graduating_filter_info and not graduating_filter_info.available %}
+                                    Graduating students table not available. 
+                                {% else %}
+                                    No graduating students defined yet. 
+                                {% endif %}
+                                <a href="{{ url_for('calculation.manage_graduating_students') }}" class="btn btn-sm btn-outline-primary ms-2">
+                                    <i class="fas fa-graduation-cap"></i> Manage graduating students
+                                </a> to enable this filter.
+                            </small>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -118,6 +174,31 @@
                         <span class="input-group-text">
                             <i class="fas fa-search"></i>
                         </span>
+                    </div>
+                    
+                    <!-- PDF Generation Buttons -->
+                    <div class="dropdown">
+                        <button class="btn btn-info dropdown-toggle" type="button" id="pdfDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-file-pdf"></i> Generate PDF Reports
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="pdfDropdown">
+                            <li>
+                                <button class="dropdown-item" type="button" onclick="generateIndividualPDFs()">
+                                    <i class="fas fa-users"></i> Individual Student Reports (ZIP)
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item" type="button" onclick="generateBulkPDF()">
+                                    <i class="fas fa-file-pdf"></i> Combined Bulk Report (PDF)
+                                </button>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <small class="dropdown-item-text text-muted">
+                                    <i class="fas fa-info-circle"></i> PDFs respect current filters
+                                </small>
+                            </li>
+                        </ul>
                     </div>
                 </div>
             </div>
@@ -813,6 +894,14 @@
             clearStudentFilterBtn.addEventListener('click', clearStudentFilter);
         }
 
+        // Graduating students filter functionality
+        const graduatingStudentsFilter = document.getElementById('graduatingStudentsFilter');
+        if (graduatingStudentsFilter && !graduatingStudentsFilter.disabled) {
+            graduatingStudentsFilter.addEventListener('change', function() {
+                applyGraduatingStudentsFilter(this.checked);
+            });
+        }
+
         // Checkbox functionality
         const selectAllCourses = document.getElementById('selectAllCourses');
         const courseCheckboxes = document.querySelectorAll('.course-checkbox');
@@ -1065,6 +1154,120 @@
         params.delete('student_id');
         
         window.location.href = `${window.location.pathname}?${params.toString()}`;
+    }
+
+    // Global function for applying graduating students filter
+    function applyGraduatingStudentsFilter(includeOnly) {
+        const params = new URLSearchParams(window.location.search);
+        
+        if (includeOnly) {
+            params.set('graduating_only', 'true');
+        } else {
+            params.delete('graduating_only');
+        }
+        
+        // Preserve other filters
+        const yearFilter = document.getElementById('yearFilter');
+        if (yearFilter && yearFilter.value !== 'all') {
+            params.set('year', yearFilter.value);
+        }
+        
+        const courseSearch = document.getElementById('courseSearch');
+        if (courseSearch && courseSearch.value) {
+            params.set('search', courseSearch.value);
+        }
+        
+        const studentIdFilter = document.getElementById('studentIdFilter');
+        if (studentIdFilter && studentIdFilter.value) {
+            params.set('student_id', studentIdFilter.value);
+        }
+
+        window.location.href = `${window.location.pathname}?${params.toString()}`;
+    }
+
+    // Global functions for PDF generation
+    function generateIndividualPDFs() {
+        // Create a form to submit current filter parameters
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/calculation/all_courses/pdf_individual';
+        
+        // Add current filter parameters as hidden inputs
+        const params = new URLSearchParams(window.location.search);
+        
+        // Add year filter
+        const yearFilter = document.getElementById('yearFilter');
+        if (yearFilter && yearFilter.value !== 'all') {
+            addHiddenInput(form, 'year', yearFilter.value);
+        }
+        
+        // Add search filter
+        const courseSearch = document.getElementById('courseSearch');
+        if (courseSearch && courseSearch.value) {
+            addHiddenInput(form, 'search', courseSearch.value);
+        }
+        
+        // Add student ID filter
+        const studentIdFilter = document.getElementById('studentIdFilter');
+        if (studentIdFilter && studentIdFilter.value) {
+            addHiddenInput(form, 'student_id', studentIdFilter.value);
+        }
+        
+        // Add graduating students filter
+        const graduatingFilter = document.getElementById('graduatingStudentsFilter');
+        if (graduatingFilter && graduatingFilter.checked) {
+            addHiddenInput(form, 'graduating_only', 'true');
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+    }
+
+    function generateBulkPDF() {
+        // Create a form to submit current filter parameters
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/calculation/all_courses/pdf_bulk';
+        
+        // Add current filter parameters as hidden inputs
+        const params = new URLSearchParams(window.location.search);
+        
+        // Add year filter
+        const yearFilter = document.getElementById('yearFilter');
+        if (yearFilter && yearFilter.value !== 'all') {
+            addHiddenInput(form, 'year', yearFilter.value);
+        }
+        
+        // Add search filter
+        const courseSearch = document.getElementById('courseSearch');
+        if (courseSearch && courseSearch.value) {
+            addHiddenInput(form, 'search', courseSearch.value);
+        }
+        
+        // Add student ID filter
+        const studentIdFilter = document.getElementById('studentIdFilter');
+        if (studentIdFilter && studentIdFilter.value) {
+            addHiddenInput(form, 'student_id', studentIdFilter.value);
+        }
+        
+        // Add graduating students filter
+        const graduatingFilter = document.getElementById('graduatingStudentsFilter');
+        if (graduatingFilter && graduatingFilter.checked) {
+            addHiddenInput(form, 'graduating_only', 'true');
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+    }
+
+    function addHiddenInput(form, name, value) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
     }
 </script>
 {% endblock %} 
