@@ -1429,6 +1429,184 @@ def calculate_course_results_from_bulk_data_v2_optimized(course_id, bulk_data, c
         'course': course
     }
 
+def calculate_course_results_with_graduating_filter(course_id, bulk_data, calculation_method='absolute', include_graduating_only=False):
+    """
+    Calculate course results with graduating students filter applied.
+    This function modifies the student list to only include graduating students
+    before performing the calculations, ensuring accurate results when filtering.
+    
+    Parameters:
+    - course_id: The course ID to calculate
+    - bulk_data: Pre-loaded bulk data
+    - calculation_method: 'absolute' or 'relative'
+    - include_graduating_only: If True, only include graduating students in calculations
+    
+    Returns:
+    - Same format as calculate_course_results_from_bulk_data_v2_optimized
+    """
+    course_data = bulk_data.get(course_id)
+    if not course_data:
+        return {
+            'program_outcome_scores': {},
+            'contributing_po_ids': set(),
+            'is_valid_for_aggregation': False,
+            'student_count_used': 0,
+            'course': None
+        }
+    
+    course = course_data['course']
+    settings = course_data['settings']
+    
+    # Early exit for excluded courses
+    if settings.excluded:
+        return {
+            'program_outcome_scores': {},
+            'contributing_po_ids': set(),
+            'is_valid_for_aggregation': False,
+            'student_count_used': 0,
+            'course': course
+        }
+    
+    # Extract and cache frequently accessed data
+    regular_exams = course_data['regular_exams']
+    course_outcomes = course_data['course_outcomes']
+    program_outcomes = course_data['program_outcomes']
+    all_students = course_data['students']  # Original student list
+    questions_by_exam = course_data['questions_by_exam']
+    outcome_questions = course_data['outcome_questions']
+    normalized_weights = course_data['normalized_weights']
+    program_to_course_outcomes = course_data['program_to_course_outcomes']
+    makeup_map = course_data['makeup_map']
+    scores_dict = course_data['scores_dict']
+    attendance_dict = course_data['attendance_dict']
+    contributing_po_ids = course_data['contributing_po_ids']
+    
+    # CRITICAL FIX: Filter students to only include graduating students
+    if include_graduating_only:
+        graduating_student_ids = get_graduating_student_ids()
+        students = [student for student in all_students 
+                   if student.student_id in graduating_student_ids]
+        
+        # If no graduating students in this course, return empty result
+        if not students:
+            return {
+                'program_outcome_scores': {},
+                'contributing_po_ids': contributing_po_ids,
+                'is_valid_for_aggregation': False,
+                'student_count_used': 0,
+                'course': course
+            }
+    else:
+        students = all_students
+    
+    # Early validation with fast exits
+    if not course_outcomes or not students:
+        return {
+            'program_outcome_scores': {},
+            'contributing_po_ids': contributing_po_ids,
+            'is_valid_for_aggregation': False,
+            'student_count_used': 0,
+            'course': course
+        }
+    
+    # Check exam questions availability
+    total_questions = sum(len(questions) for questions in questions_by_exam.values())
+    if total_questions == 0:
+        return {
+            'program_outcome_scores': {},
+            'contributing_po_ids': contributing_po_ids,
+            'is_valid_for_aggregation': False,
+            'student_count_used': 0,
+            'course': course
+        }
+    
+    # Pre-compute mandatory exam IDs
+    mandatory_exam_ids = set()
+    for exam in regular_exams:
+        if exam.is_mandatory:
+            mandatory_exam_ids.add(exam.id)
+    
+    # Filter valid students (those who attended mandatory exams)
+    valid_students = []
+    for student in students:  # Use filtered student list
+        student_id = student.id
+        
+        # Quick exclusion check
+        if getattr(student, 'excluded', False):
+            continue
+        
+        # Check mandatory exam attendance
+        if mandatory_exam_ids:
+            skip_student = False
+            for exam_id in mandatory_exam_ids:
+                regular_attended = attendance_dict.get((student_id, exam_id), True)
+                
+                # Check if there's a makeup exam for this exam
+                makeup_exam = makeup_map.get(exam_id)
+                makeup_attended = False
+                if makeup_exam:
+                    makeup_attended = attendance_dict.get((student_id, makeup_exam.id), False)
+                
+                if not regular_attended and not makeup_attended:
+                    skip_student = True
+                    break
+            
+            if skip_student:
+                continue
+        
+        valid_students.append(student)
+    
+    if not valid_students:
+        return {
+            'program_outcome_scores': {},
+            'contributing_po_ids': contributing_po_ids,
+            'is_valid_for_aggregation': False,
+            'student_count_used': 0,
+            'course': course
+        }
+    
+    # Calculate program outcome scores for valid students
+    program_outcome_scores = {}
+    threshold = Decimal(str(settings.relative_success_threshold))
+    
+    for po in program_outcomes:
+        po_id = po.id
+        
+        # Calculate scores for all valid students
+        valid_scores = []
+        for student in valid_students:
+            po_score = calculate_program_outcome_score_optimized(
+                student.id, po_id, course_id, scores_dict,
+                program_to_course_outcomes, outcome_questions, 
+                normalized_weights, attendance_dict
+            )
+            if po_score is not None:
+                valid_scores.append(po_score)
+        
+        if valid_scores:
+            if calculation_method == 'absolute':
+                # For absolute method: average of all valid scores
+                avg_score = sum(valid_scores) / len(valid_scores)
+                program_outcome_scores[po_id] = avg_score
+            else:  # 'relative'
+                # For relative method: percentage meeting threshold
+                success_count = sum(1 for score in valid_scores if score >= threshold)
+                success_rate = (success_count / len(valid_scores) * 100) if valid_scores else 0
+                program_outcome_scores[po_id] = Decimal(str(success_rate))
+        else:
+            program_outcome_scores[po_id] = Decimal('0')
+    
+    # Return the results
+    return {
+        'program_outcome_scores': program_outcome_scores,
+        'course_outcome_scores': {},  # Not needed for aggregation
+        'contributing_po_ids': contributing_po_ids,
+        'is_valid_for_aggregation': True,
+        'student_count_used': len(valid_students),
+        'course': course,
+        'student_results': {}  # Not needed for aggregation
+    }
+
 def calculate_inline_exam_score(student_id, exam_id, scores_dict, questions, total_possible):
     """
     Inline exam score calculation to reduce function call overhead.
@@ -2091,9 +2269,11 @@ def all_courses_calculations():
     
     # ==== BULK LOAD ALL DATA TO ELIMINATE N+1 QUERIES ====
     course_ids = [course.id for course in courses]
+    
+    # Load all necessary data at once
     bulk_data = bulk_load_course_data(course_ids, display_method)
     
-    # Calculate results for each course using pre-loaded data
+    # Calculate results for each course
     for course in courses:
         # Check if course is excluded
         is_excluded = course.settings and course.settings.excluded
@@ -2116,8 +2296,14 @@ def all_courses_calculations():
         if not hasattr(course, 'exams') or not course.exams:
             continue
         
-        # Calculate course results using advanced optimized bulk-loaded data (eliminates per-course database queries + advanced algorithm optimizations)
-        result = calculate_course_results_from_bulk_data_v2_optimized(course.id, bulk_data, display_method)
+        # Calculate course results
+        # FIXED: Pass graduating students filter to the calculation function
+        if include_graduating_only:
+            # When graduating students filter is active, we need to modify the calculation
+            # to only include graduating students in the course calculations
+            result = calculate_course_results_with_graduating_filter(course.id, bulk_data, display_method, include_graduating_only)
+        else:
+            result = calculate_course_results_from_bulk_data_v2_optimized(course.id, bulk_data, display_method)
         
         # Skip courses that don't have valid data for aggregation
         if not result['is_valid_for_aggregation']:
@@ -2158,6 +2344,8 @@ def all_courses_calculations():
                 continue
         else:
             # Show course averages (original behavior)
+            # FIXED: When graduating students filter is active, the result already contains
+            # calculations based only on graduating students
             for po in program_outcomes:
                 po_score = result['program_outcome_scores'].get(po.id)
                 contributes = po.id in result['contributing_po_ids']

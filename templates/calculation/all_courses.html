@@ -90,6 +90,7 @@
                                 Showing {{ graduating_filter_info.filtered_courses }} of {{ graduating_filter_info.original_courses }} courses 
                                 ({{ graduating_filter_info.courses_with_graduating_students }} courses have graduating students, 
                                 {{ graduating_filter_info.total_graduating_students }} total graduating students defined)
+                                <br><strong>Note:</strong> Course averages now calculated using only graduating students in each course.
                             </small>
                             {% else %}
                             <br><small class="text-success">
@@ -322,6 +323,8 @@
                             <td colspan="4" class="text-center fw-bold bg-secondary text-white">
                                 {% if filter_student_id %}
                                 Student's Program Outcome Averages
+                                {% elif include_graduating_only %}
+                                Graduating Students Program Outcome Averages
                                 {% else %}
                                 Program Outcome Averages
                                 {% endif %}
