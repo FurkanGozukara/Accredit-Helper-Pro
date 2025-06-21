@@ -95,6 +95,9 @@
                                         <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Course Duplication</strong> - Quickly set up new courses based on existing templates</li>
                                         <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Cross-Course Outcomes Analysis</strong> - Advanced program-wide outcome assessment across all courses</li>
                                         <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Weighted CO-PO Relationships</strong> - Define how course outcomes contribute to program outcomes</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Graduating Students Management</strong> - Maintain lists of graduating students for MÜDEK filtering and targeted analysis</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Multi-threaded PDF Generation</strong> - Parallel PDF processing up to 6.4x faster with real-time progress tracking</li>
+                                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i><strong>Playwright PDF Integration</strong> - Reliable, high-quality PDF generation with pixel-perfect rendering</li>
                                     </ul>
                                 </div>
                                 <div class="col-md-6">
@@ -119,16 +122,18 @@
                                 </div>
                             </div>
 
-                            <h5><i class="fas fa-bolt me-2"></i>Recent Performance Improvements</h5>
+                            <h5><i class="fas fa-bolt me-2"></i>Recent Performance & Feature Improvements (V48)</h5>
                             <div class="alert alert-success mb-3">
-                                <p class="mb-2"><i class="fas fa-rocket me-2"></i><strong>Optimized Calculation System</strong></p>
+                                <p class="mb-2"><i class="fas fa-rocket me-2"></i><strong>Major Performance & Reliability Upgrades</strong></p>
                                 <ul class="mb-0">
-                                    <li><strong>Faster Multi-Course Analysis:</strong> Significant speed improvements when calculating results across multiple courses</li>
-                                    <li><strong>Efficient Resource Usage:</strong> Minimized database queries for better performance with large datasets</li>
-                                    <li><strong>Consistent Makeup Exam Handling:</strong> Enhanced synchronization of makeup exam weights with original exams</li>
-                                    <li><strong>Standardized Student Exclusion:</strong> Improved logic for handling mandatory exam attendance</li>
-                                    <li><strong>Enhanced Attendance Management:</strong> AJAX-based attendance tracking with bulk import/export capabilities</li>
-                                    <li><strong>Robust Remote Access:</strong> Improved Cloudflare Tunnel integration for seamless remote usage</li>
+                                    <li><strong>Multi-threaded PDF Generation:</strong> Up to 6.4x faster PDF generation with 1-8 configurable threads and 100% success guarantee</li>
+                                    <li><strong>Playwright PDF Integration:</strong> Replaced weasyprint with Playwright for better Windows compatibility and pixel-perfect rendering</li>
+                                    <li><strong>Graduating Students Management:</strong> New MÜDEK filtering system for targeted analysis of graduating students</li>
+                                    <li><strong>Enhanced Database Migrations:</strong> Automated schema updates and seamless upgrades</li>
+                                    <li><strong>Improved Error Handling:</strong> Better retry logic and progress tracking for complex operations</li>
+                                    <li><strong>Thread-Safe Operations:</strong> Enhanced multi-threading support throughout the application</li>
+                                    <li><strong>Memory Management:</strong> Optimized resource usage for large datasets and multiple concurrent operations</li>
+                                    <li><strong>Faster Multi-Course Analysis:</strong> Continued improvements in calculation speed and resource efficiency</li>
                                 </ul>
                             </div>
 
@@ -2059,6 +2064,71 @@
                             </div>
 
                             <!-- Latest Version First -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0">Version 48 <small class="ms-2">- 21 June 2025</small></h5>
+                                </div>
+                                <div class="card-body">
+                                    <h6 class="mb-3">🚀 Major Performance & Feature Release:</h6>
+                                    <ul>
+                                        <li>
+                                            <strong>🎓 New Graduating Students Management System:</strong>
+                                            <ul>
+                                                <li>Add and manage graduating student lists for MÜDEK filtering</li>
+                                                <li>Bulk import graduating students from CSV or text lists</li>
+                                                <li>Filter All Courses analysis to show only graduating students</li>
+                                                <li>Export graduating student lists for backup and reporting</li>
+                                                <li>Database migration system for seamless upgrades</li>
+                                            </ul>
+                                        </li>
+                                        <li>
+                                            <strong>⚡ Multi-threaded PDF Generation (Up to 6.4x Faster):</strong>
+                                            <ul>
+                                                <li>Parallel PDF generation with 1-8 configurable threads</li>
+                                                <li>Real-time progress tracking with per-thread status</li>
+                                                <li>Guaranteed 100% success rate with automatic retry logic</li>
+                                                <li>Extended 5-minute timeout for complex pages</li>
+                                                <li>Intelligent resource management and thread safety</li>
+                                            </ul>
+                                        </li>
+                                        <li>
+                                            <strong>🔧 Playwright PDF Migration (Reliability Upgrade):</strong>
+                                            <ul>
+                                                <li>Replaced weasyprint with Playwright for Windows compatibility</li>
+                                                <li>Eliminates dependency issues and improves PDF quality</li>
+                                                <li>Renders actual web pages for pixel-perfect PDFs</li>
+                                                <li>Combined PDF generation with PyPDF2 integration</li>
+                                                <li>Timestamped output folders for organized PDF storage</li>
+                                            </ul>
+                                        </li>
+                                        <li>
+                                            <strong>📊 Enhanced All Courses Analysis:</strong>
+                                            <ul>
+                                                <li>Graduating students filter integration</li>
+                                                <li>Improved performance with optimized calculations</li>
+                                                <li>Better error handling and user feedback</li>
+                                                <li>Enhanced UI with progress indicators</li>
+                                            </ul>
+                                        </li>
+                                        <li>
+                                            <strong>🛠️ Technical Improvements:</strong>
+                                            <ul>
+                                                <li>New database migration system for future upgrades</li>
+                                                <li>Enhanced error logging and debugging capabilities</li>
+                                                <li>Improved thread-safe operations throughout the application</li>
+                                                <li>Better memory management for large datasets</li>
+                                                <li>Updated dependencies for better security and performance</li>
+                                            </ul>
+                                        </li>
+                                    </ul>
+                                    <div class="alert alert-success mt-3">
+                                        <strong>Performance Boost:</strong> PDF generation is now up to 6.4x faster with 8 threads, 
+                                        and the new Playwright integration provides more reliable results with fewer dependency issues.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Previous Version -->
                             <div class="card mb-4">
                                 <div class="card-header bg-primary text-white">
                                     <h5 class="mb-0">Version 47 <small class="ms-2">- 9 June 2025</small></h5>

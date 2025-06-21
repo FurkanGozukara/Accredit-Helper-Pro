@@ -5663,7 +5663,7 @@ def clear_pdf_progress():
     import tempfile
     import glob
     
-    print("DEBUG: Clear progress endpoint called")
+    #print("DEBUG: Clear progress endpoint called")
     
     # Clear session
     if 'pdf_progress_file' in session:
@@ -5743,11 +5743,11 @@ def get_pdf_progress():
     import glob
     from datetime import datetime, timedelta
     
-    print("DEBUG: Progress endpoint called")  # Debug logging
+    #print("DEBUG: Progress endpoint called")  
     
     # IGNORE SESSION COMPLETELY - always find the most actively updated file
     # This fixes concurrency issues where session isn't properly shared
-    print("DEBUG: Ignoring session, finding most active progress file")
+    #print("DEBUG: Ignoring session, finding most active progress file")
     
     # Search for recent progress files in temp directory
     temp_dir = tempfile.gettempdir()
@@ -5833,7 +5833,7 @@ def get_pdf_progress():
             session['pdf_progress_file'] = progress_file
             session.modified = True
         else:
-            print("DEBUG: No recent progress files found")
+            #print("DEBUG: No recent progress files found")
             return jsonify({
                 'status': 'not_started',
                 'current': 0,
@@ -5842,7 +5842,7 @@ def get_pdf_progress():
                 'completed': False
             })
     else:
-        print("DEBUG: No progress files found")
+        #print("DEBUG: No progress files found")
         return jsonify({
             'status': 'not_started',
             'current': 0,
