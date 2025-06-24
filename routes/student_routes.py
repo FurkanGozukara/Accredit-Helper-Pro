@@ -1325,7 +1325,7 @@ def import_scores(exam_id):
                 # Calculate score for the first N-1 questions
                 if num_questions > 1:
                     # Calculate base score per question with high precision first
-                    base_score_per_question = (total_score_value / Decimal(num_questions))
+                    base_score_per_question = (target_total / Decimal(num_questions))
                     
                     for k in range(num_questions - 1):
                         question = sorted_questions[k]

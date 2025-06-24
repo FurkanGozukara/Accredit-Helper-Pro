@@ -2066,6 +2066,33 @@
                             <!-- Latest Version First -->
                             <div class="card mb-4">
                                 <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0">Version 49 <small class="ms-2">- 22 June 2025</small></h5>
+                                </div>
+                                <div class="card-body">
+                                    <h6 class="mb-3">🐛 Bug Fix Release:</h6>
+                                    <ul>
+                                        <li>
+                                            <strong>🔧 Fixed Total Score Distribution Bug:</strong>
+                                            <ul>
+                                                <li>Fixed critical bug in "Total Score Only" import format where scores were not distributed equally</li>
+                                                <li>Resolved error: "Calculated score exceeds max to match total" when importing total scores</li>
+                                                <li>The issue was caused by using original total score instead of target total for distribution calculation</li>
+                                                <li>Now ensures consistent score distribution across all questions in an exam</li>
+                                                <li>Improved reliability of score import functionality</li>
+                                            </ul>
+                                        </li>
+                                    </ul>
+                                    <div class="alert alert-info mt-3">
+                                        <strong>What was fixed:</strong> When importing scores using the "Total Score Only" format 
+                                        (e.g., student_id<delimiter>total_score), the system now correctly distributes the total 
+                                        score equally among all questions without exceeding individual question maximum scores.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Previous Version -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-primary text-white">
                                     <h5 class="mb-0">Version 48 <small class="ms-2">- 21 June 2025</small></h5>
                                 </div>
                                 <div class="card-body">
