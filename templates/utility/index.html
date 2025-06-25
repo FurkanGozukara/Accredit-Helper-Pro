@@ -57,6 +57,21 @@
             </div>
         </div>
 
+        <!-- Fix Invalid Scores -->
+        <div class="col">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-tools text-warning"></i> Fix Invalid Scores</h5>
+                    <p class="card-text">Automatically fix exam scores that exceed question maximum values using proportional distribution.</p>
+                </div>
+                <div class="card-footer bg-transparent border-top-0">
+                    <a href="{{ url_for('score_fixer.fix_invalid_scores') }}" class="btn btn-warning">
+                        <i class="fas fa-tools"></i> Fix Scores
+                    </a>
+                </div>
+            </div>
+        </div>
+
         <!-- Merge Courses -->
         <div class="col">
             <div class="card h-100">

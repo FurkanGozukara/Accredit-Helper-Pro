@@ -87,6 +87,7 @@ def create_app():
     from routes.utility_routes import utility_bp
     from routes.question_routes import question_bp
     from routes.api_routes import api_bp
+    from routes.score_fixer import score_fixer_bp
     
     app.register_blueprint(course_bp)
     app.register_blueprint(exam_bp)
@@ -96,6 +97,7 @@ def create_app():
     app.register_blueprint(utility_bp)
     app.register_blueprint(question_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(score_fixer_bp)
     
     # Create tables if they don't exist - moved after imports
     with app.app_context():
