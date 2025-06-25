@@ -1317,48 +1317,52 @@ def import_scores(exam_id):
                 target_total = min(total_score_value, max_possible_total)
                 target_total = target_total.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
                 
-                # Distribute score
+                # Distribute score proportionally based on each question's max score
                 distributed_sum_so_far = Decimal('0')
                 final_scores_per_question = {} # Store final score for each question_id
                 sorted_questions = sorted(questions.values(), key=lambda q: q.number) # Ensure consistent order
 
-                # Calculate score for the first N-1 questions
-                if num_questions > 1:
-                    # Calculate base score per question with high precision first
-                    base_score_per_question = (target_total / Decimal(num_questions))
+                # Calculate proportional score for each question based on its max_score
+                # Distribute scores for all questions proportionally, except the last one
+                for k in range(num_questions - 1):
+                    question = sorted_questions[k]
                     
-                    for k in range(num_questions - 1):
-                        question = sorted_questions[k]
-                        # Round to 2 decimals for this question
-                        q_score = base_score_per_question.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-                        
-                        # Validate/Cap the score for this question
-                        original_q_score = q_score # Keep for potential warning/error message
-                        if not allow_exceed_max and q_score > question.max_score:
-                            if not continue_on_errors:
-                                errors.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Distributed score {original_q_score} exceeds max {question.max_score}. Cannot adjust last question accurately.")
-                                final_scores_per_question = {} # Clear scores for this student
-                                break # Stop processing questions for this student
-                            else:
-                                warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Distributed score {original_q_score} capped at max {question.max_score}")
-                                q_score = question.max_score
-                        elif allow_exceed_max and q_score > question.max_score:
-                            # If allow_exceed_max is True, we don't cap.
-                            pass # Score is allowed to exceed max_score
-                        elif q_score > question.max_score: # This case implies allow_exceed_max is False
+                    # Calculate proportional score: (question_max / total_max) * target_total
+                    if max_possible_total > 0:
+                        proportional_score = (question.max_score / max_possible_total) * target_total
+                    else:
+                        proportional_score = Decimal('0')
+                    
+                    # Round to 2 decimals for this question
+                    q_score = proportional_score.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    
+                    # Validate/Cap the score for this question
+                    original_q_score = q_score # Keep for potential warning/error message
+                    if not allow_exceed_max and q_score > question.max_score:
+                        if not continue_on_errors:
+                            errors.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Distributed score {original_q_score} exceeds max {question.max_score}. Cannot adjust last question accurately.")
+                            final_scores_per_question = {} # Clear scores for this student
+                            break # Stop processing questions for this student
+                        else:
                             warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Distributed score {original_q_score} capped at max {question.max_score}")
                             q_score = question.max_score
-                        
-                        if q_score < 0: q_score = Decimal('0')
-                        
-                        final_scores_per_question[question.id] = q_score
-                        distributed_sum_so_far += q_score
+                    elif allow_exceed_max and q_score > question.max_score:
+                        # If allow_exceed_max is True, we don't cap.
+                        pass # Score is allowed to exceed max_score
+                    elif q_score > question.max_score: # This case implies allow_exceed_max is False
+                        warnings.append(f"Line {i}, Student {student_id_ext}, Q{question.number}: Distributed score {original_q_score} capped at max {question.max_score}")
+                        q_score = question.max_score
                     
-                    # If errors occurred and we're stopping, break out of the student loop
-                    if not final_scores_per_question and not continue_on_errors and any(f"Line {i}, Student {student_id_ext}" in e for e in errors):
-                        continue # Skip to next line/student
+                    if q_score < 0: q_score = Decimal('0')
+                    
+                    final_scores_per_question[question.id] = q_score
+                    distributed_sum_so_far += q_score
+                
+                # If errors occurred and we're stopping, break out of the student loop
+                if not final_scores_per_question and not continue_on_errors and any(f"Line {i}, Student {student_id_ext}" in e for e in errors):
+                    continue # Skip to next line/student
 
-                # Calculate the score for the last question
+                # Calculate the score for the last question (or only question if num_questions == 1)
                 last_question = sorted_questions[-1]
                 last_q_score = target_total - distributed_sum_so_far
                 

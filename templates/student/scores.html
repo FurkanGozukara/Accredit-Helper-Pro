@@ -220,7 +220,7 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="radio" name="import_format" id="formatTotal" value="total_only">
                                 <label class="form-check-label" for="formatTotal">
-                                    Total Score Only (e.g., <code>student_no&lt;delimiter&gt;total_score</code>) - Score will be distributed equally.
+                                    Total Score Only (e.g., <code>student_no&lt;delimiter&gt;total_score</code>) - Score will be distributed proportionally based on each question's max score.
                                 </label>
                                 <div class="form-text">Use tab, semicolon, or comma as the delimiter between student number and score.</div>
                             </div>
@@ -446,7 +446,7 @@
                     break;
                 case 'total_only':
                     scoresDataTextarea.placeholder = 'Example:\n213435423;85.5\n213435424;92.0\n213435425;78.3';
-                    fileFormatHelpText.textContent = 'File should contain: student_no;total_score (one student per line). Score will be distributed equally among questions.';
+                    fileFormatHelpText.textContent = 'File should contain: student_no;total_score (one student per line). Score will be distributed proportionally based on each question\'s max score.';
                     break;
             }
         }
