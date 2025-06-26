@@ -27,7 +27,7 @@
                 <button type="button" class="btn btn-danger" id="markEmptyNotAttendedButton">
                     <i class="fas fa-user-times"></i> Mark No-Score Students Not Joined
                 </button>
-                <button type="button" class="btn btn-outline-success" id="saveAllButton">
+                <button type="button" class="btn btn-outline-success d-none" id="saveAllButton">
                     <i class="fas fa-save"></i> Save All Changes
                 </button>
                 <a href="{{ url_for('exam.export_exam_scores', exam_id=exam.id) }}" class="btn btn-outline-primary ms-2">
@@ -189,6 +189,78 @@
                     
                     <button type="submit" class="btn btn-primary d-none">Save All Scores</button>
                 </form>
+                
+                <!-- Question Averages Table -->
+                <div class="card mt-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-bar"></i> Question and Total Score Averages
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            {% set questions_sorted = questions|sort(attribute='number') %}
+                            {% set questions_per_row = 10 %}
+                            {% set total_questions = questions_sorted|length %}
+                            {% set num_rows = ((total_questions + questions_per_row - 1) // questions_per_row) %}
+                            
+                            <table class="table table-bordered averages-table">
+                                <tbody>
+                                    {% for row_index in range(num_rows) %}
+                                        <tr>
+                                            {% if row_index == 0 %}
+                                                <td class="student-cell fw-bold" rowspan="{{ num_rows }}">
+                                                    <div class="text-center">
+                                                        <i class="fas fa-calculator"></i><br>
+                                                        <span>Averages</span>
+                                                    </div>
+                                                </td>
+                                            {% endif %}
+                                            
+                                            {% set start_idx = row_index * questions_per_row %}
+                                            {% set end_idx = start_idx + questions_per_row %}
+                                            
+                                            {% for question in questions_sorted[start_idx:end_idx] %}
+                                                <td class="question-cell">
+                                                    <div class="question-title">
+                                                        Q{{ question.number }}<br>
+                                                        <small>({{ question.max_score|float|round(1) }})</small>
+                                                    </div>
+                                                    <div class="score-input-container">
+                                                        <div class="avg-score fw-bold text-primary" id="avg_q{{ question.id }}">
+                                                            0.00
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            {% endfor %}
+                                            
+                                            {% if row_index == 0 %}
+                                                <td class="summary-cell fw-bold" rowspan="{{ num_rows }}">
+                                                    <div class="summary-label">Average Total</div>
+                                                    <div class="summary-value text-primary" id="avg_total">
+                                                        0.00
+                                                    </div>
+                                                </td>
+                                                <td class="summary-cell fw-bold" rowspan="{{ num_rows }}">
+                                                    <div class="summary-label">Average %</div>
+                                                    <div class="summary-value text-primary" id="avg_percentage">
+                                                        0.00%
+                                                    </div>
+                                                </td>
+                                                <td class="summary-cell" rowspan="{{ num_rows }}">
+                                                    <div class="summary-label">Class Performance</div>
+                                                    <div class="summary-value">
+                                                        <span id="performance_indicator" class="badge">N/A</span>
+                                                    </div>
+                                                </td>
+                                            {% endif %}
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <!-- Import Scores Section -->
@@ -720,6 +792,8 @@
                         showSaveStatus('Attendance updated', 'success');
                         // Apply filters to update the view
                         applyFilters();
+                        // Update averages when attendance changes
+                        updateAverages();
                     } else {
                         showSaveStatus('Error: ' + data.error, 'error');
                     }
@@ -830,6 +904,108 @@
             studentIds.forEach(id => {
                 updateStudentTotal(id);
             });
+            
+            // Update averages after updating all student totals
+            updateAverages();
+        }
+        
+        function updateAverages() {
+            // Get all attended students
+            const attendedStudents = Array.from(document.querySelectorAll('.scores-table')).filter(table => {
+                return table.dataset.attended === 'true';
+            });
+            
+            if (attendedStudents.length === 0) {
+                return; // No attended students to calculate averages for
+            }
+            
+            // Calculate question averages
+            const questionAverages = {};
+            let totalSum = 0;
+            let maxTotalSum = 0;
+            
+            attendedStudents.forEach(studentTable => {
+                const studentId = studentTable.dataset.studentId;
+                const inputs = studentTable.querySelectorAll('.score-input');
+                let studentTotal = 0;
+                let studentMaxTotal = 0;
+                
+                inputs.forEach(input => {
+                    const questionId = input.dataset.questionId;
+                    const scoreValue = parseFloat(input.value.replace(/,/g, '.')) || 0;
+                    const maxScore = parseFloat(input.dataset.maxScore) || 0;
+                    
+                    // Initialize question average if not exists
+                    if (!questionAverages[questionId]) {
+                        questionAverages[questionId] = {
+                            sum: 0,
+                            count: 0,
+                            maxScore: maxScore
+                        };
+                    }
+                    
+                    questionAverages[questionId].sum += scoreValue;
+                    questionAverages[questionId].count++;
+                    
+                    studentTotal += scoreValue;
+                    studentMaxTotal += maxScore;
+                });
+                
+                totalSum += studentTotal;
+                maxTotalSum += studentMaxTotal;
+            });
+            
+            // Update question averages in the UI
+            Object.keys(questionAverages).forEach(questionId => {
+                const avg = questionAverages[questionId].sum / questionAverages[questionId].count;
+                const avgElement = document.getElementById(`avg_q${questionId}`);
+                if (avgElement) {
+                    avgElement.textContent = avg.toFixed(2);
+                }
+            });
+            
+            // Update total averages
+            const totalAvg = totalSum / attendedStudents.length;
+            const maxAvg = maxTotalSum / attendedStudents.length;
+            const percentageAvg = maxAvg > 0 ? (totalAvg / maxAvg) * 100 : 0;
+            
+            const avgTotalElement = document.getElementById('avg_total');
+            const avgPercentageElement = document.getElementById('avg_percentage');
+            const performanceElement = document.getElementById('performance_indicator');
+            
+            if (avgTotalElement) {
+                avgTotalElement.textContent = totalAvg.toFixed(2);
+            }
+            
+            if (avgPercentageElement) {
+                avgPercentageElement.textContent = percentageAvg.toFixed(2) + '%';
+            }
+            
+            // Update performance indicator
+            if (performanceElement) {
+                let badgeClass = 'bg-secondary';
+                let performanceText = 'Poor';
+                
+                if (percentageAvg >= 85) {
+                    badgeClass = 'bg-success';
+                    performanceText = 'Excellent';
+                } else if (percentageAvg >= 75) {
+                    badgeClass = 'bg-info';
+                    performanceText = 'Good';
+                } else if (percentageAvg >= 60) {
+                    badgeClass = 'bg-warning';
+                    performanceText = 'Fair';
+                } else if (percentageAvg >= 40) {
+                    badgeClass = 'bg-orange';
+                    performanceText = 'Below Average';
+                } else {
+                    badgeClass = 'bg-danger';
+                    performanceText = 'Poor';
+                }
+                
+                performanceElement.className = `badge ${badgeClass}`;
+                performanceElement.textContent = performanceText;
+            }
         }
         
         function autoSaveScore(input) {
@@ -873,6 +1049,9 @@
                     
                     // Re-apply filters in case "Show Missing Scores" is active
                     applyFilters();
+                    
+                    // Update averages when score is saved
+                    updateAverages();
                     
                     setTimeout(() => {
                         saveStatus.textContent = '';
