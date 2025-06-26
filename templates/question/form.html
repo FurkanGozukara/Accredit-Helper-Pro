@@ -118,6 +118,14 @@
                                     <div class="alert alert-info">
                                         <i class="fas fa-info-circle"></i> Select outcomes that this question helps assess. For each selected outcome, specify a weight to indicate the relative importance of this question in assessing that outcome.
                                     </div>
+                                    
+                                    <!-- Check All / Uncheck All Button -->
+                                    <div class="mb-3 text-center">
+                                        <button type="button" id="toggleAllOutcomes" class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-check-square"></i> Check All
+                                        </button>
+                                    </div>
+                                    
                                     <div class="outcome-list">
                                         {% for outcome in course_outcomes %}
                                             <div class="outcome-item mb-3 pb-2 border-bottom">
@@ -201,6 +209,50 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize form elements
         const form = document.getElementById('questionForm');
+        
+        // Check All / Uncheck All functionality
+        const toggleAllButton = document.getElementById('toggleAllOutcomes');
+        let allChecked = false;
+        
+        // Update button state based on current checkbox states
+        function updateToggleButton() {
+            const checkboxes = document.querySelectorAll('.outcome-checkbox');
+            const checkedCount = document.querySelectorAll('.outcome-checkbox:checked').length;
+            
+            if (checkedCount === 0) {
+                toggleAllButton.innerHTML = '<i class="fas fa-check-square"></i> Check All';
+                toggleAllButton.className = 'btn btn-outline-primary btn-sm';
+                allChecked = false;
+            } else if (checkedCount === checkboxes.length) {
+                toggleAllButton.innerHTML = '<i class="fas fa-square"></i> Uncheck All';
+                toggleAllButton.className = 'btn btn-outline-danger btn-sm';
+                allChecked = true;
+            } else {
+                toggleAllButton.innerHTML = '<i class="fas fa-check-square"></i> Check All';
+                toggleAllButton.className = 'btn btn-outline-primary btn-sm';
+                allChecked = false;
+            }
+        }
+        
+        // Toggle all checkboxes
+        toggleAllButton.addEventListener('click', function() {
+            const checkboxes = document.querySelectorAll('.outcome-checkbox');
+            
+            checkboxes.forEach(function(checkbox) {
+                checkbox.checked = !allChecked;
+                toggleWeightInput(checkbox);
+            });
+            
+            updateToggleButton();
+        });
+        
+        // Add change listeners to all checkboxes to update the toggle button
+        document.querySelectorAll('.outcome-checkbox').forEach(function(checkbox) {
+            checkbox.addEventListener('change', updateToggleButton);
+        });
+        
+        // Initialize button state
+        updateToggleButton();
         
         // Add validation before form submission
         form.addEventListener('submit', function(event) {
