@@ -28,23 +28,23 @@
                 </div>
                 <div class="card-body">
                     <p class="card-text">
-                        This utility will scan all exams in the database and identify students who have 
-                        question scores that exceed the maximum possible score for those questions.
+                        This utility will scan all exams in the database and fix multiple types of scoring issues:
+                        question scores exceeding maximums and question totals exceeding exam maximums.
                     </p>
                     
                     <h6>What this tool does:</h6>
                     <ul>
-                        <li>Scans all exams for students with invalid scores (scores > question max_score)</li>
-                        <li>Calculates the student's current total score for each affected exam</li>
-                        <li>Redistributes the total score proportionally across all questions based on each question's maximum score</li>
-                        <li>Ensures no individual question score exceeds its maximum value</li>
+                        <li><strong>Step 1:</strong> Fixes exam structure - if question max scores sum exceeds exam max score, proportionally reduces question max scores</li>
+                        <li><strong>Step 2:</strong> Scans all exams for students with invalid question scores (scores > question max_score)</li>
+                        <li><strong>Step 3:</strong> Redistributes student scores proportionally across all questions based on each question's maximum score</li>
+                        <li><strong>Step 4:</strong> Caps student total scores that exceed exam maximum after all fixes</li>
                         <li>Creates a detailed log file showing all changes made</li>
                     </ul>
 
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle"></i>
-                        <strong>Note:</strong> This operation will only affect students who currently have 
-                        scores exceeding question maximums. All other scores will remain unchanged.
+                        <strong>Note:</strong> This operation fixes both structural issues (question score configuration) 
+                        and student score issues. The process ensures exam integrity while preserving score proportions.
                     </div>
                 </div>
             </div>
@@ -67,21 +67,23 @@
                             </div>
                         </div>
                         <div class="col-6">
-                            <h4 class="text-warning">{{ stats.exams_with_invalid_scores }}</h4>
+                            <h4 class="text-warning">{{ stats.exams_with_invalid_scores + stats.exams_with_question_score_issues }}</h4>
                             <small class="text-muted">Exams with Issues</small>
                         </div>
                     </div>
                     <hr>
                     <div class="row text-center">
-                        <div class="col-6">
-                            <div class="border-end">
-                                <h4 class="text-danger">{{ stats.total_students_affected }}</h4>
-                                <small class="text-muted">Students Affected</small>
-                            </div>
+                        <div class="col-4">
+                            <h4 class="text-danger">{{ stats.total_students_affected }}</h4>
+                            <small class="text-muted">Students Affected</small>
                         </div>
-                        <div class="col-6">
+                        <div class="col-4">
                             <h4 class="text-danger">{{ stats.total_invalid_scores }}</h4>
                             <small class="text-muted">Invalid Scores</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-warning">{{ stats.exams_with_question_score_issues }}</h4>
+                            <small class="text-muted">Question Sum Issues</small>
                         </div>
                     </div>
                 </div>
@@ -106,6 +108,7 @@
                             <th>Exam</th>
                             <th>Students Affected</th>
                             <th>Invalid Scores</th>
+                            <th>Question Sum Issue</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -115,12 +118,33 @@
                                 <strong>{{ exam.course_code }}</strong><br>
                                 <small class="text-muted">{{ exam.course_name }}</small>
                             </td>
-                            <td>{{ exam.exam_name }}</td>
                             <td>
-                                <span class="badge bg-warning">{{ exam.students_affected }}</span>
+                                {{ exam.exam_name }}<br>
+                                <small class="text-muted">Max: {{ exam.exam_max_score }}</small>
                             </td>
                             <td>
-                                <span class="badge bg-danger">{{ exam.invalid_scores_count }}</span>
+                                {% if exam.students_affected > 0 %}
+                                    <span class="badge bg-warning">{{ exam.students_affected }}</span>
+                                {% else %}
+                                    <span class="text-muted">0</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if exam.invalid_scores_count > 0 %}
+                                    <span class="badge bg-danger">{{ exam.invalid_scores_count }}</span>
+                                {% else %}
+                                    <span class="text-muted">0</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if exam.question_scores_sum_issue %}
+                                    <span class="badge bg-warning">{{ exam.question_scores_sum }}</span>
+                                    <small class="text-muted d-block">Sum > {{ exam.exam_max_score }}</small>
+                                {% else %}
+                                    <span class="text-success">
+                                        <i class="fas fa-check"></i> OK
+                                    </span>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
@@ -131,7 +155,7 @@
     </div>
     {% endif %}
 
-    {% if stats.total_students_affected > 0 %}
+    {% if stats.total_students_affected > 0 or stats.exams_with_question_score_issues > 0 %}
     <div class="card mt-4 border-warning">
         <div class="card-header bg-warning text-dark">
             <h5 class="card-title mb-0">
@@ -142,20 +166,25 @@
         <div class="card-body">
             <div class="alert alert-warning">
                 <i class="fas fa-exclamation-triangle"></i>
-                <strong>Warning:</strong> This operation will modify existing score data. 
+                <strong>Warning:</strong> This operation will modify existing score data and exam structure. 
                 A detailed log will be created to track all changes, but please ensure 
                 you have a recent database backup before proceeding.
             </div>
             
             <p>
-                <strong>{{ stats.total_students_affected }}</strong> students across 
-                <strong>{{ stats.exams_with_invalid_scores }}</strong> exams will be affected.
+                {% if stats.total_students_affected > 0 %}
+                    <strong>{{ stats.total_students_affected }}</strong> students across 
+                    <strong>{{ stats.exams_with_invalid_scores }}</strong> exams will have their scores fixed.
+                {% endif %}
+                {% if stats.exams_with_question_score_issues > 0 %}
+                    <br><strong>{{ stats.exams_with_question_score_issues }}</strong> exams have question score sum issues that will be corrected.
+                {% endif %}
             </p>
             
-            <form method="POST" onsubmit="return confirm('Are you sure you want to fix all invalid scores? This operation cannot be undone.');">
+            <form method="POST" onsubmit="return confirm('Are you sure you want to fix all invalid scores and exam structure issues? This operation cannot be undone.');">
                 <button type="submit" class="btn btn-warning btn-lg">
                     <i class="fas fa-tools"></i>
-                    Fix All Invalid Scores
+                    Fix All Score Issues
                 </button>
             </form>
         </div>
@@ -171,8 +200,9 @@
         <div class="card-body">
             <p class="text-success mb-0">
                 <i class="fas fa-thumbs-up"></i>
-                Great! No invalid scores were found in your database. 
-                All student scores are within their respective question maximum limits.
+                Great! No score issues were found in your database. 
+                All student scores are within their respective question maximum limits,
+                and all exam question score sums are within exam maximum limits.
             </p>
         </div>
     </div>
