@@ -874,7 +874,7 @@ def export_course_outcomes_achievement(course_id):
     # Convert data to CSV
     return export_to_excel_csv(csv_data, f"course_outcomes_achievement_{course.code}", headers)
 
-def bulk_load_course_data(course_ids, display_method='absolute'):
+def bulk_load_course_data(course_ids, display_method='absolute', include_graduating_only=False):
     """
     Bulk load all data needed for multiple course calculations in a single set of queries.
     This eliminates the N+1 query problem by loading everything upfront.
@@ -882,6 +882,7 @@ def bulk_load_course_data(course_ids, display_method='absolute'):
     Args:
         course_ids: List of course IDs to load data for
         display_method: Calculation method ('absolute' or 'relative')
+        include_graduating_only: If True, only load graduating students (default: False for backward compatibility)
     
     Returns:
         Dictionary containing all bulk-loaded data organized by course_id
@@ -925,8 +926,23 @@ def bulk_load_course_data(course_ids, display_method='absolute'):
         outcomes_by_course[outcome.course_id].append(outcome)
         outcome_ids.append(outcome.id)
     
-    # 5. Load all students for these courses
-    students_query = Student.query.filter(Student.course_id.in_(course_ids))
+    # 5. Load students for these courses (with optional graduating students filter)
+    if include_graduating_only:
+        # Get graduating student IDs first
+        graduating_student_ids = get_graduating_student_ids()
+        if graduating_student_ids:
+            # Filter to only graduating students during the query for efficiency
+            students_query = Student.query.filter(
+                Student.course_id.in_(course_ids),
+                Student.student_id.in_(graduating_student_ids)
+            )
+        else:
+            # No graduating students defined, return empty query
+            students_query = Student.query.filter(Student.id == -1)  # Impossible condition = empty result
+    else:
+        # Load all students (original behavior)
+        students_query = Student.query.filter(Student.course_id.in_(course_ids))
+    
     all_students = students_query.all()
     students_by_course = {}
     student_ids = []
@@ -2274,7 +2290,7 @@ def all_courses_calculations():
     course_ids = [course.id for course in courses]
     
     # Load all necessary data at once
-    bulk_data = bulk_load_course_data(course_ids, display_method)
+    bulk_data = bulk_load_course_data(course_ids, display_method, include_graduating_only)
     
     # Calculate results for each course
     for course in courses:
@@ -2321,7 +2337,7 @@ def all_courses_calculations():
             student_in_course = Student.query.filter_by(student_id=filter_student_id, course_id=course.id).first()
             if student_in_course:
                 # Calculate individual student scores
-                individual_result = calculate_individual_student_results(student_in_course.id, course.id, bulk_data, display_method)
+                individual_result = calculate_individual_student_results(student_in_course.id, course.id, bulk_data, display_method, include_graduating_only)
                 for po in program_outcomes:
                     po_score = individual_result.get(po.id)
                     contributes = po.id in result['contributing_po_ids']
@@ -2643,6 +2659,12 @@ def export_all_courses():
     # Track excluded courses separately
     excluded_courses = []
     
+    # ==== BULK LOAD ALL DATA TO ELIMINATE N+1 QUERIES ====
+    course_ids = [course.id for course in courses]
+    
+    # Load all necessary data at once with graduating filter
+    bulk_data = bulk_load_course_data(course_ids, display_method, include_graduating_only)
+    
     # Calculate results for each course
     for course in courses:
         # Check if course is excluded
@@ -2666,8 +2688,13 @@ def export_all_courses():
         if not hasattr(course, 'exams') or not course.exams:
             continue
         
-        # Calculate course results
-        result = calculate_single_course_results(course.id, display_method)
+        # Calculate course results using bulk data with graduating filter
+        # FIXED: Use the same calculation logic as the web page
+        if include_graduating_only:
+            # When graduating students filter is active, use the graduating filter calculation
+            result = calculate_course_results_with_graduating_filter(course.id, bulk_data, display_method, include_graduating_only)
+        else:
+            result = calculate_course_results_from_bulk_data_v2_optimized(course.id, bulk_data, display_method)
         
         # Skip courses that don't have valid data for aggregation
         if not result['is_valid_for_aggregation']:
@@ -4784,11 +4811,29 @@ def get_student_score(course_id):
             'error': str(e)
         }), 500
 
-def calculate_individual_student_results(student_id, course_id, bulk_data, calculation_method='absolute'):
-    """Calculate program outcome scores for an individual student in a course"""
+def calculate_individual_student_results(student_id, course_id, bulk_data, calculation_method='absolute', include_graduating_only=False):
+    """
+    Calculate program outcome scores for an individual student in a course.
+    
+    Args:
+        student_id: Database ID of the student
+        course_id: Course ID
+        bulk_data: Pre-loaded bulk data from bulk_load_course_data()
+        calculation_method: 'absolute' or 'relative'
+        include_graduating_only: If True, return empty result if student is not graduating (default: False for backward compatibility)
+    
+    Returns:
+        Dictionary mapping program outcome IDs to scores, or empty dict if student should be excluded
+    """
     course_data = bulk_data.get(course_id)
     if not course_data:
         return {}
+    
+    # Check if student should be included when graduating filter is active
+    if include_graduating_only:
+        if not is_graduating_student_by_db_id(student_id):
+            # Student is not graduating, return empty result when filter is active
+            return {}
     
     # Get the necessary data
     program_outcomes = course_data['program_outcomes']
@@ -5705,6 +5750,20 @@ def is_graduating_student(student_id):
             return False
         
         return GraduatingStudent.query.filter_by(student_id=student_id).first() is not None
+    except Exception:
+        return False
+
+def is_graduating_student_by_db_id(student_db_id):
+    """
+    Check if a student (by database ID) is in the graduating students list.
+    This is a helper for calculate_individual_student_results which receives DB IDs.
+    Returns False if student not found, table doesn't exist, or on error.
+    """
+    try:
+        student = Student.query.get(student_db_id)
+        if student:
+            return is_graduating_student(student.student_id)
+        return False
     except Exception:
         return False
 
@@ -6737,8 +6796,8 @@ def generate_bulk_pdf_with_reportlab(courses, display_method='absolute', include
                     student_in_course = Student.query.filter_by(student_id=student_id, course_id=course.id).first()
                     if student_in_course:
                         # Get individual results
-                        bulk_data = bulk_load_course_data([course.id], display_method)
-                        individual_result = calculate_individual_student_results(student_in_course.id, course.id, bulk_data, display_method)
+                        bulk_data = bulk_load_course_data([course.id], display_method, include_graduating_only)
+                        individual_result = calculate_individual_student_results(student_in_course.id, course.id, bulk_data, display_method, include_graduating_only)
                         
                         # Build row data
                         row_data = [f"{course.code}\\n{course.semester}"]
