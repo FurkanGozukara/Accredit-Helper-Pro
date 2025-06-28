@@ -64,6 +64,7 @@ def get_invalid_scores_statistics():
         'total_students_affected': 0,
         'total_invalid_scores': 0,
         'exams_with_question_score_issues': 0,
+        'exams_with_underscored_question_sums': 0,
         'exams_details': []
     }
     
@@ -81,11 +82,12 @@ def get_invalid_scores_statistics():
                 'students_affected': 0,
                 'invalid_scores_count': 0,
                 'question_scores_sum_issue': False,
+                'question_scores_undersum_issue': False,
                 'question_scores_sum': 0,
                 'exam_max_score': exam.max_score
             }
             
-            # Check if question scores sum exceeds exam max score
+            # Check if question scores sum exceeds or is less than exam max score
             questions = Question.query.filter_by(exam_id=exam.id).all()
             if questions:
                 question_scores_sum = sum(q.max_score for q in questions)
@@ -93,6 +95,9 @@ def get_invalid_scores_statistics():
                 if question_scores_sum > exam.max_score:
                     exam_stats['question_scores_sum_issue'] = True
                     stats['exams_with_question_score_issues'] += 1
+                elif question_scores_sum < exam.max_score:
+                    exam_stats['question_scores_undersum_issue'] = True
+                    stats['exams_with_underscored_question_sums'] += 1
             
             # Find scores that exceed question max_score
             invalid_scores = db.session.query(Score, Question).join(
@@ -103,7 +108,7 @@ def get_invalid_scores_statistics():
             ).all()
             
             # If there are any issues (invalid scores or question sum issues), add to details
-            if invalid_scores or exam_stats['question_scores_sum_issue']:
+            if invalid_scores or exam_stats['question_scores_sum_issue'] or exam_stats['question_scores_undersum_issue']:
                 if invalid_scores:
                     exam_stats['invalid_scores_count'] = len(invalid_scores)
                     affected_students = set([score.student_id for score, question in invalid_scores])

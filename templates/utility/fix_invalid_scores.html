@@ -28,17 +28,19 @@
                 </div>
                 <div class="card-body">
                     <p class="card-text">
-                        This utility will scan all exams in the database and fix multiple types of scoring issues:
-                        question scores exceeding maximums and question totals exceeding exam maximums.
+                        This utility will scan all exams in the database and identify multiple types of scoring issues:
+                        question scores exceeding maximums, question totals exceeding exam maximums, and question totals less than exam maximums.
                     </p>
                     
-                    <h6>What this tool does:</h6>
+                    <h6>What this tool detects and fixes:</h6>
                     <ul>
-                        <li><strong>Step 1:</strong> Fixes exam structure - if question max scores sum exceeds exam max score, proportionally reduces question max scores</li>
-                        <li><strong>Step 2:</strong> Scans all exams for students with invalid question scores (scores > question max_score)</li>
-                        <li><strong>Step 3:</strong> Redistributes student scores proportionally across all questions based on each question's maximum score</li>
-                        <li><strong>Step 4:</strong> Caps student total scores that exceed exam maximum after all fixes</li>
-                        <li>Creates a detailed log file showing all changes made</li>
+                        <li><strong>Detection:</strong> Identifies exams where question score sum exceeds exam maximum (e.g., 4 questions × 25 pts = 100, but exam max = 80)</li>
+                        <li><strong>Detection:</strong> Identifies exams where question score sum is less than exam maximum (e.g., 4 questions × 20 pts = 80, but exam max = 100)</li>
+                        <li><strong>Fix Step 1:</strong> Fixes exam structure - if question max scores sum exceeds exam max score, proportionally reduces question max scores</li>
+                        <li><strong>Fix Step 2:</strong> Scans all exams for students with invalid question scores (scores > question max_score)</li>
+                        <li><strong>Fix Step 3:</strong> Redistributes student scores proportionally across all questions based on each question's maximum score</li>
+                        <li><strong>Fix Step 4:</strong> Caps student total scores that exceed exam maximum after all fixes</li>
+                        <li><strong>Logging:</strong> Creates a detailed log file showing all changes made</li>
                     </ul>
 
                     <div class="alert alert-info">
@@ -67,23 +69,27 @@
                             </div>
                         </div>
                         <div class="col-6">
-                            <h4 class="text-warning">{{ stats.exams_with_invalid_scores + stats.exams_with_question_score_issues }}</h4>
+                            <h4 class="text-warning">{{ stats.exams_with_invalid_scores + stats.exams_with_question_score_issues + stats.exams_with_underscored_question_sums }}</h4>
                             <small class="text-muted">Exams with Issues</small>
                         </div>
                     </div>
                     <hr>
                     <div class="row text-center">
-                        <div class="col-4">
+                        <div class="col-3">
                             <h4 class="text-danger">{{ stats.total_students_affected }}</h4>
                             <small class="text-muted">Students Affected</small>
                         </div>
-                        <div class="col-4">
+                        <div class="col-3">
                             <h4 class="text-danger">{{ stats.total_invalid_scores }}</h4>
                             <small class="text-muted">Invalid Scores</small>
                         </div>
-                        <div class="col-4">
+                        <div class="col-3">
                             <h4 class="text-warning">{{ stats.exams_with_question_score_issues }}</h4>
-                            <small class="text-muted">Question Sum Issues</small>
+                            <small class="text-muted">Sum > Exam Max</small>
+                        </div>
+                        <div class="col-3">
+                            <h4 class="text-info">{{ stats.exams_with_underscored_question_sums }}</h4>
+                            <small class="text-muted">Sum < Exam Max</small>
                         </div>
                     </div>
                 </div>
@@ -108,7 +114,8 @@
                             <th>Exam</th>
                             <th>Students Affected</th>
                             <th>Invalid Scores</th>
-                            <th>Question Sum Issue</th>
+                            <th>Sum > Exam Max</th>
+                            <th>Sum < Exam Max</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -146,6 +153,16 @@
                                     </span>
                                 {% endif %}
                             </td>
+                            <td>
+                                {% if exam.question_scores_undersum_issue %}
+                                    <span class="badge bg-info">{{ exam.question_scores_sum }}</span>
+                                    <small class="text-muted d-block">Sum < {{ exam.exam_max_score }}</small>
+                                {% else %}
+                                    <span class="text-success">
+                                        <i class="fas fa-check"></i> OK
+                                    </span>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -155,7 +172,7 @@
     </div>
     {% endif %}
 
-    {% if stats.total_students_affected > 0 or stats.exams_with_question_score_issues > 0 %}
+    {% if stats.total_students_affected > 0 or stats.exams_with_question_score_issues > 0 or stats.exams_with_underscored_question_sums > 0 %}
     <div class="card mt-4 border-warning">
         <div class="card-header bg-warning text-dark">
             <h5 class="card-title mb-0">
@@ -177,7 +194,10 @@
                     <strong>{{ stats.exams_with_invalid_scores }}</strong> exams will have their scores fixed.
                 {% endif %}
                 {% if stats.exams_with_question_score_issues > 0 %}
-                    <br><strong>{{ stats.exams_with_question_score_issues }}</strong> exams have question score sum issues that will be corrected.
+                    <br><strong>{{ stats.exams_with_question_score_issues }}</strong> exams have question score sum exceeding exam maximum.
+                {% endif %}
+                {% if stats.exams_with_underscored_question_sums > 0 %}
+                    <br><strong>{{ stats.exams_with_underscored_question_sums }}</strong> exams have question score sum less than exam maximum.
                 {% endif %}
             </p>
             
