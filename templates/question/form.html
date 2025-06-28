@@ -17,11 +17,16 @@
 
 .weight-input-group {
     transition: all 0.3s ease;
+    margin-top: 8px;
 }
 
 .outcome-checkbox:checked + .form-check-label {
     font-weight: 500;
     color: #0d6efd;
+}
+
+.outcome-item .form-check {
+    padding-left: 0 !important;
 }
 
 /* Enhanced checkbox styling */
@@ -130,22 +135,26 @@
                                         {% for outcome in course_outcomes %}
                                             <div class="outcome-item mb-3 pb-2 border-bottom">
                                                 <div class="form-check">
-                                                    <div class="d-flex w-100 align-items-center">
-                                                        <div class="me-3">
+                                                    <!-- Checkbox and Label Row -->
+                                                    <div class="d-flex align-items-start mb-2">
+                                                        <div class="me-3 mt-1">
                                                             <input class="form-check-input outcome-checkbox" type="checkbox" 
                                                                    name="course_outcomes" value="{{ outcome.id }}" 
                                                                    id="outcome_{{ outcome.id }}"
                                                                    {% if question and outcome in question.course_outcomes %}checked{% elif form_data and form_data.selected_outcomes and outcome.id|string in form_data.selected_outcomes %}checked{% endif %}
                                                                    onchange="toggleWeightInput(this)">
                                                         </div>
-                                                        <label class="form-check-label me-auto" for="outcome_{{ outcome.id }}">
+                                                        <label class="form-check-label flex-grow-1" for="outcome_{{ outcome.id }}">
                                                             <strong>{{ outcome.code }}</strong>: {{ outcome.description }}
                                                         </label>
-                                                        <div class="input-group input-group-sm weight-input-group ms-2" 
-                                                             style="width: 160px;" 
-                                                             {% if (not question or outcome not in question.course_outcomes) and (not form_data or not form_data.selected_outcomes or outcome.id|string not in form_data.selected_outcomes) %}
-                                                             hidden
-                                                             {% endif %}>
+                                                    </div>
+                                                    
+                                                    <!-- Weight Input Row -->
+                                                    <div class="d-flex justify-content-end weight-input-group" 
+                                                         {% if (not question or outcome not in question.course_outcomes) and (not form_data or not form_data.selected_outcomes or outcome.id|string not in form_data.selected_outcomes) %}
+                                                         hidden
+                                                         {% endif %}>
+                                                        <div class="input-group input-group-sm" style="width: 140px;">
                                                             <span class="input-group-text">Weight</span>
                                                             <input type="number" 
                                                                    class="form-control form-control-sm" 
