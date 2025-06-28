@@ -440,6 +440,87 @@
         </div>
     </div>
 
+    <!-- Program Outcome Statistics Table -->
+    <div class="card mt-4 shadow-sm">
+        <div class="card-header bg-primary">
+            <h5 class="mb-0 text-white">
+                <i class="fas fa-chart-bar me-2"></i>Program Outcome Statistics
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <style>
+                .statistics-table {
+                    border-collapse: separate !important;
+                    border-spacing: 0;
+                    border: 2px solid #dee2e6 !important;
+                }
+                .statistics-table th {
+                    border: 2px solid #495057 !important;
+                    background-color: #343a40 !important;
+                    color: white !important;
+                    padding: 12px !important;
+                    text-align: center !important;
+                    font-weight: bold !important;
+                }
+                .statistics-table td {
+                    border: 2px solid #dee2e6 !important;
+                    padding: 10px 15px !important;
+                    text-align: center !important;
+                    font-weight: 600 !important;
+                }
+                .stats-row-excellent {
+                    background-color: #d1edcc !important;
+                }
+                .stats-row-better {
+                    background-color: #b3ecf0 !important;
+                }
+                .stats-row-good {
+                    background-color: #fff !important;
+                }
+                .stats-row-warning {
+                    background-color: #fff3cd !important;
+                }
+                .stats-row-danger {
+                    background-color: #f8d7da !important;
+                }
+            </style>
+            <div class="table-responsive">
+                <table class="table statistics-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Program Çıktısı</th>
+                            <th>Ortalama Başarı Değeri</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if po_averages %}
+                            {% for po_code, avg_value in po_averages.items() %}
+                                {% if avg_value is not none %}
+                                    {% set avg_score = avg_value|float %}
+                                    {% set achievement_level = get_achievement_level(avg_score, global_achievement_levels) %}
+                                    <tr class="stats-row-good">
+                                        <td style="font-size: 1.1rem; letter-spacing: 1px;">{{ po_code }}</td>
+                                        <td>
+                                            <span class="badge {% if achievement_level %}bg-{{ achievement_level.color }}{% else %}bg-secondary{% endif %} px-3 py-2" style="font-size: 0.95rem;">
+                                                {{ "%.2f"|format(avg_score) }}%
+                                            </span>
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="2" class="text-center text-muted py-4">
+                                    <i class="fas fa-info-circle me-2"></i>No data available
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- Settings Modals -->
     {% for course_code, data in all_results.items() %}
     <div class="modal fade" id="settingsModal{{ data.course.id }}" tabindex="-1"
