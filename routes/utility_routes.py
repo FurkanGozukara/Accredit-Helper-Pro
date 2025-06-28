@@ -2990,3 +2990,123 @@ def logging_config():
     return render_template('utility/logging_config.html', 
                          current_level=current_level,
                          levels=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])
+
+@utility_bp.route('/unassigned_outcomes')
+def unassigned_outcomes():
+    """Scan all courses to find course outcomes not assigned to any questions"""
+    try:
+        # Get all courses with their outcomes and exams
+        courses_with_issues = []
+        
+        # Query all courses
+        courses = Course.query.all()
+        
+        for course in courses:
+            course_outcomes = CourseOutcome.query.filter_by(course_id=course.id).all()
+            exams = Exam.query.filter_by(course_id=course.id).all()
+            
+            if not course_outcomes:
+                continue  # Skip courses without outcomes
+                
+            unassigned_outcomes = []
+            
+            for outcome in course_outcomes:
+                # Check if this outcome is assigned to any questions
+                # Use the many-to-many relationship through question_course_outcome table
+                assigned_questions = outcome.questions
+                
+                if not assigned_questions:
+                    # This outcome is not assigned to any questions
+                    unassigned_outcomes.append({
+                        'code': outcome.code,
+                        'description': outcome.description,
+                        'id': outcome.id
+                    })
+            
+            if unassigned_outcomes:
+                # Count total questions in all exams for this course
+                total_questions = 0
+                exam_details = []
+                
+                for exam in exams:
+                    questions_count = Question.query.filter_by(exam_id=exam.id).count()
+                    total_questions += questions_count
+                    exam_details.append({
+                        'name': exam.name,
+                        'questions_count': questions_count,
+                        'id': exam.id
+                    })
+                
+                courses_with_issues.append({
+                    'course': {
+                        'id': course.id,
+                        'code': course.code,
+                        'name': course.name,
+                        'semester': course.semester
+                    },
+                    'unassigned_outcomes': unassigned_outcomes,
+                    'total_outcomes': len(course_outcomes),
+                    'exams': exam_details,
+                    'total_questions': total_questions
+                })
+        
+        # Log the scan action
+        log = Log(action="SCAN_UNASSIGNED_OUTCOMES",
+                 description=f"Scanned {len(courses)} courses and found {len(courses_with_issues)} courses with unassigned outcomes")
+        db.session.add(log)
+        db.session.commit()
+        
+        return render_template('utility/unassigned_outcomes.html', 
+                             courses_with_issues=courses_with_issues,
+                             total_courses_scanned=len(courses),
+                             active_page='utilities')
+                             
+    except Exception as e:
+        logging.error(f"Error scanning for unassigned outcomes: {str(e)}\n{traceback.format_exc()}")
+        db.session.rollback()
+        flash(f'An error occurred while scanning for unassigned outcomes: {str(e)}', 'error')
+        return redirect(url_for('utility.index'))
+
+@utility_bp.route('/unassigned_outcomes/export')
+def export_unassigned_outcomes():
+    """Export unassigned outcomes data to CSV"""
+    try:
+        # Get the same data as the main scan
+        courses = Course.query.all()
+        export_data = []
+        
+        for course in courses:
+            course_outcomes = CourseOutcome.query.filter_by(course_id=course.id).all()
+            
+            if not course_outcomes:
+                continue
+                
+            for outcome in course_outcomes:
+                assigned_questions = outcome.questions
+                
+                if not assigned_questions:
+                    # Count total questions in course
+                    total_questions = db.session.query(Question).join(Exam).filter(
+                        Exam.course_id == course.id
+                    ).count()
+                    
+                    export_data.append({
+                        'Course Code': course.code,
+                        'Course Name': course.name,
+                        'Semester': course.semester,
+                        'Outcome Code': outcome.code,
+                        'Outcome Description': outcome.description,
+                        'Total Questions in Course': total_questions,
+                        'Course URL': f"http://localhost:5000/calculation/course/{course.id}"
+                    })
+        
+        if not export_data:
+            flash('No unassigned outcomes found to export.', 'info')
+            return redirect(url_for('utility.unassigned_outcomes'))
+        
+        return export_to_excel_csv(export_data, 'unassigned_course_outcomes')
+        
+    except Exception as e:
+        logging.error(f"Error exporting unassigned outcomes: {str(e)}\n{traceback.format_exc()}")
+        flash(f'An error occurred while exporting data: {str(e)}', 'error')
+        return redirect(url_for('utility.unassigned_outcomes'))

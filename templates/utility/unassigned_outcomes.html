@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+
+{% block title %}Unassigned Course Outcomes - Accredit Calculator{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('utility.index') }}">Utilities</a></li>
+<li class="breadcrumb-item active">Unassigned Course Outcomes</li>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="fas fa-exclamation-triangle text-warning"></i> Unassigned Course Outcomes</h1>
+                <div>
+                    {% if courses_with_issues %}
+                    <a href="{{ url_for('utility.export_unassigned_outcomes') }}" class="btn btn-success me-2">
+                        <i class="fas fa-download"></i> Export to CSV
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('utility.index') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Utilities
+                    </a>
+                </div>
+            </div>
+
+            <!-- Summary Card -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-chart-bar text-info"></i> Scan Summary</h5>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <h3 class="text-primary">{{ total_courses_scanned }}</h3>
+                                <p class="text-muted mb-0">Total Courses Scanned</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <h3 class="text-warning">{{ courses_with_issues|length }}</h3>
+                                <p class="text-muted mb-0">Courses with Issues</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <h3 class="text-success">{{ total_courses_scanned - courses_with_issues|length }}</h3>
+                                <p class="text-muted mb-0">Courses without Issues</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if not courses_with_issues %}
+            <!-- No Issues Found -->
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <h4 class="alert-heading"><i class="fas fa-check-circle"></i> Great News!</h4>
+                <p>All course outcomes in your database are properly assigned to questions. No issues were found during the scan.</p>
+                <hr>
+                <p class="mb-0">All {{ total_courses_scanned }} courses have been scanned and their course outcomes are properly mapped to exam questions.</p>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% else %}
+            <!-- Issues Found -->
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <h4 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Issues Found</h4>
+                <p><strong>{{ courses_with_issues|length }}</strong> courses have course outcomes that are not assigned to any questions in their exams.</p>
+                <hr>
+                <p class="mb-0">These unassigned outcomes may cause calculation problems. Teachers should assign these outcomes to appropriate exam questions.</p>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+
+            <!-- Courses with Issues -->
+            {% for course_data in courses_with_issues %}
+            <div class="card mb-4 border-warning">
+                <div class="card-header bg-warning bg-opacity-10">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h5 class="mb-0">
+                                <i class="fas fa-book text-warning"></i>
+                                <strong>{{ course_data.course.code }}</strong> - {{ course_data.course.name }}
+                            </h5>
+                            <small class="text-muted">
+                                Semester: {{ course_data.course.semester }} | 
+                                Total Outcomes: {{ course_data.total_outcomes }} | 
+                                Unassigned: {{ course_data.unassigned_outcomes|length }}
+                            </small>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <a href="{{ url_for('calculation.course_calculations', course_id=course_data.course.id) }}" 
+                               class="btn btn-primary btn-sm" target="_blank">
+                                <i class="fas fa-external-link-alt"></i> Open Course
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Course Statistics -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-clipboard-list text-info"></i> Exams Summary</h6>
+                            {% if course_data.exams %}
+                            <ul class="list-unstyled ms-3">
+                                {% for exam in course_data.exams %}
+                                <li><i class="fas fa-file-alt text-muted"></i> {{ exam.name }} ({{ exam.questions_count }} questions)</li>
+                                {% endfor %}
+                            </ul>
+                            <p class="text-muted mb-0"><strong>Total Questions:</strong> {{ course_data.total_questions }}</p>
+                            {% else %}
+                            <p class="text-muted">No exams found for this course.</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-exclamation-circle text-danger"></i> Unassigned Outcomes</h6>
+                            <div class="list-group list-group-flush">
+                                {% for outcome in course_data.unassigned_outcomes %}
+                                <div class="list-group-item px-0 py-2 border-0">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="mb-1 text-danger">{{ outcome.code }}</h6>
+                                            <p class="mb-1 small">{{ outcome.description }}</p>
+                                        </div>
+                                        <span class="badge bg-danger">Unassigned</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="alert alert-info mb-0">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>Action Required:</strong> 
+                                Teachers should visit the course page and assign these outcomes to appropriate exam questions 
+                                to ensure accurate calculations.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            <!-- Help Section -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-question-circle text-info"></i> How to Fix Unassigned Outcomes</h5>
+                </div>
+                <div class="card-body">
+                    <ol>
+                        <li><strong>Open the Course:</strong> Click the "Open Course" button for any course with issues.</li>
+                        <li><strong>Navigate to Exams:</strong> Go to the exam management section within the course.</li>
+                        <li><strong>Edit Questions:</strong> For each exam, edit the questions and assign the unassigned course outcomes.</li>
+                        <li><strong>Verify Assignment:</strong> Ensure each course outcome is assigned to at least one question across all exams.</li>
+                        <li><strong>Re-scan:</strong> Run this utility again to verify that all issues have been resolved.</li>
+                    </ol>
+                    
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Important:</strong> Course outcomes that are not assigned to any questions will not be included 
+                        in calculations, which may lead to inaccurate program outcome assessments.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add some custom styling -->
+<style>
+.card.border-warning {
+    border-width: 2px;
+}
+
+.bg-warning.bg-opacity-10 {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+}
+
+.list-group-item {
+    background-color: transparent;
+}
+
+.text-danger {
+    color: #dc3545 !important;
+}
+
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+}
+</style>
+{% endblock %} 
