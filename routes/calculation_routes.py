@@ -2921,6 +2921,59 @@ def toggle_course_exclusion(course_id):
         return redirect(url_for('calculation.course_calculations', course_id=course_id))
     return redirect(url_for('calculation.all_courses'))
 
+@calculation_bp.route('/courses/bulk_toggle_exclusion', methods=['POST'])
+def bulk_toggle_course_exclusion():
+    """Toggle the exclusion status of multiple courses at once"""
+    try:
+        # Get course IDs from JSON request
+        data = request.get_json()
+        if not data or 'course_ids' not in data:
+            return jsonify({'success': False, 'message': 'No course IDs provided'}), 400
+        
+        course_ids = data['course_ids']
+        exclude = data.get('exclude', True)  # Default to exclude
+        
+        if not course_ids:
+            return jsonify({'success': False, 'message': 'No course IDs provided'}), 400
+        
+        # Process all courses
+        processed_courses = []
+        for course_id in course_ids:
+            course = Course.query.get(course_id)
+            if not course:
+                continue
+                
+            # Get the settings or create new if it doesn't exist
+            settings = CourseSettings.query.filter_by(course_id=course_id).first()
+            if not settings:
+                settings = CourseSettings(course_id=course_id)
+                db.session.add(settings)
+            
+            # Set the exclusion status
+            settings.excluded = exclude
+            processed_courses.append(course.code)
+        
+        # Commit all changes at once
+        db.session.commit()
+        
+        # Log the bulk action
+        action = "BULK_EXCLUDE_COURSES" if exclude else "BULK_INCLUDE_COURSES"
+        status = "excluded" if exclude else "included"
+        log = Log(action=action,
+                 description=f"Bulk {status} {len(processed_courses)} courses: {', '.join(processed_courses)}")
+        db.session.add(log)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Successfully {status} {len(processed_courses)} courses',
+            'processed_courses': processed_courses
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error processing courses: {str(e)}'}), 500
+
 @calculation_bp.route('/update_display_method', methods=['POST'])
 def update_display_method():
     """Update display method preference in session"""

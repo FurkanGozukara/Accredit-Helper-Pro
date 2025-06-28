@@ -1092,7 +1092,7 @@
             window.location.href = `${window.location.pathname}?${params.toString()}`;
         }
 
-        function bulkUpdateCourseExclusion(courses, exclude) {
+        async function bulkUpdateCourseExclusion(courses, exclude) {
             if (courses.length === 0) return;
 
             const loadingOverlay = document.getElementById('loadingOverlay');
@@ -1100,43 +1100,50 @@
                 loadingOverlay.style.display = 'flex';
             }
 
-            // Process courses sequentially to avoid overwhelming the server
-            processCoursesBatch(courses, exclude, 0);
-        }
-
-        async function processCoursesBatch(courses, exclude, index) {
-            if (index >= courses.length) {
-                // All courses processed, reload the page
-                window.location.reload();
-                return;
-            }
-
-            const course = courses[index];
-            const formData = new FormData();
-            if (exclude) {
-                formData.append('excluded', 'on');
-            }
-
             try {
-                const response = await fetch(`/calculation/course/${course.id}/toggle_exclusion`, {
+                // Send all course IDs at once to the bulk endpoint
+                const courseIds = courses.map(c => parseInt(c.id));
+                
+                const response = await fetch('/calculation/courses/bulk_toggle_exclusion', {
                     method: 'POST',
-                    body: formData,
                     headers: {
+                        'Content-Type': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest'
-                    }
+                    },
+                    body: JSON.stringify({
+                        course_ids: courseIds,
+                        exclude: exclude
+                    })
                 });
 
-                if (response.ok) {
-                    // Process next course
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Show success message briefly, then reload
+                    const action = exclude ? 'excluded' : 'included';
+                    const message = `Successfully ${action} ${result.processed_courses.length} courses`;
+                    
+                    // Create a temporary success message
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+                    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 10000; min-width: 300px;';
+                    alertDiv.innerHTML = `
+                        <i class="fas fa-check-circle"></i> ${message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    document.body.appendChild(alertDiv);
+                    
+                    // Reload the page after a short delay to show the message
                     setTimeout(() => {
-                        processCoursesBatch(courses, exclude, index + 1);
-                    }, 100); // Small delay to prevent overwhelming the server
+                        window.location.reload();
+                    }, 1000);
                 } else {
-                    throw new Error(`Failed to update course ${course.code}`);
+                    throw new Error(result.message || 'Failed to update courses');
                 }
             } catch (error) {
-                console.error(`Error updating course ${course.code}:`, error);
-                alert(`Error updating course ${course.code}. Please try again.`);
+                console.error('Error updating courses:', error);
+                alert(`Error updating courses: ${error.message}. Please try again.`);
+                
                 const loadingOverlay = document.getElementById('loadingOverlay');
                 if (loadingOverlay) {
                     loadingOverlay.style.display = 'none';
