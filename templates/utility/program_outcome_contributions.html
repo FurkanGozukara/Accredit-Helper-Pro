@@ -1,0 +1,397 @@
+{% extends 'base.html' %}
+
+{% block title %}Program Outcome Contributions - Accredit Calculator{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('utility.index') }}">Utilities</a></li>
+<li class="breadcrumb-item active">Program Outcome Contributions</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-sitemap"></i> Program Outcome Contributions Analysis
+                    </h4>
+                    <p class="mb-0 mt-2">
+                        This page shows which courses contribute to each program outcome, respecting the exclusion settings from the 
+                        <a href="{{ url_for('calculation.all_courses') }}" class="text-white"><u>All Courses</u></a> page.
+                    </p>
+                </div>
+                <div class="card-body">
+                    <!-- Program Outcome Selector -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="programOutcomeSelect" class="form-label">
+                                <strong>Select Program Outcome:</strong>
+                            </label>
+                            <select class="form-select" id="programOutcomeSelect" onchange="showContributions()">
+                                <option value="">-- Select a Program Outcome --</option>
+                                {% for po in program_outcomes %}
+                                <option value="{{ po.code }}">{{ po.code }} - {{ po.description[:80] }}{% if po.description|length > 80 %}...{% endif %}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <button type="button" class="btn btn-outline-info" onclick="showAllContributions()">
+                                <i class="fas fa-eye"></i> Show All Program Outcomes
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Results Container -->
+                    <div id="resultsContainer" style="display: none;">
+                        <!-- Summary Cards -->
+                        <div class="row mb-4" id="summaryCards">
+                            <div class="col-md-3">
+                                <div class="card bg-primary text-white">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title">Total Courses</h5>
+                                        <h2 id="totalCount">0</h2>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-success text-white">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title">Included Courses</h5>
+                                        <h2 id="includedCount">0</h2>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-warning text-white">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title">Excluded Courses</h5>
+                                        <h2 id="excludedCount">0</h2>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-info text-white">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title">Inclusion Rate</h5>
+                                        <h2 id="inclusionRate">0%</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Selected Program Outcome Info -->
+                        <div class="card mb-4" id="selectedPOCard" style="display: none;">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-bullseye"></i> Selected Program Outcome: <span id="selectedPOCode"></span>
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-0" id="selectedPODescription"></p>
+                            </div>
+                        </div>
+
+                        <!-- All Courses Contributing -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-list"></i> All Contributing Courses
+                                </h5>
+                                <span class="badge bg-light text-dark" id="allCoursesCount">0</span>
+                            </div>
+                            <div class="card-body">
+                                <div id="allCoursesList" class="mb-3">
+                                    <p class="text-muted">Select a program outcome to see contributing courses.</p>
+                                </div>
+                                <div class="border-top pt-3">
+                                    <h6 class="text-muted mb-2">
+                                        <i class="fas fa-copy"></i> Course Names Only (for copy-paste):
+                                    </h6>
+                                    <div class="p-2 bg-light border rounded">
+                                        <small id="allCoursesNamesOnly" class="text-break">Select a program outcome to see course names.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Included Courses Only -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-check-circle"></i> Included Courses Only
+                                </h5>
+                                <span class="badge bg-light text-dark" id="includedCoursesCount">0</span>
+                            </div>
+                            <div class="card-body">
+                                <div id="includedCoursesList" class="mb-3">
+                                    <p class="text-muted">Select a program outcome to see included courses.</p>
+                                </div>
+                                <div class="border-top pt-3">
+                                    <h6 class="text-muted mb-2">
+                                        <i class="fas fa-copy"></i> Course Names Only (for copy-paste):
+                                    </h6>
+                                    <div class="p-2 bg-light border rounded">
+                                        <small id="includedCoursesNamesOnly" class="text-break">Select a program outcome to see course names.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Excluded Courses -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-warning text-white d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-times-circle"></i> Excluded Courses
+                                </h5>
+                                <span class="badge bg-light text-dark" id="excludedCoursesCount">0</span>
+                            </div>
+                            <div class="card-body">
+                                <div id="excludedCoursesList" class="mb-3">
+                                    <p class="text-muted">Select a program outcome to see excluded courses.</p>
+                                </div>
+                                <div class="border-top pt-3">
+                                    <h6 class="text-muted mb-2">
+                                        <i class="fas fa-copy"></i> Course Names Only (for copy-paste):
+                                    </h6>
+                                    <div class="p-2 bg-light border rounded">
+                                        <small id="excludedCoursesNamesOnly" class="text-break">Select a program outcome to see course names.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- All Program Outcomes View -->
+                    <div id="allProgramOutcomesView" style="display: none;">
+                        <h4 class="mb-3">All Program Outcomes Summary</h4>
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Program<br>Outcome</th>
+                                        <th>Description</th>
+                                        <th class="text-center">Total<br>Courses</th>
+                                        <th class="text-center">Included<br>Courses</th>
+                                        <th class="text-center">Excluded<br>Courses</th>
+                                        <th class="text-center">Inclusion<br>Rate</th>
+                                        <th class="text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="allProgramOutcomesTable">
+                                    {% for po in program_outcomes %}
+                                    {% set po_data = program_outcome_data.get(po.code, {}) %}
+                                    <tr>
+                                        <td><strong>{{ po.code }}</strong></td>
+                                        <td>{{ po.description[:100] }}{% if po.description|length > 100 %}...{% endif %}</td>
+                                        <td class="text-center">
+                                            <span class="badge bg-primary">{{ po_data.get('total_count', 0) }}</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-success">{{ po_data.get('included_count', 0) }}</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-warning">{{ po_data.get('excluded_count', 0) }}</span>
+                                        </td>
+                                        <td class="text-center">
+                                            {% set total = po_data.get('total_count', 0) %}
+                                            {% set included = po_data.get('included_count', 0) %}
+                                            {% if total > 0 %}
+                                                {% set rate = (included / total * 100) | round(1) %}
+                                                <span class="badge {% if rate == 100 %}bg-success{% elif rate >= 80 %}bg-info{% elif rate >= 60 %}bg-warning{% else %}bg-danger{% endif %}">
+                                                    {{ rate }}%
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                    onclick="selectProgramOutcome('{{ po.code }}')">
+                                                <i class="fas fa-eye"></i> View Details
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Store the data globally for easy access
+const programOutcomeData = {{ program_outcome_data | tojson }};
+
+function showContributions() {
+    const selectedPO = document.getElementById('programOutcomeSelect').value;
+    const resultsContainer = document.getElementById('resultsContainer');
+    const allView = document.getElementById('allProgramOutcomesView');
+    
+    if (!selectedPO) {
+        resultsContainer.style.display = 'none';
+        allView.style.display = 'none';
+        return;
+    }
+    
+    // Hide all view
+    allView.style.display = 'none';
+    
+    const data = programOutcomeData[selectedPO];
+    if (!data) {
+        console.error('No data found for program outcome:', selectedPO);
+        return;
+    }
+    
+    // Show results container
+    resultsContainer.style.display = 'block';
+    
+    // Update summary cards
+    document.getElementById('totalCount').textContent = data.total_count;
+    document.getElementById('includedCount').textContent = data.included_count;
+    document.getElementById('excludedCount').textContent = data.excluded_count;
+    
+    const inclusionRate = data.total_count > 0 ? ((data.included_count / data.total_count) * 100).toFixed(1) : 0;
+    document.getElementById('inclusionRate').textContent = inclusionRate + '%';
+    
+    // Update counts in section headers
+    document.getElementById('allCoursesCount').textContent = data.total_count;
+    document.getElementById('includedCoursesCount').textContent = data.included_count;
+    document.getElementById('excludedCoursesCount').textContent = data.excluded_count;
+    
+    // Show selected PO info
+    const selectedPOCard = document.getElementById('selectedPOCard');
+    document.getElementById('selectedPOCode').textContent = selectedPO;
+    document.getElementById('selectedPODescription').textContent = data.description;
+    selectedPOCard.style.display = 'block';
+    
+    // Generate course lists
+    generateCourseList('allCoursesList', data.all_courses, 'all');
+    generateCourseList('includedCoursesList', data.included_courses, 'included');
+    generateCourseList('excludedCoursesList', data.excluded_courses, 'excluded');
+    
+    // Generate course names only lists
+    generateCourseNamesOnly('allCoursesNamesOnly', data.all_courses);
+    generateCourseNamesOnly('includedCoursesNamesOnly', data.included_courses);
+    generateCourseNamesOnly('excludedCoursesNamesOnly', data.excluded_courses);
+}
+
+function generateCourseList(containerId, courses, type) {
+    const container = document.getElementById(containerId);
+    
+    if (!courses || courses.length === 0) {
+        const messageMap = {
+            'all': 'No courses contribute to this program outcome.',
+            'included': 'No included courses contribute to this program outcome.',
+            'excluded': 'No excluded courses contribute to this program outcome.'
+        };
+        container.innerHTML = `<p class="text-muted">${messageMap[type]}</p>`;
+        return;
+    }
+    
+    // Generate comma-separated list with course links
+    const courseLinks = courses.map(course => {
+        const badgeClass = course.excluded ? 'bg-warning' : 'bg-success';
+        const statusText = course.excluded ? 'Excluded' : 'Included';
+        const courseOutcomes = course.course_outcomes ? ` (COs: ${course.course_outcomes.join(', ')})` : '';
+        
+        return `
+            <span class="course-item me-2 mb-2 d-inline-block">
+                <a href="/calculation/course/${course.id}" class="text-decoration-none" target="_blank">
+                    <span class="badge ${badgeClass} fs-6 p-2">
+                        ${course.code} - ${course.name}
+                        <small class="d-block">${course.semester} | Weight: ${course.course_weight}${courseOutcomes}</small>
+                    </span>
+                </a>
+            </span>
+        `;
+    }).join('');
+    
+    container.innerHTML = courseLinks;
+}
+
+function generateCourseNamesOnly(containerId, courses) {
+    const container = document.getElementById(containerId);
+    
+    if (!courses || courses.length === 0) {
+        container.innerHTML = 'No courses';
+        return;
+    }
+    
+    // Generate comma-separated list of course names only
+    const courseNames = courses.map(course => course.name).join(', ');
+    container.innerHTML = courseNames;
+}
+
+function showAllContributions() {
+    const resultsContainer = document.getElementById('resultsContainer');
+    const allView = document.getElementById('allProgramOutcomesView');
+    
+    // Hide single PO view
+    resultsContainer.style.display = 'none';
+    
+    // Show all view
+    allView.style.display = 'block';
+    
+    // Reset selector
+    document.getElementById('programOutcomeSelect').value = '';
+}
+
+function selectProgramOutcome(poCode) {
+    document.getElementById('programOutcomeSelect').value = poCode;
+    showContributions();
+    
+    // Scroll to top of results
+    document.getElementById('resultsContainer').scrollIntoView({ behavior: 'smooth' });
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-select first program outcome if only one exists
+    const select = document.getElementById('programOutcomeSelect');
+    if (select.options.length === 2) { // Only default option + one PO
+        select.selectedIndex = 1;
+        showContributions();
+    }
+});
+</script>
+
+<style>
+.course-item .badge {
+    transition: transform 0.2s;
+}
+
+.course-item .badge:hover {
+    transform: scale(1.05);
+}
+
+.table th {
+    font-size: 0.85rem;
+}
+
+.card-header h5 {
+    font-size: 1.1rem;
+}
+
+@media (max-width: 768px) {
+    .container-fluid {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    
+    .course-item .badge {
+        font-size: 0.75rem;
+        padding: 0.5rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.8rem;
+    }
+}
+</style>
+{% endblock %} 

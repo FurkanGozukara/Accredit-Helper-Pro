@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, send_file, make_response
 from flask import current_app, Markup, stream_with_context # Added stream_with_context
 from app import db
-from models import Log, Course, Student, Exam, CourseOutcome, Question, Score, ExamWeight, StudentExamAttendance, ProgramOutcome
+from models import Log, Course, Student, Exam, CourseOutcome, Question, Score, ExamWeight, StudentExamAttendance, ProgramOutcome, CourseSettings
 from datetime import datetime
 import logging
 import os
@@ -3397,3 +3397,149 @@ def export_student_ranking():
         logging.error(f"Error exporting student ranking: {str(e)}")
         flash(f'Error exporting data: {str(e)}', 'error')
         return redirect(url_for('utility.student_ranking'))
+
+@utility_bp.route('/program_outcome_contributions')
+def program_outcome_contributions():
+    """Show which courses contribute to each program outcome"""
+    try:
+        # Get all program outcomes
+        program_outcomes = ProgramOutcome.query.order_by(ProgramOutcome.code).all()
+        
+        # Get all courses with their settings
+        courses = Course.query.outerjoin(CourseSettings).all()
+        
+        # Build the data structure
+        program_outcome_data = {}
+        
+        for po in program_outcomes:
+            contributing_courses = []
+            
+            # Find all course outcomes that are linked to this program outcome
+            course_outcomes = CourseOutcome.query.filter(
+                CourseOutcome.program_outcomes.any(id=po.id)
+            ).all()
+            
+            # Get the courses from these course outcomes
+            for co in course_outcomes:
+                course = co.course
+                is_excluded = course.settings and course.settings.excluded
+                
+                course_info = {
+                    'id': course.id,
+                    'code': course.code,
+                    'name': course.name,
+                    'semester': course.semester,
+                    'course_weight': float(course.course_weight),
+                    'excluded': is_excluded,
+                    'course_outcome_code': co.code,
+                    'course_outcome_description': co.description
+                }
+                
+                # Check if this course is already in the list (could have multiple COs linking to same PO)
+                existing_course = next((c for c in contributing_courses if c['id'] == course.id), None)
+                if existing_course:
+                    # Add the course outcome info to existing course
+                    if 'course_outcomes' not in existing_course:
+                        existing_course['course_outcomes'] = [existing_course['course_outcome_code']]
+                        del existing_course['course_outcome_code']
+                        del existing_course['course_outcome_description']
+                    existing_course['course_outcomes'].append(co.code)
+                else:
+                    contributing_courses.append(course_info)
+            
+            # Sort courses by code
+            contributing_courses.sort(key=lambda x: x['code'])
+            
+            # Split into included and excluded
+            included_courses = [c for c in contributing_courses if not c['excluded']]
+            excluded_courses = [c for c in contributing_courses if c['excluded']]
+            
+            program_outcome_data[po.code] = {
+                'id': po.id,
+                'description': po.description,
+                'all_courses': contributing_courses,
+                'included_courses': included_courses,
+                'excluded_courses': excluded_courses,
+                'total_count': len(contributing_courses),
+                'included_count': len(included_courses),
+                'excluded_count': len(excluded_courses)
+            }
+        
+        return render_template('utility/program_outcome_contributions.html',
+                             program_outcomes=program_outcomes,
+                             program_outcome_data=program_outcome_data,
+                             active_page='utilities')
+    
+    except Exception as e:
+        logging.error(f"Error in program_outcome_contributions: {str(e)}")
+        flash(f'An error occurred: {str(e)}', 'error')
+        return redirect(url_for('utility.index'))
+
+@utility_bp.route('/program_outcome_contributions/api/<program_outcome_code>')
+def program_outcome_contributions_api(program_outcome_code):
+    """API endpoint to get course contributions for a specific program outcome"""
+    try:
+        # Get the program outcome
+        po = ProgramOutcome.query.filter_by(code=program_outcome_code).first()
+        if not po:
+            return jsonify({'error': 'Program outcome not found'}), 404
+        
+        # Find all course outcomes that are linked to this program outcome
+        course_outcomes = CourseOutcome.query.filter(
+            CourseOutcome.program_outcomes.any(id=po.id)
+        ).all()
+        
+        contributing_courses = []
+        course_ids_seen = set()
+        
+        # Get the courses from these course outcomes
+        for co in course_outcomes:
+            course = co.course
+            
+            if course.id not in course_ids_seen:
+                is_excluded = course.settings and course.settings.excluded
+                
+                course_info = {
+                    'id': course.id,
+                    'code': course.code,
+                    'name': course.name,
+                    'semester': course.semester,
+                    'course_weight': float(course.course_weight),
+                    'excluded': is_excluded,
+                    'course_outcomes': []
+                }
+                contributing_courses.append(course_info)
+                course_ids_seen.add(course.id)
+            
+            # Find the course in the list and add the course outcome
+            course_info = next(c for c in contributing_courses if c['id'] == course.id)
+            course_info['course_outcomes'].append({
+                'code': co.code,
+                'description': co.description
+            })
+        
+        # Sort courses by code
+        contributing_courses.sort(key=lambda x: x['code'])
+        
+        # Split into included and excluded
+        included_courses = [c for c in contributing_courses if not c['excluded']]
+        excluded_courses = [c for c in contributing_courses if c['excluded']]
+        
+        return jsonify({
+            'program_outcome': {
+                'code': po.code,
+                'description': po.description
+            },
+            'all_courses': contributing_courses,
+            'included_courses': included_courses,
+            'excluded_courses': excluded_courses,
+            'summary': {
+                'total_count': len(contributing_courses),
+                'included_count': len(included_courses),
+                'excluded_count': len(excluded_courses)
+            }
+        })
+    
+    except Exception as e:
+        logging.error(f"Error in program_outcome_contributions_api: {str(e)}")
+        return jsonify({'error': str(e)}), 500
