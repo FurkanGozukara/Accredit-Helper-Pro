@@ -9,3 +9,4 @@ app.log
 app.db
 calculation_debug.log
 student_pdfs
+program_outcome_pdfs

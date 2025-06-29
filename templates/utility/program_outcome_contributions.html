@@ -25,7 +25,7 @@
                 <div class="card-body">
                     <!-- Program Outcome Selector -->
                     <div class="row mb-4">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label for="programOutcomeSelect" class="form-label">
                                 <strong>Select Program Outcome:</strong>
                             </label>
@@ -36,9 +36,14 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-6 d-flex align-items-end">
+                        <div class="col-md-4 d-flex align-items-end">
                             <button type="button" class="btn btn-outline-info" onclick="showAllContributions()">
                                 <i class="fas fa-eye"></i> Show All Program Outcomes
+                            </button>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#pdfGenerationModal">
+                                <i class="fas fa-file-pdf"></i> Generate PDFs
                             </button>
                         </div>
                     </div>
@@ -350,24 +355,95 @@ function selectProgramOutcome(poCode) {
     document.getElementById('resultsContainer').scrollIntoView({ behavior: 'smooth' });
 }
 
-// Initialize
+function updateFilePreview() {
+    const customSuffix = document.getElementById('customSuffix').value.trim();
+    const previewList = document.getElementById('filePreviewList');
+    
+    // Get all program outcome codes from the dropdown
+    const programOutcomeSelect = document.getElementById('programOutcomeSelect');
+    const options = Array.from(programOutcomeSelect.options).slice(1); // Skip first empty option
+    
+    let previewHTML = '';
+    options.forEach(option => {
+        const poCode = option.value;
+        const fileName = customSuffix ? `${poCode} ${customSuffix}.pdf` : `${poCode}.pdf`;
+        previewHTML += `<li><i class="fas fa-file-pdf text-danger"></i> <code>${fileName}</code></li>`;
+    });
+    
+    previewList.innerHTML = previewHTML;
+}
+
+// Prevent event conflicts and optimize performance
+let isInitialized = false;
+
+// Initialize everything when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
+    if (isInitialized) return; // Prevent double initialization
+    isInitialized = true;
+    
     // Auto-select first program outcome if only one exists
     const select = document.getElementById('programOutcomeSelect');
-    if (select.options.length === 2) { // Only default option + one PO
+    if (select && select.options.length === 2) { // Only default option + one PO
         select.selectedIndex = 1;
         showContributions();
+    }
+    
+    // Update file preview when custom suffix changes (with debouncing)
+    const customSuffixInput = document.getElementById('customSuffix');
+    if (customSuffixInput) {
+        let timeout;
+        customSuffixInput.addEventListener('input', function() {
+            clearTimeout(timeout);
+            timeout = setTimeout(updateFilePreview, 300); // Debounce for 300ms
+        });
+        // Initialize file preview on modal show
+        document.getElementById('pdfGenerationModal').addEventListener('shown.bs.modal', function() {
+            updateFilePreview();
+        });
+    }
+    
+    // Add loading state for PDF generation
+    const pdfForm = document.getElementById('pdfGenerationForm');
+    const generateBtn = document.getElementById('generatePdfBtn');
+    
+    if (pdfForm && generateBtn) {
+        pdfForm.addEventListener('submit', function(e) {
+            // Prevent double submission
+            if (generateBtn.disabled) {
+                e.preventDefault();
+                return false;
+            }
+            
+            // Show loading state
+            generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating PDFs...';
+            generateBtn.disabled = true;
+            
+            // Show progress message
+            const existingAlert = pdfForm.querySelector('.alert-info');
+            if (!existingAlert) {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-info mt-3';
+                alertDiv.innerHTML = `
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Please wait...</strong> PDF generation is in progress. This may take a few minutes depending on the number of program outcomes.
+                `;
+                pdfForm.appendChild(alertDiv);
+            }
+        });
     }
 });
 </script>
 
 <style>
 .course-item .badge {
-    transition: transform 0.2s;
+    /* Removed transition to prevent flashing */
+    display: inline-block;
+    margin: 2px;
 }
 
 .course-item .badge:hover {
-    transform: scale(1.05);
+    /* Simplified hover effect */
+    opacity: 0.9;
 }
 
 .table th {
@@ -376,6 +452,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .card-header h5 {
     font-size: 1.1rem;
+}
+
+/* Prevent layout shifts and flashing */
+* {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    -moz-backface-visibility: hidden;
+    -ms-backface-visibility: hidden;
+}
+
+/* Optimize rendering */
+.container-fluid, .card, .badge {
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
 }
 
 @media (max-width: 768px) {
@@ -394,4 +484,82 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 }
 </style>
+{% endblock %}
+
+{% block scripts %}
+<!-- PDF Generation Modal -->
+<div class="modal fade" id="pdfGenerationModal" tabindex="-1" aria-labelledby="pdfGenerationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="pdfGenerationModalLabel">
+                    <i class="fas fa-file-pdf"></i> Generate Program Outcome Contribution PDFs
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('utility.generate_program_outcome_pdfs') }}" method="post" id="pdfGenerationForm">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>PDF Generation:</strong> This will generate individual PDF reports for all program outcomes showing their contributing courses.
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="customSuffix" class="form-label">
+                                <strong>Custom Name Suffix:</strong>
+                            </label>
+                            <input type="text" class="form-control" id="customSuffix" name="custom_suffix" 
+                                   placeholder="KATKI SAĞLAYAN DERSLER" 
+                                   value="KATKI SAĞLAYAN DERSLER">
+                            <small class="form-text text-muted">
+                                Files will be named: <code>[Program Outcome Code] [Custom Suffix].pdf</code><br>
+                                Example: <code>PÇ1.1 KATKI SAĞLAYAN DERSLER.pdf</code>
+                            </small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="pageOrientation" class="form-label">
+                                <strong>Page Orientation:</strong>
+                            </label>
+                            <select class="form-select" id="pageOrientation" name="orientation">
+                                <option value="portrait">Portrait</option>
+                                <option value="landscape" selected>Landscape</option>
+                            </select>
+                            
+                            <label for="pageSize" class="form-label mt-3">
+                                <strong>Page Size:</strong>
+                            </label>
+                            <select class="form-select" id="pageSize" name="page_size">
+                                <option value="A4" selected>A4</option>
+                                <option value="A3">A3</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <label class="form-label">
+                                <strong>Preview of Generated Files:</strong>
+                            </label>
+                            <div class="border rounded p-3 bg-light">
+                                <small class="text-muted">Based on current program outcomes:</small>
+                                <ul class="list-unstyled mt-2" id="filePreviewList">
+                                    {% for po in program_outcomes %}
+                                    <li><i class="fas fa-file-pdf text-danger"></i> <code>{{ po.code }} KATKI SAĞLAYAN DERSLER.pdf</code></li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success" id="generatePdfBtn">
+                        <i class="fas fa-play"></i> Generate PDFs
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %} 

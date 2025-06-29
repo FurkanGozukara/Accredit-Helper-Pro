@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 import time
 from sqlalchemy.orm import scoped_session, sessionmaker
 import urllib.parse
+import asyncio
 
 utility_bp = Blueprint('utility', __name__, url_prefix='/utility')
 
@@ -3543,3 +3544,307 @@ def program_outcome_contributions_api(program_outcome_code):
     except Exception as e:
         logging.error(f"Error in program_outcome_contributions_api: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@utility_bp.route('/program_outcome_contributions/generate_pdfs', methods=['POST'])
+def generate_program_outcome_pdfs():
+    """Generate PDF reports for all program outcomes showing their contributing courses"""
+    try:
+        # Get form parameters
+        custom_suffix = request.form.get('custom_suffix', '').strip()
+        orientation = request.form.get('orientation', 'landscape')
+        page_size = request.form.get('page_size', 'A4')
+        
+        # Get all program outcomes
+        program_outcomes = ProgramOutcome.query.order_by(ProgramOutcome.code).all()
+        
+        if not program_outcomes:
+            flash('No program outcomes found to generate PDFs.', 'warning')
+            return redirect(url_for('utility.program_outcome_contributions'))
+        
+        # Create timestamped directory for this run
+        from datetime import datetime
+        timestamp = datetime.now().strftime('%d_%B_%Y_%H_%M_%p')
+        po_pdfs_dir = os.path.join('program_outcome_pdfs', timestamp)
+        os.makedirs(po_pdfs_dir, exist_ok=True)
+        
+        # Generate PDFs for each program outcome
+        generated_files = []
+        errors = []
+        
+        for po in program_outcomes:
+            try:
+                # Generate filename
+                filename_base = f"{po.code}"
+                if custom_suffix:
+                    filename_base += f" {custom_suffix}"
+                filename = f"{filename_base}.pdf"
+                filepath = os.path.join(po_pdfs_dir, filename)
+                
+                # Generate PDF using Playwright
+                pdf_content = generate_program_outcome_pdf_with_playwright(
+                    po.code, orientation, page_size
+                )
+                
+                if pdf_content:
+                    # Save PDF file
+                    with open(filepath, 'wb') as f:
+                        f.write(pdf_content)
+                    generated_files.append(filename)
+                    logging.info(f"Generated PDF for program outcome {po.code}: {filename}")
+                else:
+                    errors.append(f"Failed to generate PDF for {po.code}")
+                    logging.error(f"Failed to generate PDF for program outcome {po.code}")
+                    
+            except Exception as e:
+                errors.append(f"Error generating PDF for {po.code}: {str(e)}")
+                logging.error(f"Error generating PDF for program outcome {po.code}: {str(e)}")
+        
+        # Log action
+        log = Log(action="GENERATE_PROGRAM_OUTCOME_PDFS",
+                 description=f"Generated {len(generated_files)} program outcome PDF reports in folder: {po_pdfs_dir}")
+        db.session.add(log)
+        db.session.commit()
+        
+        # Show results
+        if generated_files:
+            success_msg = f"Successfully generated {len(generated_files)} PDF reports in folder: {po_pdfs_dir}"
+            if errors:
+                success_msg += f" (with {len(errors)} errors)"
+            flash(success_msg, 'success')
+            
+            # Show error details if any
+            for error in errors:
+                flash(error, 'warning')
+        else:
+            flash('No PDF reports were generated successfully.', 'error')
+        
+        return redirect(url_for('utility.program_outcome_contributions'))
+        
+    except Exception as e:
+        logging.error(f"Error in generate_program_outcome_pdfs: {str(e)}")
+        flash(f'An error occurred during PDF generation: {str(e)}', 'error')
+        return redirect(url_for('utility.program_outcome_contributions'))
+
+def generate_program_outcome_pdf_with_playwright(program_outcome_code, orientation='landscape', page_size='A4'):
+    """Generate PDF for a single program outcome using Playwright"""
+    try:
+        import asyncio
+        from playwright.async_api import async_playwright
+        import tempfile
+        
+        async def generate_pdf_async():
+            try:
+                async with async_playwright() as p:
+                    browser = await p.chromium.launch(headless=True)
+                    page = await browser.new_page()
+                    
+                    # Build URL to the program outcome contributions page with auto-selection
+                    base_url = request.url_root.rstrip('/')
+                    url = f"{base_url}/utility/program_outcome_contributions"
+                    
+                    # Navigate to the page
+                    await page.goto(url, wait_until='networkidle')
+                    
+                    # Wait for the page to load and auto-select the program outcome
+                    await page.wait_for_selector('#programOutcomeSelect', timeout=30000)
+                    
+                    # Select the specific program outcome
+                    await page.select_option('#programOutcomeSelect', value=program_outcome_code)
+                    
+                    # Trigger the showContributions function
+                    await page.evaluate('showContributions()')
+                    
+                    # Wait for the results to load
+                    await page.wait_for_selector('#resultsContainer', timeout=30000)
+                    
+                    # Hide unnecessary elements and optimize for PDF
+                    await page.evaluate(f"""
+                        () => {{
+                            // Hide elements that shouldn't be in PDF
+                            const elementsToHide = [
+                                '.navbar', '.nav', '.dropdown', '.btn', 'button',
+                                '.form-control', '.form-select', 'input', '.modal',
+                                '.breadcrumb', '#programOutcomeSelect', 
+                                '.col-md-4:has(#programOutcomeSelect)',
+                                '.col-md-4:has(button)',
+                                '#allProgramOutcomesView'
+                            ];
+                            
+                            elementsToHide.forEach(selector => {{
+                                const elements = document.querySelectorAll(selector);
+                                elements.forEach(el => el.style.display = 'none');
+                            }});
+                            
+                            // Add PDF-specific styling
+                            const style = document.createElement('style');
+                            style.textContent = `
+                                @media print {{
+                                    body {{ 
+                                        margin: 0 !important; 
+                                        padding: 10px !important;
+                                        font-family: 'Segoe UI', Arial, sans-serif !important;
+                                        font-size: 12px !important;
+                                        line-height: 1.4 !important;
+                                        color: #333 !important;
+                                        background: white !important;
+                                    }}
+                                    
+                                    .container-fluid {{ 
+                                        max-width: none !important; 
+                                        padding: 0 !important;
+                                        margin: 0 !important;
+                                    }}
+                                    
+                                    .card {{ 
+                                        border: 1px solid #dee2e6 !important; 
+                                        box-shadow: none !important;
+                                        margin: 10px 0 !important;
+                                        page-break-inside: avoid !important;
+                                    }}
+                                    
+                                    .card-header {{
+                                        background-color: #f8f9fa !important;
+                                        padding: 8px 15px !important;
+                                        border-bottom: 1px solid #dee2e6 !important;
+                                    }}
+                                    
+                                    .card-body {{
+                                        padding: 15px !important;
+                                    }}
+                                    
+                                    .badge {{
+                                        display: inline-block !important;
+                                        padding: 4px 8px !important;
+                                        margin: 2px !important;
+                                        font-size: 10px !important;
+                                        border-radius: 4px !important;
+                                        color: white !important;
+                                        text-decoration: none !important;
+                                    }}
+                                    
+                                    .badge.bg-success {{ background-color: #198754 !important; }}
+                                    .badge.bg-warning {{ background-color: #ffc107 !important; color: #000 !important; }}
+                                    .badge.bg-primary {{ background-color: #0d6efd !important; }}
+                                    .badge.bg-info {{ background-color: #0dcaf0 !important; color: #000 !important; }}
+                                    
+                                    .course-item {{
+                                        display: inline-block !important;
+                                        margin: 3px !important;
+                                    }}
+                                    
+                                    .border-top {{
+                                        border-top: 1px solid #dee2e6 !important;
+                                        margin-top: 15px !important;
+                                        padding-top: 10px !important;
+                                    }}
+                                    
+                                    .bg-light {{
+                                        background-color: #f8f9fa !important;
+                                        padding: 10px !important;
+                                        border: 1px solid #dee2e6 !important;
+                                        border-radius: 4px !important;
+                                    }}
+                                    
+                                    h1, h2, h3, h4, h5, h6 {{
+                                        margin: 10px 0 5px 0 !important;
+                                        font-weight: bold !important;
+                                        color: #333 !important;
+                                    }}
+                                    
+                                    h4 {{ font-size: 16px !important; }}
+                                    h5 {{ font-size: 14px !important; }}
+                                    h6 {{ font-size: 12px !important; }}
+                                    
+                                    .text-muted {{ color: #6c757d !important; }}
+                                    .text-break {{ word-break: break-word !important; }}
+                                    
+                                    /* Summary cards styling */
+                                    .row .col-md-3 .card {{
+                                        margin: 5px !important;
+                                        min-height: auto !important;
+                                    }}
+                                    
+                                    .card.bg-primary {{ background-color: #0d6efd !important; color: white !important; }}
+                                    .card.bg-success {{ background-color: #198754 !important; color: white !important; }}
+                                    .card.bg-warning {{ background-color: #ffc107 !important; color: #000 !important; }}
+                                    .card.bg-info {{ background-color: #0dcaf0 !important; color: #000 !important; }}
+                                    
+                                    .card-title {{ font-size: 12px !important; margin-bottom: 5px !important; }}
+                                    .card-body h2 {{ font-size: 18px !important; margin: 0 !important; }}
+                                }}
+                            `;
+                            document.head.appendChild(style);
+                            
+                            // Add title with program outcome info
+                            const selectedPOCode = document.getElementById('selectedPOCode').textContent;
+                            const selectedPODescription = document.getElementById('selectedPODescription').textContent;
+                            
+                            const title = document.createElement('div');
+                            title.innerHTML = `
+                                <div style="text-align: center; margin: 10px 0 20px 0; padding: 15px; border-bottom: 2px solid #333;">
+                                    <h1 style="margin: 0; font-size: 20px; color: #333;">Program Outcome Contributions Report</h1>
+                                    <h2 style="margin: 5px 0; font-size: 16px; color: #0d6efd;">Program Outcome: ${{selectedPOCode}}</h2>
+                                    <p style="margin: 5px 0; font-size: 12px; color: #666; font-style: italic;">${{selectedPODescription}}</p>
+                                    <p style="margin: 0; font-size: 10px; color: #999;">Generated on: ${{new Date().toLocaleString('tr-TR')}}</p>
+                                </div>
+                            `;
+                            document.body.insertBefore(title, document.body.firstChild);
+                            
+                            // Remove empty elements
+                            const emptyElements = document.querySelectorAll('div:empty, p:empty, span:empty');
+                            emptyElements.forEach(el => {{
+                                if (!el.hasChildNodes()) el.remove();
+                            }});
+                            
+                            // Force layout recalculation
+                            document.body.offsetHeight;
+                        }}
+                    """)
+                    
+                    # Generate PDF with optimized settings
+                    is_landscape = orientation.lower() == 'landscape'
+                    
+                    # Adjust margins based on page size and orientation
+                    if page_size.upper() == 'A3':
+                        margins = {
+                            'top': '0.5cm',
+                            'right': '0.5cm', 
+                            'bottom': '0.5cm',
+                            'left': '0.5cm'
+                        }
+                    else:  # A4
+                        margins = {
+                            'top': '0.8cm',
+                            'right': '0.6cm',
+                            'bottom': '0.8cm', 
+                            'left': '0.6cm'
+                        }
+                    
+                    pdf_bytes = await page.pdf(
+                        format=page_size.upper(),
+                        landscape=is_landscape,
+                        print_background=True,
+                        margin=margins,
+                        prefer_css_page_size=False,
+                        display_header_footer=False
+                    )
+                    
+                    await browser.close()
+                    return pdf_bytes
+                    
+            except Exception as e:
+                logging.error(f"Error in PDF generation async function for {program_outcome_code}: {e}")
+                return None
+        
+        # Create new event loop for this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(generate_pdf_async())
+            return result
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logging.error(f"Error generating PDF for program outcome {program_outcome_code}: {e}")
+        return None
