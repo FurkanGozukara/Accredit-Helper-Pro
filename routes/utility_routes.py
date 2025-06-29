@@ -3110,3 +3110,290 @@ def export_unassigned_outcomes():
         logging.error(f"Error exporting unassigned outcomes: {str(e)}\n{traceback.format_exc()}")
         flash(f'An error occurred while exporting data: {str(e)}', 'error')
         return redirect(url_for('utility.unassigned_outcomes'))
+
+@utility_bp.route('/student_ranking')
+def student_ranking():
+    """Display students ranked by number of courses + average score"""
+    return render_template('utility/student_ranking.html', active_page='utilities')
+
+@utility_bp.route('/student_ranking/data')
+def student_ranking_data():
+    """Get student ranking data efficiently"""
+    try:
+        # Get filter parameters
+        min_exams = request.args.get('min_exams', type=int, default=0)
+        # Get all students with their course information in one query
+        students_query = db.session.query(
+            Student.id,
+            Student.student_id,
+            Student.first_name,
+            Student.last_name,
+            Student.course_id,
+            Course.code.label('course_code'),
+            Course.name.label('course_name')
+        ).join(Course).filter(
+            Student.excluded == False
+        ).all()
+        
+        if not students_query:
+            return jsonify({'students': [], 'total': 0})
+        
+        # Group students by student_id (same student can be in multiple courses)
+        student_data = {}
+        for row in students_query:
+            student_key = row.student_id
+            if student_key not in student_data:
+                student_data[student_key] = {
+                    'student_id': row.student_id,
+                    'name': f"{row.first_name} {row.last_name}".strip(),
+                    'courses': [],
+                    'total_score': 0,
+                    'total_exams': 0,
+                    'course_count': 0
+                }
+            
+            student_data[student_key]['courses'].append({
+                'course_id': row.course_id,
+                'course_code': row.course_code,
+                'course_name': row.course_name,
+                'student_db_id': row.id  # The internal database ID for this student-course relationship
+            })
+            student_data[student_key]['course_count'] += 1
+        
+        # Get all student internal IDs for score queries
+        all_student_db_ids = []
+        student_id_to_db_ids = {}  # Maps student_id to list of internal db IDs
+        for student_key, data in student_data.items():
+            db_ids = []
+            for course in data['courses']:
+                all_student_db_ids.append(course['student_db_id'])
+                db_ids.append(course['student_db_id'])
+            student_id_to_db_ids[student_key] = db_ids
+        
+        if not all_student_db_ids:
+            return jsonify({'students': [], 'total': 0})
+        
+        # Get all scores for these students efficiently
+        scores_query = db.session.query(
+            Score.student_id,
+            Score.exam_id,
+            Score.score,
+            Question.max_score,
+            Exam.course_id
+        ).select_from(Score).join(
+            Question, Score.question_id == Question.id
+        ).join(
+            Exam, Question.exam_id == Exam.id
+        ).filter(
+            Score.student_id.in_(all_student_db_ids)
+        ).all()
+        
+        # Group scores by student and exam
+        student_exam_scores = {}  # {student_db_id: {exam_id: {'total_score': X, 'max_score': Y}}}
+        for score_row in scores_query:
+            student_db_id = score_row.student_id
+            exam_id = score_row.exam_id
+            
+            if student_db_id not in student_exam_scores:
+                student_exam_scores[student_db_id] = {}
+            
+            if exam_id not in student_exam_scores[student_db_id]:
+                student_exam_scores[student_db_id][exam_id] = {
+                    'total_score': 0,
+                    'max_score': 0
+                }
+            
+            student_exam_scores[student_db_id][exam_id]['total_score'] += float(score_row.score)
+            student_exam_scores[student_db_id][exam_id]['max_score'] += float(score_row.max_score)
+        
+        # Calculate average scores for each student
+        final_rankings = []
+        for student_key, data in student_data.items():
+            total_percentage = 0
+            exam_count = 0
+            
+            # Get scores for all this student's database IDs (across all courses)
+            for db_id in student_id_to_db_ids[student_key]:
+                if db_id in student_exam_scores:
+                    for exam_id, exam_data in student_exam_scores[db_id].items():
+                        if exam_data['max_score'] > 0:
+                            exam_percentage = (exam_data['total_score'] / exam_data['max_score']) * 100
+                            total_percentage += exam_percentage
+                            exam_count += 1
+            
+            # Calculate average score
+            average_score = total_percentage / exam_count if exam_count > 0 else 0
+            
+            # Apply minimum exams filter
+            if exam_count < min_exams:
+                continue  # Skip this student if they haven't taken enough exams
+            
+            # Calculate ranking value (courses + average score)
+            ranking_value = data['course_count'] + average_score
+            
+            final_rankings.append({
+                'student_id': data['student_id'],
+                'name': data['name'],
+                'course_count': data['course_count'],
+                'average_score': round(average_score, 2),
+                'exam_count': exam_count,
+                'ranking_value': round(ranking_value, 2)
+            })
+        
+        # Sort by ranking value (descending)
+        final_rankings.sort(key=lambda x: x['ranking_value'], reverse=True)
+        
+        # Add rank numbers
+        for i, student in enumerate(final_rankings):
+            student['rank'] = i + 1
+        
+        return jsonify({
+            'students': final_rankings,
+            'total': len(final_rankings)
+        })
+        
+    except Exception as e:
+        logging.error(f"Error in student ranking data: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@utility_bp.route('/student_ranking/export')
+def export_student_ranking():
+    """Export student ranking data to CSV"""
+    try:
+        # Get filter parameters
+        min_exams = request.args.get('min_exams', type=int, default=0)
+        
+        # Get the same data as the ranking page
+        from flask import request as flask_request
+        
+        # Get data from the data endpoint logic (reuse the same calculation)
+        # We'll call the same logic but format it for export
+        
+        # Get all students with their course information in one query
+        students_query = db.session.query(
+            Student.id,
+            Student.student_id,
+            Student.first_name,
+            Student.last_name,
+            Student.course_id,
+            Course.code.label('course_code'),
+            Course.name.label('course_name')
+        ).join(Course).filter(
+            Student.excluded == False
+        ).all()
+        
+        if not students_query:
+            return export_to_excel_csv([], 'student_ranking_empty', 
+                                     ['Rank', 'Student ID', 'Name', 'Courses Count', 'Average Score'])
+        
+        # Group students by student_id (same student can be in multiple courses)
+        student_data = {}
+        for row in students_query:
+            student_key = row.student_id
+            if student_key not in student_data:
+                student_data[student_key] = {
+                    'student_id': row.student_id,
+                    'name': f"{row.first_name} {row.last_name}".strip(),
+                    'courses': [],
+                    'course_count': 0
+                }
+            
+            student_data[student_key]['courses'].append({
+                'course_id': row.course_id,
+                'student_db_id': row.id
+            })
+            student_data[student_key]['course_count'] += 1
+        
+        # Get all student internal IDs for score queries
+        all_student_db_ids = []
+        student_id_to_db_ids = {}
+        for student_key, data in student_data.items():
+            db_ids = []
+            for course in data['courses']:
+                all_student_db_ids.append(course['student_db_id'])
+                db_ids.append(course['student_db_id'])
+            student_id_to_db_ids[student_key] = db_ids
+        
+        # Get all scores for these students efficiently
+        scores_query = db.session.query(
+            Score.student_id,
+            Score.exam_id,
+            Score.score,
+            Question.max_score
+        ).select_from(Score).join(
+            Question, Score.question_id == Question.id
+        ).join(
+            Exam, Question.exam_id == Exam.id
+        ).filter(
+            Score.student_id.in_(all_student_db_ids)
+        ).all()
+        
+        # Group scores by student and exam
+        student_exam_scores = {}
+        for score_row in scores_query:
+            student_db_id = score_row.student_id
+            exam_id = score_row.exam_id
+            
+            if student_db_id not in student_exam_scores:
+                student_exam_scores[student_db_id] = {}
+            
+            if exam_id not in student_exam_scores[student_db_id]:
+                student_exam_scores[student_db_id][exam_id] = {
+                    'total_score': 0,
+                    'max_score': 0
+                }
+            
+            student_exam_scores[student_db_id][exam_id]['total_score'] += float(score_row.score)
+            student_exam_scores[student_db_id][exam_id]['max_score'] += float(score_row.max_score)
+        
+        # Calculate rankings
+        final_rankings = []
+        for student_key, data in student_data.items():
+            total_percentage = 0
+            exam_count = 0
+            
+            for db_id in student_id_to_db_ids[student_key]:
+                if db_id in student_exam_scores:
+                    for exam_id, exam_data in student_exam_scores[db_id].items():
+                        if exam_data['max_score'] > 0:
+                            exam_percentage = (exam_data['total_score'] / exam_data['max_score']) * 100
+                            total_percentage += exam_percentage
+                            exam_count += 1
+            
+            average_score = total_percentage / exam_count if exam_count > 0 else 0
+            
+            # Apply minimum exams filter
+            if exam_count < min_exams:
+                continue  # Skip this student if they haven't taken enough exams
+            
+            ranking_value = data['course_count'] + average_score
+            
+            final_rankings.append({
+                'student_id': data['student_id'],
+                'name': data['name'],
+                'course_count': data['course_count'],
+                'average_score': round(average_score, 2),
+                'ranking_value': round(ranking_value, 2)
+            })
+        
+        # Sort by ranking value
+        final_rankings.sort(key=lambda x: x['ranking_value'], reverse=True)
+        
+        # Format for CSV export
+        export_data = []
+        for i, student in enumerate(final_rankings):
+            export_data.append([
+                i + 1,  # Rank
+                student['student_id'],
+                student['name'],
+                student['course_count'],
+                student['average_score']
+            ])
+        
+        headers = ['Rank', 'Student ID', 'Name', 'Courses Count', 'Average Score']
+        return export_to_excel_csv(export_data, 'student_ranking', headers)
+        
+    except Exception as e:
+        logging.error(f"Error exporting student ranking: {str(e)}")
+        flash(f'Error exporting data: {str(e)}', 'error')
+        return redirect(url_for('utility.student_ranking'))

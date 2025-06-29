@@ -1,0 +1,481 @@
+{% extends 'base.html' %}
+
+{% block title %}Student Ranking - Accredit Calculator{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('utility.index') }}">Utilities</a></li>
+<li class="breadcrumb-item active">Student Ranking</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0" style="color: black !important;">
+                        <i class="fas fa-trophy text-warning"></i> Student Ranking
+                    </h4>
+                    <div class="btn-group">
+                        <button id="refreshBtn" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                        <a href="{{ url_for('utility.export_student_ranking') }}" id="exportLink" class="btn btn-outline-success btn-sm">
+                            <i class="fas fa-download"></i> Export to CSV
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p class="text-muted mb-0">
+                                <i class="fas fa-info-circle"></i> 
+                                Students are ranked by <strong>Number of Courses + Average Score</strong>
+                            </p>
+                            <small class="text-muted">
+                                Average score is calculated across all exams the student has taken. Use the "Min exams" filter to only show students who have taken at least that many exams.
+                            </small>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="row">
+                                <div class="col-sm-4">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-search"></i>
+                                        </span>
+                                        <input type="text" class="form-control" id="searchInput" placeholder="Search students...">
+                                    </div>
+                                </div>
+                                <div class="col-sm-4">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-filter"></i>
+                                        </span>
+                                        <input type="number" class="form-control" id="minExamsInput" placeholder="Min exams" min="0" value="0" title="Minimum number of exams a student must have taken to be included in rankings">
+                                    </div>
+                                </div>
+                                <div class="col-sm-4">
+                                    <select class="form-select form-select-sm" id="sortSelect">
+                                        <option value="rank">Sort by Rank</option>
+                                        <option value="name">Sort by Name</option>
+                                        <option value="student_id">Sort by Student ID</option>
+                                        <option value="course_count">Sort by Course Count</option>
+                                        <option value="average_score">Sort by Average Score</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Loading indicator -->
+                    <div id="loadingIndicator" class="text-center my-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading student rankings...</p>
+                    </div>
+
+                    <!-- Error message -->
+                    <div id="errorMessage" class="alert alert-danger d-none" role="alert">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span id="errorText"></span>
+                    </div>
+
+                    <!-- Statistics -->
+                    <div id="statisticsRow" class="row mb-3 d-none">
+                        <div class="col-md-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title mb-1" id="totalStudents">0</h5>
+                                    <p class="card-text small mb-0">Total Students</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-success text-white">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title mb-1" id="avgCourses">0</h5>
+                                    <p class="card-text small mb-0">Avg Courses per Student</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title mb-1" id="avgScore">0%</h5>
+                                    <p class="card-text small mb-0">Overall Average Score</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title mb-1" id="topScore">0%</h5>
+                                    <p class="card-text small mb-0">Highest Average Score</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Results table -->
+                    <div id="resultsContainer" class="d-none">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark" style="color: black !important;">
+                                    <tr>
+                                        <th class="text-center" style="width: 80px; color: black !important;">
+                                            <i class="fas fa-trophy"></i> Rank
+                                        </th>
+                                        <th style="width: 120px; color: black !important;">
+                                            <i class="fas fa-id-card"></i> Student ID
+                                        </th>
+                                        <th style="color: black !important;">
+                                            <i class="fas fa-user"></i> Name
+                                        </th>
+                                        <th class="text-center" style="width: 100px; color: black !important;">
+                                            <i class="fas fa-book"></i> Courses
+                                        </th>
+                                        <th class="text-center" style="width: 120px; color: black !important;">
+                                            <i class="fas fa-chart-line"></i> Avg Score
+                                        </th>
+                                        <th class="text-center" style="width: 120px; color: black !important;">
+                                            <i class="fas fa-calculator"></i> Total Score
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="studentsTableBody">
+                                    <!-- Students will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Pagination -->
+                        <nav aria-label="Student ranking pagination" class="mt-3">
+                            <ul class="pagination pagination-sm justify-content-center" id="pagination">
+                                <!-- Pagination will be populated here -->
+                            </ul>
+                        </nav>
+                    </div>
+
+                    <!-- No results message -->
+                    <div id="noResultsMessage" class="text-center my-5 d-none">
+                        <div class="text-muted">
+                            <i class="fas fa-search fa-3x mb-3"></i>
+                            <h5>No students found</h5>
+                            <p>Try adjusting your search criteria or refresh the data.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.trophy-icon {
+    color: #ffd700;
+}
+
+.rank-1 {
+    background-color: #fff3cd !important;
+    color: #856404;
+    font-weight: bold;
+}
+
+.rank-2 {
+    background-color: #e2e3e5 !important;
+    color: #41464b;
+    font-weight: bold;
+}
+
+.rank-3 {
+    background-color: #f8d7da !important;
+    color: #721c24;
+    font-weight: bold;
+}
+
+.score-excellent {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.score-good {
+    color: #17a2b8;
+    font-weight: bold;
+}
+
+.score-average {
+    color: #ffc107;
+    font-weight: bold;
+}
+
+.score-poor {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+</style>
+
+<script>
+let studentsData = [];
+let filteredData = [];
+let currentPage = 1;
+const itemsPerPage = 25;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadStudentRankings();
+    
+    // Search functionality
+    document.getElementById('searchInput').addEventListener('input', function() {
+        filterAndDisplayData();
+    });
+    
+    // Sort functionality
+    document.getElementById('sortSelect').addEventListener('change', function() {
+        filterAndDisplayData();
+    });
+    
+    // Min exams filter functionality
+    document.getElementById('minExamsInput').addEventListener('input', function() {
+        loadStudentRankings();
+    });
+    
+    // Refresh button
+    document.getElementById('refreshBtn').addEventListener('click', function() {
+        loadStudentRankings();
+    });
+});
+
+function loadStudentRankings() {
+    showLoading();
+    
+    const minExams = document.getElementById('minExamsInput').value || 0;
+    const url = `/utility/student_ranking/data?min_exams=${minExams}`;
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showError(data.error);
+                return;
+            }
+            
+            studentsData = data.students || [];
+            updateStatistics();
+            filterAndDisplayData();
+            hideLoading();
+            updateExportLink();
+            
+        })
+        .catch(error => {
+            console.error('Error loading student rankings:', error);
+            showError('Failed to load student rankings. Please try again.');
+        });
+}
+
+function filterAndDisplayData() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const sortBy = document.getElementById('sortSelect').value;
+    
+    // Filter data
+    filteredData = studentsData.filter(student => 
+        student.student_id.toLowerCase().includes(searchTerm) ||
+        student.name.toLowerCase().includes(searchTerm)
+    );
+    
+    // Sort data
+    filteredData.sort((a, b) => {
+        switch(sortBy) {
+            case 'name':
+                return a.name.localeCompare(b.name);
+            case 'student_id':
+                return a.student_id.localeCompare(b.student_id);
+            case 'course_count':
+                return b.course_count - a.course_count;
+            case 'average_score':
+                return b.average_score - a.average_score;
+            default: // rank
+                return a.rank - b.rank;
+        }
+    });
+    
+    currentPage = 1;
+    displayStudents();
+    createPagination();
+}
+
+function displayStudents() {
+    const tbody = document.getElementById('studentsTableBody');
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const pageData = filteredData.slice(startIndex, endIndex);
+    
+    if (pageData.length === 0) {
+        showNoResults();
+        return;
+    }
+    
+    hideNoResults();
+    showResults();
+    
+    tbody.innerHTML = pageData.map(student => {
+        const rankClass = student.rank <= 3 ? `rank-${student.rank}` : '';
+        const trophyIcon = student.rank <= 3 ? '<i class="fas fa-trophy trophy-icon"></i> ' : '';
+        
+        let scoreClass = 'score-poor';
+        if (student.average_score >= 85) scoreClass = 'score-excellent';
+        else if (student.average_score >= 70) scoreClass = 'score-good';
+        else if (student.average_score >= 50) scoreClass = 'score-average';
+        
+        return `
+            <tr class="${rankClass}">
+                <td class="text-center">
+                    ${trophyIcon}${student.rank}
+                </td>
+                <td>
+                    <code>${student.student_id}</code>
+                </td>
+                <td>
+                    <strong>${student.name}</strong>
+                </td>
+                <td class="text-center">
+                    <span class="badge bg-primary">${student.course_count}</span>
+                </td>
+                <td class="text-center">
+                    <span class="${scoreClass}">${student.average_score}%</span>
+                    <br><small class="text-muted">${student.exam_count} exams</small>
+                </td>
+                <td class="text-center">
+                    <strong>${student.ranking_value}</strong>
+                    <br><small class="text-muted">courses + avg</small>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function createPagination() {
+    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+    const pagination = document.getElementById('pagination');
+    
+    if (totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let paginationHTML = '';
+    
+    // Previous button
+    paginationHTML += `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">Previous</a>
+        </li>
+    `;
+    
+    // Page numbers
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(totalPages, currentPage + 2);
+    
+    if (startPage > 1) {
+        paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="changePage(1)">1</a></li>`;
+        if (startPage > 2) {
+            paginationHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        paginationHTML += `
+            <li class="page-item ${i === currentPage ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+            </li>
+        `;
+    }
+    
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            paginationHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+        paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="changePage(${totalPages})">${totalPages}</a></li>`;
+    }
+    
+    // Next button
+    paginationHTML += `
+        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">Next</a>
+        </li>
+    `;
+    
+    pagination.innerHTML = paginationHTML;
+}
+
+function changePage(page) {
+    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+    if (page < 1 || page > totalPages) return;
+    
+    currentPage = page;
+    displayStudents();
+    createPagination();
+}
+
+function updateStatistics() {
+    if (studentsData.length === 0) return;
+    
+    const totalStudents = studentsData.length;
+    const totalCourses = studentsData.reduce((sum, student) => sum + student.course_count, 0);
+    const totalScore = studentsData.reduce((sum, student) => sum + student.average_score, 0);
+    const topScore = Math.max(...studentsData.map(student => student.average_score));
+    
+    document.getElementById('totalStudents').textContent = totalStudents;
+    document.getElementById('avgCourses').textContent = (totalCourses / totalStudents).toFixed(1);
+    document.getElementById('avgScore').textContent = (totalScore / totalStudents).toFixed(1) + '%';
+    document.getElementById('topScore').textContent = topScore.toFixed(1) + '%';
+    
+    document.getElementById('statisticsRow').classList.remove('d-none');
+}
+
+function showLoading() {
+    document.getElementById('loadingIndicator').classList.remove('d-none');
+    document.getElementById('errorMessage').classList.add('d-none');
+    document.getElementById('resultsContainer').classList.add('d-none');
+    document.getElementById('noResultsMessage').classList.add('d-none');
+    document.getElementById('statisticsRow').classList.add('d-none');
+}
+
+function hideLoading() {
+    document.getElementById('loadingIndicator').classList.add('d-none');
+}
+
+function showError(message) {
+    hideLoading();
+    document.getElementById('errorText').textContent = message;
+    document.getElementById('errorMessage').classList.remove('d-none');
+    document.getElementById('resultsContainer').classList.add('d-none');
+    document.getElementById('noResultsMessage').classList.add('d-none');
+}
+
+function showResults() {
+    document.getElementById('resultsContainer').classList.remove('d-none');
+    document.getElementById('noResultsMessage').classList.add('d-none');
+}
+
+function showNoResults() {
+    document.getElementById('resultsContainer').classList.add('d-none');
+    document.getElementById('noResultsMessage').classList.remove('d-none');
+}
+
+function hideNoResults() {
+    document.getElementById('noResultsMessage').classList.add('d-none');
+}
+
+function updateExportLink() {
+    const minExams = document.getElementById('minExamsInput').value || 0;
+    const exportLink = document.getElementById('exportLink');
+    const baseUrl = '{{ url_for("utility.export_student_ranking") }}';
+    exportLink.href = `${baseUrl}?min_exams=${minExams}`;
+}
+</script>
+{% endblock %} 
